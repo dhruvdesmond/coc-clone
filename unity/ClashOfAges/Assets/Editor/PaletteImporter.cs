@@ -25,6 +25,32 @@ public class PaletteImporter : AssetPostprocessor
     const string PalettePath = "Assets/Resources/palette.json";
     const string MaterialDir     = "Assets/Materials/Generated";
     const string ModelRoot       = "Assets/Models/";
+    const string WorldRoot       = "Assets/World/";
+
+    static bool InScope(string p) =>
+        p.StartsWith(ModelRoot, StringComparison.Ordinal) || p.StartsWith(WorldRoot, StringComparison.Ordinal);
+
+    /// <summary>Blender dedups datablock names as "Leaf.001"; the palette key is "Leaf".</summary>
+    static string Stem(string n)
+    {
+        int d = n.LastIndexOf('.');
+        if (d > 0 && n.Length - d == 4 && char.IsDigit(n[d + 1]) && char.IsDigit(n[d + 2]) && char.IsDigit(n[d + 3]))
+            return n.Substring(0, d);
+        return n;
+    }
+
+    /// <summary>The 4K baked terrain albedo: Vale's .meta silently halved it to 2048.</summary>
+    void OnPreprocessTexture()
+    {
+        if (!assetPath.StartsWith(WorldRoot, StringComparison.Ordinal)) return;
+        var ti = (TextureImporter)assetImporter;
+        ti.maxTextureSize = 4096;
+        ti.sRGBTexture = true;
+        ti.mipmapEnabled = true;
+        ti.anisoLevel = 8;
+        ti.wrapMode = TextureWrapMode.Clamp;
+        ti.textureCompression = TextureImporterCompression.CompressedHQ;
+    }
 
     // ------------------------------------------------------------------ palette
     [Serializable] class Entry { public float[] albedo; public float rough; public float metal;
@@ -72,7 +98,7 @@ public class PaletteImporter : AssetPostprocessor
     // --------------------------------------------------------------- model import
     void OnPreprocessModel()
     {
-        if (!assetPath.StartsWith(ModelRoot, StringComparison.Ordinal)) return;
+        if (!InScope(assetPath)) return;
         var mi = (ModelImporter)assetImporter;
 
         // Blender writes FBX in centimetres. export_assets.py bakes scale with
@@ -88,15 +114,19 @@ public class PaletteImporter : AssetPostprocessor
         mi.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
         mi.materialLocation   = ModelImporterMaterialLocation.External;
         mi.meshOptimizationFlags = MeshOptimizationFlags.Everything;
-        mi.isReadable         = false;
+        // World meshes are drawn with Graphics.RenderMeshInstanced and the terrain feeds
+        // a MeshCollider + NavMesh bake; both want CPU-readable data.
+        mi.isReadable         = assetPath.StartsWith(WorldRoot, StringComparison.Ordinal);
     }
 
     /// <summary>Hand every FBX material slot a palette material instead of a grey default.</summary>
     Material OnAssignMaterialModel(Material material, Renderer renderer)
     {
-        if (!assetPath.StartsWith(ModelRoot, StringComparison.Ordinal)) return null;
+        if (!InScope(assetPath)) return null;
 
-        var name = material.name;
+        var name = Stem(material.name);
+        // The terrain's own material is replaced by the baked albedo in DemoSceneBuilder.
+        if (name == "VillageGround") return null;
         var path = $"{MaterialDir}/{name}.mat";
         Directory.CreateDirectory(MaterialDir);
         var shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -110,6 +140,46 @@ public class PaletteImporter : AssetPostprocessor
         if (isNew) mat = new Material(shader) { name = name };
         else if (mat.shader != shader) mat.shader = shader;
 
+        bool mapped = ApplyEntry(mat, name);
+        if (!mapped)
+            Debug.LogError($"[palette] UNMAPPED MATERIAL '{name}' in {assetPath}. " +
+                "It is magenta on purpose. Either lib/materials.py does not define it, " +
+                "or export_palette.py was not re-run.");
+
+        mat.enableInstancing = true;   // everything may be drawn instanced
+        if (isNew) AssetDatabase.CreateAsset(mat, path);
+        else EditorUtility.SetDirty(mat);
+        return mat;
+    }
+
+    /// <summary>
+    /// Rewrite every generated material from palette.json. Needed because Unity resolves an
+    /// EXISTING external material by name without ever calling OnAssignMaterialModel -- so a
+    /// material created magenta before its palette entry existed stays magenta through any
+    /// number of reimports. Grass did exactly that.
+    /// </summary>
+    public static int SyncMaterials()
+    {
+        _palette = null;                                   // re-read the file
+        int fixedUp = 0;
+        if (!AssetDatabase.IsValidFolder(MaterialDir)) return 0;
+        foreach (var guid in AssetDatabase.FindAssets("t:Material", new[] { MaterialDir }))
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
+            if (mat == null) continue;
+            if (!ApplyEntry(mat, mat.name)) Debug.LogError("[palette] no palette entry for generated material " + mat.name);
+            mat.enableInstancing = true;
+            EditorUtility.SetDirty(mat);
+            fixedUp++;
+        }
+        AssetDatabase.SaveAssets();
+        Debug.Log("[palette] synced " + fixedUp + " generated materials from palette.json");
+        return fixedUp;
+    }
+
+    /// <summary>Palette entry -> URP/Lit properties. Returns false (and paints magenta) when unmapped.</summary>
+    static bool ApplyEntry(Material mat, string name)
+    {
         if (Palette.TryGetValue(name, out var e))
         {
             // Raw linear Cycles colour -> display-referred, approximating AgX.
@@ -123,24 +193,23 @@ public class PaletteImporter : AssetPostprocessor
             mat.SetColor("_BaseColor", c);
             mat.SetFloat("_Smoothness", Mathf.Clamp01(1f - e.rough));   // URP uses smoothness
             mat.SetFloat("_Metallic",   Mathf.Clamp01(e.metal));
+
+            // Blades and petals are single planes: one-sided, half of them face away from the
+            // sun and the camera and read as dark twigs. Draw foliage two-sided.
+            bool foliage = name == "Grass" || name.StartsWith("Flower") || name.StartsWith("Leaf");
+            mat.SetFloat("_Cull", foliage ? 0f : 2f);
+            mat.doubleSidedGI = foliage;
+            if (name == "Grass")    // the ramp midpoint probes as dry olive; the meadow is greener
+                mat.SetColor("_BaseColor", Color.Lerp(c, new Color(0.30f, 0.44f, 0.16f), 0.55f));
             if (e.emissive > 0f)
             {
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", c * e.emissive);
             }
+            return true;
         }
-        else
-        {
-            // LOUD failure. Never a silent grey.
-            mat.SetColor("_BaseColor", Color.magenta);
-            Debug.LogError($"[palette] UNMAPPED MATERIAL '{name}' in {assetPath}. " +
-                "It is magenta on purpose. Either lib/materials.py does not define it, " +
-                "or export_palette.py was not re-run.");
-        }
-
-        if (isNew) AssetDatabase.CreateAsset(mat, path);
-        else EditorUtility.SetDirty(mat);
-        return mat;
+        mat.SetColor("_BaseColor", Color.magenta);          // LOUD failure. Never a silent grey.
+        return false;
     }
 
     /// <summary>Assert the imported size matches what Blender measured, in metres.</summary>

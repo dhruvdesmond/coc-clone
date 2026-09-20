@@ -111,8 +111,15 @@ def main():
     out = args[args.index("--out") + 1] if "--out" in args else "/Users/dhruv/blender/export"
     pathlib.Path(out).mkdir(parents=True, exist_ok=True)
 
+    def _extras(force=False):
+        """Materials defined outside the four kits. The map's grass lives in lib/vegetation.py;
+        it arrived UNMAPPED (magenta) in Unity until it was listed here."""
+        import vegetation
+        from nodeutils import new_mat, principled, maprange
+        return {"grass": vegetation.grass_material(new_mat, principled, maprange)}
+
     kits = {"norse": M.kit, "modern": M.modern_kit,
-            "terrain": M.terrain_kit, "troop": M.troop_kit}
+            "terrain": M.terrain_kit, "troop": M.troop_kit, "extras": _extras}
 
     entries, by_kit, failed = {}, {}, []
     for kit_name, fn in kits.items():
