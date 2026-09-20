@@ -152,8 +152,8 @@ tools/u.sh gui SliceZero.Verify
 # 4. quality settings for discrete GPUs
 $UE -projectPath $P -executeMethod ConfigureQuality.Apply -logFile /tmp/q.log -quit
 
-# 5. build
-$UE -projectPath $P -executeMethod Builder.PerformMacBuild -logFile /tmp/b.log -quit
+# 5. build (Mono backend: no Xcode licence needed) -> unity/ClashOfAges/Build/StandaloneOSX/ClashOfAges.app
+tools/u.sh batch Builder.PerformMacBuild
 ```
 
 **Targets: discrete GPUs only.** NVIDIA RTX 3060 floor, Apple silicon MacBook Pro (the dev machine is

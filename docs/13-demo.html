@@ -33,7 +33,12 @@
 </header>
 
 <h2>How to play it</h2>
-<pre><code>open -a /Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app --args -projectPath ~/clash-of-clans/unity/ClashOfAges
+<pre><code># the standalone build (Mono backend - needs no Xcode licence). 161 MB, verified to launch and run clean.
+tools/u.sh batch Builder.PerformMacBuild
+open unity/ClashOfAges/Build/StandaloneOSX/ClashOfAges.app
+
+# or in the Editor:
+open -a /Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app --args -projectPath ~/clash-of-clans/unity/ClashOfAges
 # then: menu  Clash of Ages → Demo - Build scene,  open Assets/Scenes/Demo.unity,  press Play</code></pre>
 <table>
   <tr><th>Input</th><th>Does</th></tr>
