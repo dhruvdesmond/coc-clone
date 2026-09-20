@@ -61,6 +61,8 @@ def main():
     pre_tris = _tris(meshes)          # BEFORE modifiers -- not what gets exported
     src_mats = sorted({s.name for o in meshes for s in o.material_slots if s.name})
     nmods = sum(len(o.modifiers) for o in meshes)
+    TOPO_MODS = sum(1 for o in meshes for md in o.modifiers
+                    if md.type in {"BEVEL", "SUBSURF", "SOLIDIFY", "ARRAY", "MIRROR", "DECIMATE", "REMESH"})
     print(f"[asset] {name}: {src_objects} objects, {pre_tris} tris pre-modifier, "
           f"{nmods} modifiers, {len(src_mats)} materials")
 
@@ -106,7 +108,8 @@ def main():
     bpy.context.view_layer.objects.active = selected[0]
     bpy.ops.object.convert(target="MESH")
     src_tris = _tris(meshes)
-    if nmods and src_tris == pre_tris:
+    # Only topology-changing modifiers must move the count; a Displace legitimately does not.
+    if TOPO_MODS and src_tris == pre_tris:
         print(f"[asset] ! {nmods} modifiers present but the triangle count did not "
               "change -- they were probably not evaluated. Refusing to write a "
               "sidecar that will not match the FBX.")
