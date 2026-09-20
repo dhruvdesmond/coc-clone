@@ -91,6 +91,16 @@ namespace COA.Sim
             return null;
         }
 
+        /// <summary>Overlap only -- for world setup, where there is no border yet.</summary>
+        public string SiteProblemIgnoringBorder(Vec2 pos, float radius)
+        {
+            foreach (var b in buildings)
+                if (!b.destroyed && Vec2.Dist(b.pos, pos) < b.def.radius + radius + 0.6f) return "Too close to " + b.def.name;
+            foreach (var n in nodes)
+                if (!n.Depleted && n.kind != NodeKind.Tree && Vec2.Dist(n.pos, pos) < Catalog.NodeRadius(n.kind) + radius) return "Blocked by a resource";
+            return null;
+        }
+
         public Building CmdPlace(int owner, BuildingType type, Vec2 pos, float rot, IList<int> builders, out string problem)
         {
             var d = Catalog.Buildings[type];
@@ -103,7 +113,7 @@ namespace COA.Sim
             foreach (var n in nodes)
                 if (n.kind == NodeKind.Tree && !n.Depleted && Vec2.Dist(n.pos, pos) < d.radius + 0.8f)
                 { players[owner].stock[Res.Wood] += 10; n.amount = 0; DepleteNode(n); }
-            Emit(EventType.BuildingPlaced, b.id, owner, pos);
+            Emit(SimEventType.BuildingPlaced, b.id, owner, pos);
             if (builders != null) CmdBuild(builders, b.id);
             return b;
         }
@@ -136,7 +146,7 @@ namespace COA.Sim
                 if (!p.stock.CanAfford(Catalog.AgeAdvanceCost)) return "Not enough resources";
                 p.stock.Pay(Catalog.AgeAdvanceCost);
                 b.researching = "age"; b.researchingAge = true; b.researchTimer = Catalog.AgeAdvanceTime;
-                Emit(EventType.AgeAdvanceStarted, b.id, b.owner, b.pos);
+                Emit(SimEventType.AgeAdvanceStarted, b.id, b.owner, b.pos);
                 return null;
             }
             var t = Array.Find(Catalog.Techs, x => x.id == techId);
@@ -157,7 +167,7 @@ namespace COA.Sim
             {
                 p.age = 2; p.borderBonus += Catalog.BorderTechBonus; p.gatherWoodFood *= 1.10f;
                 RecomputeTerritory();
-                Emit(EventType.AgeAdvanced, b.id, b.owner, b.pos, 2);
+                Emit(SimEventType.AgeAdvanced, b.id, b.owner, b.pos, 2);
                 return;
             }
             p.techs.Add(id);
@@ -171,7 +181,7 @@ namespace COA.Sim
                     foreach (var u in units) if (u.owner == b.owner && !u.IsCitizen) { u.maxHp *= 1.20f; u.hp *= 1.20f; }
                     break;
             }
-            Emit(EventType.TechComplete, b.id, b.owner, b.pos, 0, Array.Find(Catalog.Techs, x => x.id == id).name);
+            Emit(SimEventType.TechComplete, b.id, b.owner, b.pos, 0, Array.Find(Catalog.Techs, x => x.id == id).name);
         }
     }
 }

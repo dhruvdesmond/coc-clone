@@ -53,7 +53,8 @@ namespace COA.Sim
             [BuildingType.Hall]       = new BuildingDef { type = BuildingType.Hall, name = "Longhouse", model = "hall", hotkey = "",
                 blurb = "Town centre. Trains citizens, takes every resource, anchors your border.",
                 cost = Cost.Of(food: 200, wood: 200, stone: 100), buildTime = 90, hp = 2400, radius = 7.5f, popProvided = 5,
-                dropOff = true, territory = 38f, trains = new[] { UnitType.Citizen } },
+                dropOff = true, territory = 38f, trains = new[] { UnitType.Citizen },
+                towerRange = 12f, towerDps = 5f },     // an RoN city defends itself a little: the first raid is a scare, not a wipe
             [BuildingType.Hut]        = new BuildingDef { type = BuildingType.Hut, name = "Hut", model = "hut_a", hotkey = "H",
                 blurb = "+5 population.", cost = Cost.Of(wood: 40), buildTime = 15, hp = 400, radius = 3.2f, popProvided = 5 },
             [BuildingType.Storehouse] = new BuildingDef { type = BuildingType.Storehouse, name = "Storehouse", model = "stabbur", hotkey = "T",
@@ -61,11 +62,11 @@ namespace COA.Sim
                 cost = Cost.Of(wood: 60), buildTime = 20, hp = 500, radius = 3.8f, dropOff = true },
             [BuildingType.RuneHall]   = new BuildingDef { type = BuildingType.RuneHall, name = "Rune Hall", model = "runehall", hotkey = "R",
                 blurb = "Makes Knowledge - the only way to the next age. Staff it with scholars.",
-                cost = Cost.Of(wood: 120, stone: 40), buildTime = 40, hp = 700, radius = 4.2f,
+                cost = Cost.Of(wood: 120, stone: 40), buildTime = 40, hp = 700, radius = 5.2f,
                 scholarSlots = 2, knowledgeBase = 0.20f, knowledgePerScholar = 0.15f },
             [BuildingType.Muster]     = new BuildingDef { type = BuildingType.Muster, name = "Muster Hall", model = "muster", hotkey = "M",
                 blurb = "Trains swordsmen, spearmen and archers.",
-                cost = Cost.Of(wood: 100, metal: 30), buildTime = 30, hp = 900, radius = 4.6f,
+                cost = Cost.Of(wood: 100, metal: 30), buildTime = 30, hp = 900, radius = 6.2f,
                 trains = new[] { UnitType.Swordsman, UnitType.Spearman, UnitType.Archer } },
             [BuildingType.Tower]      = new BuildingDef { type = BuildingType.Tower, name = "Watchtower", model = "tower_a", hotkey = "W",
                 blurb = "Shoots raiders and pushes your border out by 22 m.",
@@ -73,7 +74,7 @@ namespace COA.Sim
                 territory = 22f, towerRange = 16f, towerDps = 8f },
             [BuildingType.Farm]       = new BuildingDef { type = BuildingType.Farm, name = "Farm", model = "farm", hotkey = "F",
                 blurb = "Slow food that never runs out. Two workers.",
-                cost = Cost.Of(wood: 50), buildTime = 18, hp = 300, radius = 4.0f },
+                cost = Cost.Of(wood: 50), buildTime = 18, hp = 300, radius = 4.3f },
         };
 
         public static readonly TechDef[] Techs =
@@ -93,7 +94,7 @@ namespace COA.Sim
             k == NodeKind.Tree ? Res.Wood : k == NodeKind.Stone ? Res.Stone : k == NodeKind.Iron ? Res.Metal : Res.Food;
 
         public static float NodeRadius(NodeKind k) => k == NodeKind.Tree ? 0.9f : k == NodeKind.Farm ? 2.6f : 2.2f;
-        public static int NodeWorkerCap(NodeKind k) => k == NodeKind.Tree ? 2 : k == NodeKind.Farm ? 2 : 5;
+        public static int NodeWorkerCap(NodeKind k) => k == NodeKind.Tree ? 2 : k == NodeKind.Farm ? 2 : 4;
 
         /// <summary>Light beats ranged, ranged beats heavy, heavy beats light. docs/04. Do not add a fourth corner.</summary>
         public static float CounterBonus(UnitClass attacker, UnitClass target) =>

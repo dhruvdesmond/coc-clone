@@ -14,6 +14,8 @@ case ${1:-all} in
     for h in a b c d e; do asset $B/huts/models/hut_$h.blend hut_$h; done
     for o in stabbur forge well stable; do asset $B/outbuildings/models/$o.blend $o; done
     asset $B/towers/models/tower_a.blend tower_a ;|
+  new|all)
+    for n in runehall muster farm; do asset $R/blender/base/age1_demo/models/$n.blend $n; done ;|
   nodes|all)
     for n in wood stone iron food; do asset $B/starter/models/node_$n.blend node_$n; done ;;
 esac

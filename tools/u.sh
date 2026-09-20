@@ -21,4 +21,8 @@ case $1 in
            $UE -projectPath $P -executeMethod $2 -logFile $LOG -quit >/dev/null 2>&1 &
            pid=$!; ( sleep ${3:-420}; kill -9 $pid 2>/dev/null && echo "WATCHDOG killed Unity" ) &
            wd=$!; wait $pid 2>/dev/null; kill $wd 2>/dev/null; echo "log: $LOG" ;;
+  play)    compile || exit 1
+           $UE -projectPath $P -executeMethod $2 -logFile $LOG >/dev/null 2>&1 &
+           pid=$!; ( sleep ${3:-600}; kill -9 $pid 2>/dev/null && echo "WATCHDOG killed Unity" ) &
+           wd=$!; wait $pid 2>/dev/null; kill $wd 2>/dev/null; echo "log: $LOG" ;;
 esac

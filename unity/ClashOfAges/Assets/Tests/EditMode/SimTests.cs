@@ -36,7 +36,7 @@ public class SimTests
         w.CmdGather(Ids(c), a.id);
         Run(w, 90);
         Assert.IsTrue(a.Depleted);
-        Assert.IsTrue(w.events.Any(e => e.type == EventType.TreeFelled && e.b == 7), "felled event must carry the tree entity");
+        Assert.IsTrue(w.events.Any(e => e.type == SimEventType.TreeFelled && e.b == 7), "felled event must carry the tree entity");
         Assert.AreEqual(b.id, c.nodeId, "citizen should have moved on to the next tree");
     }
 
@@ -89,7 +89,7 @@ public class SimTests
         Assert.IsNull(w.CmdResearch(rh.id, "age"));
         Run(w, 61);
         Assert.AreEqual(2, w.Me.age);
-        Assert.IsTrue(w.events.Any(e => e.type == EventType.AgeAdvanced));
+        Assert.IsTrue(w.events.Any(e => e.type == SimEventType.AgeAdvanced));
     }
 
     [Test] public void TerritoryBelongsToTheNearerHall()
@@ -137,7 +137,7 @@ public class SimTests
         for (int i = 0; i < 3; i++) { w.SpawnUnit(World.Human, UnitType.Spearman, new Vec2(8 + i, 6)); w.SpawnUnit(World.Human, UnitType.Archer, new Vec2(6 + i, 4)); }
         Run(w, 200);
         Assert.IsFalse(hall.destroyed);
-        Assert.IsTrue(w.events.Any(e => e.type == EventType.RaidDefeated));
+        Assert.IsTrue(w.events.Any(e => e.type == SimEventType.RaidDefeated));
     }
 
     /// <summary>The docs/03 walkthrough, played by a bot: 8 citizens and a Rune Hall on the documented timeline.</summary>

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Demo · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+<a href="12-territory.html">12 Territory</a>
+<a class="here" href="13-demo.html">13 Demo</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">13 · Playable</div>
+  <h1>The Age I Demo</h1>
+  <p class="lede">Ten to fifteen minutes. One citizen, a longhouse and a border — to the Feudal Age and
+  the raid it provokes. This page says what is in it, <b>what is scripted, and what is faked</b>, because
+  a demo that hides its seams teaches the next session the wrong things.</p>
+</header>
+
+<h2>How to play it</h2>
+<pre><code>open -a /Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app --args -projectPath ~/clash-of-clans/unity/ClashOfAges
+# then: menu  Clash of Ages → Demo - Build scene,  open Assets/Scenes/Demo.unity,  press Play</code></pre>
+<table>
+  <tr><th>Input</th><th>Does</th></tr>
+  <tr><td>Left-click · drag</td><td>Select · box-select. <b>Selection only — never an order, never pan.</b></td></tr>
+  <tr><td>Double-click a unit</td><td>Select every unit of that type on screen</td></tr>
+  <tr><td>Right-click</td><td>Every contextual order: move · gather (tree, berries, stone, iron, farm) · build · staff a Rune Hall · attack · set rally</td></tr>
+  <tr><td>A + right-click</td><td>Attack-move</td></tr>
+  <tr><td>Right-drag · arrows · screen edge</td><td>Pan. <b>Arrows, not WASD</b> — letters belong to command hotkeys.</td></tr>
+  <tr><td>Scroll</td><td>Zoom toward the cursor (self-calibrating — see below)</td></tr>
+  <tr><td>Q / E</td><td>Rotate 45°</td></tr>
+  <tr><td>. or Tab · H · X · Esc</td><td>Next idle citizen · home · stop · cancel/clear</td></tr>
+  <tr><td>Ctrl+1–5 · 1–5</td><td>Set · recall a control group</td></tr>
+  <tr><td>H T F R M W</td><td>With citizens selected: Hut · sTorehouse · Farm · Rune hall · Muster hall · Watchtower</td></tr>
+  <tr><td>R (while placing) · Shift</td><td>Rotate the ghost · keep placing</td></tr>
+</table>
+
+<h2>What is real</h2>
+<table>
+  <tr><th>System</th><th>State</th></tr>
+  <tr><td>Simulation</td><td><b>Real, headless, tested.</b> <code>Assets/Sim</code> has <code>noEngineReferences</code>; 20 Hz; 10 EditMode tests cover the gather loop, depletion and retargeting, construction, reserved population, scholars and Knowledge, tech gates, territory, attrition, the counter triangle and raid outcomes.</td></tr>
+  <tr><td>Economy</td><td>Real. Numbers are <a href="03-resources.html">doc 03</a>'s, in one <code>Catalog.cs</code> read by sim, UI and placement.</td></tr>
+  <tr><td>Borders</td><td><b>Real — the RoN signature.</b> 1 m ownership grid, radius-weight rule from <a href="12-territory.html">doc 12</a>, recomputed only when a border source changes. Drawn by a custom shader on a 0.5 m drape over the terrain, eased so a border <i>blooms</i>. You can only build inside your own.</td></tr>
+  <tr><td>Attrition / regen</td><td>Real. Raiders lose 1.8 HP/s inside your border; your units heal 1.0 HP/s at home.</td></tr>
+  <tr><td>The land</td><td>Real. The Blender village terrain with its baked 4K albedo, plus 19,727 GPU-instanced objects in 128 draw calls. 310 trees are choppable wood nodes and vanish per-entity when felled.</td></tr>
+  <tr><td>Movement</td><td>Real pathfinding — Unity NavMesh, buildings carve. <b>DL32:</b> the sim says where, the NavMesh agent walks, the sim is told where the unit actually is.</td></tr>
+</table>
+
+<h2>What is scripted</h2>
+<div class="note warn">
+  <span class="lbl">The opponent is not the AI in doc 06</span>
+  <code>RaidDirector</code> sends escalating waves from a camp on a timer, and a final wave one minute after
+  you reach the Feudal Age. It does not gather, build, scout or decide. It exists so the demo is a game and so
+  the border and attrition rules have something to act on. The three-layer utility AI is still unbuilt.
+</div>
+
+<h2>What is faked, and how</h2>
+<table>
+  <tr><th>Thing</th><th>The honest version</th></tr>
+  <tr><td><b>Unit animation</b></td><td><b>There is no skeleton.</b> <code>lib/figure.py</code> builds each figure as ~30 loose rigid boxes; nothing in <code>~/blender</code> has an armature, skinning or an action. <code>export_figure.py</code> joins the parts into ten limbs pivoting on the joint spheres and Unity poses them in code (<code>FigureAnimator</code>). Every part is rigid, so nothing is lost visually at RTS distance — but it is not a rig, it cannot blend, and it would not survive a close-up. See <code>art/unit_sheet.png</code>.</td></tr>
+  <tr><td><b>The Feudal Age</b></td><td>No Age II building models exist, so <b>buildings do not swap</b>. The advance is the banner, the fanfare, the border bloom, real stat changes, and the sun/fog/ambient shifting to the Age II mood (DL16).</td></tr>
+  <tr><td><b>All audio</b></td><td>Synthesised at startup from sines, saws and noise. There are no audio files in the repo. It is tuned — impacts land on the animation's impact frame; deaths obey doc 09's voice limit and 120 ms gap — but it is placeholder.</td></tr>
+  <tr><td><b>Trees falling</b></td><td>A felled tree vanishes in a burst of leaves and leaves a stump. It does not topple.</td></tr>
+  <tr><td><b>Grass colour</b></td><td>Blender tints each tuft from Object Info Random; instanced URP/Lit cannot, so tufts share one colour.</td></tr>
+</table>
+
+<h2>The scroll problem, closed without a constant</h2>
+<p>PROGRESS Q5: the "Windows reports ±120" explanation was refuted, so no normalisation constant could be
+trusted. <code>RTSCamera</code> now assumes nothing: the smallest non-zero |Δ| it has ever seen is one notch, and
+every event is measured in notches. A wheel steps ~12% per notch; a device whose deltas vary in size is
+recognised as trackpad-like and zooms smoothly. <b>Still needs a human hand on a real wheel and a real
+trackpad</b> to judge the feel — it has only been reasoned about, not felt.</p>
+
+<h2>How it is verified</h2>
+<pre><code>tools/test.sh                      # 10 headless sim tests (batchmode is safe: no pixels)
+tools/u.sh play DemoVerify.Full    # a bot plays the whole arc in the Editor and takes 8 screenshots
+tools/u.sh gui  DemoSceneBuilder.CaptureLand</code></pre>
+<p>The autopilot is the visual regression check: if all eight beats render — land, first chop, first hut,
+staffed rune hall, border, Feudal Age, raid, end — the whole pipeline from Blender to HUD is intact.</p>
+<footer>
+<b>Clash of Ages</b> — a Rise of Nations clone. Design document; changes here must be mirrored in the
+Decisions log in <code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-20.
+</footer>
+</div>
+</body>
+</html>

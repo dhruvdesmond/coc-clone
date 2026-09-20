@@ -94,6 +94,44 @@ public static class DemoSceneBuilder
         var tri = NavMesh.CalculateTriangulation();
         Debug.Log($"[demo] navmesh {tri.indices.Length / 3} triangles");
 
+        // ---- game: model library, root, autopilot
+        var lib = new GameObject("ModelLibrary").AddComponent<ModelLibrary>();
+        foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { "Assets/Models" }))
+        {
+            var p = AssetDatabase.GUIDToAssetPath(guid);
+            lib.names.Add(Path.GetFileNameWithoutExtension(p));
+            lib.prefabs.Add(AssetDatabase.LoadAssetAtPath<GameObject>(p));
+        }
+        const string U = "Assets/Materials/UI/";
+        lib.ring      = SceneKit.SavedUnlit(U + "Ring.mat",      new Color(0.35f, 0.95f, 0.45f, 0.95f));
+        lib.ringEnemy = SceneKit.SavedUnlit(U + "RingEnemy.mat", new Color(1.00f, 0.25f, 0.20f, 0.85f));
+        lib.marker    = SceneKit.SavedUnlit(U + "Marker.mat",    new Color(1.00f, 0.85f, 0.30f, 0.95f));
+        lib.ghostOk   = SceneKit.SavedUnlit(U + "GhostOk.mat",   new Color(0.35f, 1.00f, 0.50f, 0.45f));
+        lib.ghostBad  = SceneKit.SavedUnlit(U + "GhostBad.mat",  new Color(1.00f, 0.25f, 0.20f, 0.45f));
+        lib.blood     = SceneKit.SavedUnlit(U + "Blood.mat",     new Color(0.34f, 0.02f, 0.02f, 0.85f));
+        lib.hpBack    = SceneKit.SavedUnlit(U + "HpBack.mat",    new Color(0.05f, 0.05f, 0.05f, 0.80f));
+        lib.hpFill    = SceneKit.SavedUnlit(U + "HpFill.mat",    new Color(0.40f, 0.95f, 0.35f, 1.00f));
+        lib.arrow     = SceneKit.SavedUnlit(U + "Arrow.mat",     new Color(0.85f, 0.80f, 0.65f, 1.00f), false);
+        lib.particle  = SceneKit.SavedUnlit(U + "Particle.mat",  new Color(1f, 1f, 1f, 1f));
+        lib.stump     = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/Generated/Bark.mat");
+
+        var root = new GameObject("GameRoot").AddComponent<GameRoot>();
+        root.instancedWorld = iw; root.models = lib;
+        root.terrainColliders = terrain.GetComponentsInChildren<Collider>();
+        root.mapSize = new Vector2(tb.size.x, tb.size.z);
+        root.gameObject.AddComponent<DemoAutopilot>();
+        root.gameObject.AddComponent<PlayerInput>();
+        root.gameObject.AddComponent<Sfx>();
+        root.gameObject.AddComponent<Fx>();
+        root.gameObject.AddComponent<AgeDirector>();
+        var border = root.gameObject.AddComponent<BorderRenderer>();
+        var bmat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/UI/Border.mat");
+        if (bmat == null) { bmat = new Material(Shader.Find("COA/Border")); AssetDatabase.CreateAsset(bmat, "Assets/Materials/UI/Border.mat"); }
+        bmat.shader = Shader.Find("COA/Border");
+        bmat.SetFloat("_Fill", 0.018f); bmat.SetFloat("_Glow", 0.26f);        // the saved asset keeps old values otherwise
+        border.material = bmat; lib.border = bmat;
+        root.gameObject.AddComponent<COA.UI.Hud>();
+
         Directory.CreateDirectory("Assets/Scenes");
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };

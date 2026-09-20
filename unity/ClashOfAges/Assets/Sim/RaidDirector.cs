@@ -13,7 +13,7 @@ namespace COA.Sim
         readonly World _w;
         public bool enabled = true;
         public Vec2 campPos, targetPos;
-        public float firstRaidAt = 330f, interval = 170f;
+        public float firstRaidAt = 420f, interval = 180f;
         public int raidsSent; public float nextRaidAt; public bool finalSent; public float finalAt = -1f;
         readonly List<int> _live = new List<int>();
 
@@ -29,7 +29,7 @@ namespace COA.Sim
             _live.RemoveAll(id => _w.U(id) == null || !_w.U(id).Alive);
             if (hadLive && _live.Count == 0)
             {
-                _w.events.Add(new SimEvent { type = EventType.RaidDefeated, a = raidsSent });
+                _w.events.Add(new SimEvent { type = SimEventType.RaidDefeated, a = raidsSent });
                 if (finalSent) FinalRaidDefeated = true;
             }
 
@@ -60,7 +60,7 @@ namespace COA.Sim
             Spawn(UnitType.Swordsman, swords); Spawn(UnitType.Spearman, spears); Spawn(UnitType.Archer, archers);
             _w.players[World.Enemy].popCap = 999;
             _w.CmdMove(ids, targetPos, attackMove: true);
-            _w.events.Add(new SimEvent { type = EventType.RaidIncoming, a = raidsSent, b = final ? 1 : 0, pos = campPos, amount = ids.Count });
+            _w.events.Add(new SimEvent { type = SimEventType.RaidIncoming, a = raidsSent, b = final ? 1 : 0, pos = campPos, amount = ids.Count });
         }
     }
 }

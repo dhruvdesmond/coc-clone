@@ -151,6 +151,19 @@ def main():
             c.z = min((p.matrix_world @ Vector(v)).z for v in p.bound_box)
         pivots[l] = c
 
+    # The SEGMENT each limb is named for. Its centre lies on the limb axis, so pivot -> 2x centre
+    # is the distal joint. Exported as an empty "<Limb>_tip": Unity reads the bind DIRECTION from it.
+    # Needed because these figures are NOT authored in a neutral pose -- the archer is already
+    # aiming, the swordsman already has his shield up -- so poses must be absolute, not additive.
+    SEGMENT = {"ArmL": "UpperArml", "ForeL": "Forearml", "ArmR": "UpperArmr", "ForeR": "Forearmr",
+               "LegL": "Thighl", "ShinL": "Shinl", "LegR": "Thighr", "ShinR": "Shinr"}
+    tips = {}
+    for l, seg in SEGMENT.items():
+        so = next((o for o in groups[l] if part[o] == seg), None)
+        if so is None:
+            print(f"[figure] ! limb {l} has no segment part {seg}"); sys.exit(1)
+        tips[l] = pivots[l] + (centre(so) - pivots[l]) * 2.0
+
     limb_obj = {}
     for l in LIMBS:
         bpy.ops.object.select_all(action="DESELECT")
@@ -176,6 +189,15 @@ def main():
         limb_obj[child].matrix_world = w
     bpy.context.view_layer.update()
 
+    tip_objs = []
+    for l, p in tips.items():
+        e = bpy.data.objects.new(f"{l}_tip", None)
+        coll.objects.link(e)
+        e.parent = limb_obj[l]
+        e.matrix_world = Matrix.Translation(p)
+        tip_objs.append(e)
+    bpy.context.view_layer.update()
+
     tris = 0
     for o in limb_obj.values():
         o.data.calc_loop_triangles(); tris += len(o.data.loop_triangles)
@@ -187,7 +209,7 @@ def main():
 
     bpy.ops.object.select_all(action="DESELECT")
     root.select_set(True)
-    for o in limb_obj.values():
+    for o in list(limb_obj.values()) + tip_objs:
         o.select_set(True)
     bpy.context.view_layer.objects.active = root
     fbx = os.path.join(out, f"{name}.fbx")
@@ -196,6 +218,11 @@ def main():
         apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
         object_types={"MESH", "EMPTY"}, use_mesh_modifiers=True, mesh_smooth_type="FACE",
         bake_space_transform=True, bake_anim=False, add_leaf_bones=False, path_mode="STRIP")
+
+    # --save-blend: keep the limb hierarchy WITH its procedural materials, for inspection renders
+    keep = _opt(args, "--save-blend")
+    if keep:
+        bpy.data.libraries.write(keep, {root, *limb_obj.values(), *tip_objs}, fake_user=True)
 
     mats = sorted({s.name for o in limb_obj.values() for s in o.material_slots if s.name})
     meta = {

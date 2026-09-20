@@ -86,7 +86,7 @@ namespace COA.Sim
         public Unit U(int id) => _unitById.TryGetValue(id, out var u) ? u : null;
         public Building B(int id) => _bldById.TryGetValue(id, out var b) ? b : null;
         public Node N(int id) => _nodeById.TryGetValue(id, out var n) ? n : null;
-        void Emit(EventType t, int a = 0, int b = 0, Vec2 pos = default, float amount = 0, string text = null)
+        void Emit(SimEventType t, int a = 0, int b = 0, Vec2 pos = default, float amount = 0, string text = null)
             => events.Add(new SimEvent { type = t, a = a, b = b, pos = pos, amount = amount, text = text });
 
         // ------------------------------------------------------------------ spawning
@@ -98,7 +98,7 @@ namespace COA.Sim
             var u = new Unit { id = _nextId++, owner = owner, type = type, def = d, pos = pos, hp = hp, maxHp = hp };
             units.Add(u); _unitById[u.id] = u;
             p.popUsed += d.pop;
-            Emit(EventType.UnitSpawned, u.id, owner, pos);
+            Emit(SimEventType.UnitSpawned, u.id, owner, pos);
             return u;
         }
 
@@ -128,7 +128,7 @@ namespace COA.Sim
                 var n = SpawnNode(NodeKind.Farm, b.pos, 1e9f); n.farmBuilding = b.id;
             }
             if (b.def.territory > 0f) RecomputeTerritory();
-            if (!silent) Emit(EventType.BuildingComplete, b.id, b.owner, b.pos);
+            if (!silent) Emit(SimEventType.BuildingComplete, b.id, b.owner, b.pos);
         }
 
         public void RecountPop(int owner)
@@ -141,7 +141,7 @@ namespace COA.Sim
         public void RecomputeTerritory()
         {
             territory.Recompute(buildings, players);
-            Emit(EventType.TerritoryChanged);
+            Emit(SimEventType.TerritoryChanged);
         }
 
         // ------------------------------------------------------------------ tick
@@ -178,7 +178,7 @@ namespace COA.Sim
         }
 
         public bool Arrived(Unit u) =>
-            !u.hasMoveTarget || Vec2.Dist(u.pos, u.moveTarget) <= u.stopDistance + (u.blocked ? 1.6f : 0.15f);
+            !u.hasMoveTarget || Vec2.Dist(u.pos, u.moveTarget) <= u.stopDistance + (u.blocked ? 1.6f + u.stopDistance * 0.25f : 0.15f);
 
         void MoveTo(Unit u, Vec2 target, float stop) { u.hasMoveTarget = true; u.moveTarget = target; u.stopDistance = stop; u.blocked = false; }
         void Halt(Unit u) { u.hasMoveTarget = false; }
@@ -215,7 +215,7 @@ namespace COA.Sim
                     float got = Math.Min(rate * Dt, Math.Min(n.amount, Catalog.CarryCapacity - u.carry));
                     u.carry += got; n.amount -= got;
                     u.workTimer += Dt;
-                    if (u.workTimer >= 1.6f) { u.workTimer = 0f; Emit(EventType.WorkImpact, u.id, (int)n.kind, n.pos); }
+                    if (u.workTimer >= 1.6f) { u.workTimer = 0f; Emit(SimEventType.WorkImpact, u.id, (int)n.kind, n.pos); }
                     if (n.Depleted) DepleteNode(n);
                     if (u.carry >= Catalog.CarryCapacity - 0.001f || n.Depleted)
                     {
@@ -233,7 +233,7 @@ namespace COA.Sim
                     {
                         players[u.owner].stock[u.carryRes] += u.carry;
                         players[u.owner].gathered += u.carry;
-                        Emit(EventType.Deposit, u.id, (int)u.carryRes, b.pos, u.carry);
+                        Emit(SimEventType.Deposit, u.id, (int)u.carryRes, b.pos, u.carry);
                         u.carry = 0f;
                         var n = N(u.nodeId);
                         if (n != null && !n.Depleted) { u.state = UnitState.ToNode; MoveTo(u, n.pos, Catalog.NodeRadius(n.kind) + 0.5f); }
@@ -263,7 +263,7 @@ namespace COA.Sim
                     b.progress += Dt * share * players[u.owner].buildMul / b.def.buildTime;
                     b.hp = Math.Min(b.def.hp, b.hp + Dt * share * b.def.hp / b.def.buildTime);
                     u.workTimer += Dt;
-                    if (u.workTimer >= 1.1f) { u.workTimer = 0f; Emit(EventType.WorkImpact, u.id, -1, b.pos); }
+                    if (u.workTimer >= 1.1f) { u.workTimer = 0f; Emit(SimEventType.WorkImpact, u.id, -1, b.pos); }
                     if (b.progress >= 1f) OnComplete(b);
                     break;
                 }
@@ -293,7 +293,16 @@ namespace COA.Sim
 
         void DepleteNode(Node n)
         {
-            Emit(n.kind == NodeKind.Tree ? EventType.TreeFelled : EventType.NodeDepleted, n.id, n.treeEntity, n.pos);
+            Emit(n.kind == NodeKind.Tree ? SimEventType.TreeFelled : SimEventType.NodeDepleted, n.id, n.treeEntity, n.pos);
+        }
+
+        /// <summary>Workers AT the node plus those already walking to it. Counting only the first let nine
+        /// citizens all head for one "free" berry bush, find it full on arrival, and thrash between bushes forever.</summary>
+        public int Claimed(Node n, Unit except = null)
+        {
+            int c = n.workers;
+            foreach (var o in units) if (o != except && o.state == UnitState.ToNode && o.nodeId == n.id) c++;
+            return c;
         }
 
         void AfterNodeGone(Unit u) { if (u.carry > 0.5f) GoDropOff(u); else Retarget(u); }
@@ -306,7 +315,7 @@ namespace COA.Sim
             foreach (var n in nodes)
             {
                 if (n.Depleted || n == full || n.kind != want) continue;
-                if (n.workers >= Catalog.NodeWorkerCap(n.kind)) continue;
+                if (Claimed(n, u) >= Catalog.NodeWorkerCap(n.kind)) continue;
                 float d = Vec2.Dist(n.pos, u.pos);
                 if (d < bd) { bd = d; best = n; }
             }
@@ -337,6 +346,16 @@ namespace COA.Sim
         void OrderGather(Unit u, Node n)
         {
             ReleaseWork(u);
+            // ordered onto a node that is already spoken for: take the nearest free one of the same kind instead,
+            // so a group right-clicked onto one bush spreads itself over the thicket
+            if (Claimed(n, u) >= Catalog.NodeWorkerCap(n.kind))
+            {
+                Node alt = null; float bd = 30f;
+                foreach (var o in nodes)
+                    if (o != n && !o.Depleted && o.kind == n.kind && Claimed(o, u) < Catalog.NodeWorkerCap(o.kind) && Vec2.Dist(o.pos, n.pos) < bd)
+                    { bd = Vec2.Dist(o.pos, n.pos); alt = o; }
+                if (alt != null) n = alt;
+            }
             u.nodeId = n.id; u.lastKind = n.kind; u.state = UnitState.ToNode; u.targetUnit = u.targetBuilding = -1; u.attackMove = false;
             MoveTo(u, n.pos, Catalog.NodeRadius(n.kind) + 0.5f);
         }
@@ -393,7 +412,7 @@ namespace COA.Sim
                     if (best != null)
                     {
                         b.towerCooldown = 1.5f;
-                        Emit(EventType.Attack, -b.id, best.id, b.pos, 1f);
+                        Emit(SimEventType.Attack, -b.id, best.id, b.pos, 1f);
                         Damage(best, b.def.towerDps * 1.5f * p.towerMul, b.owner);
                     }
                 }
@@ -456,14 +475,14 @@ namespace COA.Sim
             if (tu != null)
             {
                 dmg *= Catalog.CounterBonus(u.def.cls, tu.def.cls);
-                Emit(EventType.Attack, u.id, tu.id, u.pos, u.def.range > 3f ? 1f : 0f);
+                Emit(SimEventType.Attack, u.id, tu.id, u.pos, u.def.range > 3f ? 1f : 0f);
                 Damage(tu, dmg, u.owner);
                 if (tu.Alive && tu.targetUnit < 0 && tu.targetBuilding < 0 && !tu.IsCitizen &&
                     (tu.state == UnitState.Idle || tu.attackMove)) tu.targetUnit = u.id;     // fight back
             }
             else
             {
-                Emit(EventType.Attack, u.id, -tb.id, u.pos, u.def.range > 3f ? 1f : 0f);
+                Emit(SimEventType.Attack, u.id, -tb.id, u.pos, u.def.range > 3f ? 1f : 0f);
                 DamageBuilding(tb, dmg * (u.def.cls == UnitClass.Ranged ? 0.35f : 0.8f), u.owner);
             }
         }
@@ -472,12 +491,12 @@ namespace COA.Sim
         {
             if (!t.Alive) return;
             t.hp -= dmg; t.sinceCombat = 0f;
-            Emit(EventType.Hit, t.id, 0, t.pos, dmg);
+            Emit(SimEventType.Hit, t.id, 0, t.pos, dmg);
             if (t.hp > 0f) return;
             ReleaseWork(t);
             t.state = UnitState.Dead; t.hasMoveTarget = false;
             players[t.owner].popUsed -= t.def.pop; players[t.owner].unitsLost++; players[byOwner].unitsKilled++;
-            Emit(EventType.UnitDied, t.id, t.owner, t.pos, t.facing);
+            Emit(SimEventType.UnitDied, t.id, t.owner, t.pos, t.facing);
         }
 
         public void DamageBuilding(Building b, float dmg, int byOwner)
@@ -493,7 +512,7 @@ namespace COA.Sim
             nodes.RemoveAll(n => { if (n.farmBuilding == b.id) { _nodeById.Remove(n.id); return true; } return false; });
             RecountPop(b.owner);
             if (b.def.territory > 0f) RecomputeTerritory();
-            Emit(EventType.BuildingDestroyed, b.id, b.owner, b.pos);
+            Emit(SimEventType.BuildingDestroyed, b.id, b.owner, b.pos);
         }
 
         /// <summary>docs/12: enemies bleed inside your borders; your own units heal there once out of combat.</summary>
@@ -511,8 +530,8 @@ namespace COA.Sim
             bool myHall = false, theirHall = false;
             foreach (var b in buildings)
                 if (b.type == BuildingType.Hall && !b.destroyed) { if (b.owner == Human) myHall = true; else if (b.owner == Enemy) theirHall = true; }
-            if (!myHall) { over = true; won = false; Emit(EventType.Defeat); }
-            else if (!theirHall || raids.FinalRaidDefeated) { over = true; won = true; Emit(EventType.Victory); }
+            if (!myHall) { over = true; won = false; Emit(SimEventType.Defeat); }
+            else if (!theirHall || raids.FinalRaidDefeated) { over = true; won = true; Emit(SimEventType.Victory); }
         }
     }
 }

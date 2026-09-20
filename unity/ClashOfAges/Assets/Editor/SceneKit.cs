@@ -23,6 +23,7 @@ public static class SceneKit
         sun.shadowBias = 0.03f;
         sun.shadowNormalBias = 0.9f;
         sun.shadowNearPlane = 0.2f;
+        sun.shadowStrength = 0.80f;               // full-strength shadows read as holes in a stylised palette
 
         RenderSettings.ambientMode = AmbientMode.Trilight;
         RenderSettings.ambientSkyColor = new Color(0.30f, 0.36f, 0.46f);
@@ -105,6 +106,28 @@ public static class SceneKit
             mat.renderQueue = (int)RenderQueue.Transparent;
         }
         mat.enableInstancing = true;
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        if (isNew) AssetDatabase.CreateAsset(mat, path); else EditorUtility.SetDirty(mat);
+        return mat;
+    }
+
+    /// <summary>A saved URP/Unlit transparent material, for rings, markers, bars and ghosts.</summary>
+    public static Material SavedUnlit(string path, Color color, bool transparent = true)
+    {
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        bool isNew = mat == null;
+        var shader = Shader.Find("Universal Render Pipeline/Unlit");
+        if (isNew) mat = new Material(shader); else mat.shader = shader;
+        mat.SetColor("_BaseColor", color);
+        if (transparent)
+        {
+            mat.SetFloat("_Surface", 1f); mat.SetFloat("_Blend", 0f);
+            mat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha); mat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            mat.SetFloat("_ZWrite", 0f); mat.SetFloat("_Cull", 0f);
+            mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.renderQueue = (int)RenderQueue.Transparent + 10;
+        }
         Directory.CreateDirectory(Path.GetDirectoryName(path));
         if (isNew) AssetDatabase.CreateAsset(mat, path); else EditorUtility.SetDirty(mat);
         return mat;

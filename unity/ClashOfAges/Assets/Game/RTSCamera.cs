@@ -56,6 +56,9 @@ public class RTSCamera : MonoBehaviour
     float   _yawTarget;
     Vector2 _lastMouse;
     bool    _dragging;
+    Vector2 _pressPos; bool _panArmed;
+    float   _notch = float.MaxValue;
+    bool    _sawSmall;
 
     void Awake()
     {
@@ -67,11 +70,22 @@ public class RTSCamera : MonoBehaviour
         _focus.y = _focusTarget.y = 0f;
     }
 
+    /// <summary>Jump the camera: minimap clicks, the idle-citizen key, the autopilot.</summary>
+    public void Frame(Vector3 focus, float newHeight = -1f, float newYaw = float.NaN)
+    {
+        _focus = _focusTarget = new Vector3(focus.x, 0f, focus.z);
+        if (newHeight > 0f) height = _heightTarget = Mathf.Clamp(newHeight, minHeight, maxHeight);
+        if (!float.IsNaN(newYaw)) yaw = _yawTarget = newYaw;
+    }
+    public Vector3 Focus => _focus;
+
 #if ENABLE_INPUT_SYSTEM
     void Update()
     {
         var mouse = Mouse.current;
         var kb = Keyboard.current;
+        bool overUi = UnityEngine.EventSystems.EventSystem.current != null &&
+                      UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
         float dt = Mathf.Max(Time.unscaledDeltaTime, 0.0001f);
 
         // pan speed scales with height: the same mouse travel should move the same
@@ -84,10 +98,12 @@ public class RTSCamera : MonoBehaviour
         // ---- keyboard ----
         if (kb != null)
         {
-            if (kb.wKey.isPressed || kb.upArrowKey.isPressed)    move += fwd;
-            if (kb.sKey.isPressed || kb.downArrowKey.isPressed)  move -= fwd;
-            if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) move += right;
-            if (kb.aKey.isPressed || kb.leftArrowKey.isPressed)  move -= right;
+            // ARROWS ONLY. WASD collides with the command hotkeys (W = Watchtower, S = Swordsman,
+            // A = attack-move); letters belong to commands, as in every RTS since 1997.
+            if (kb.upArrowKey.isPressed)    move += fwd;
+            if (kb.downArrowKey.isPressed)  move -= fwd;
+            if (kb.rightArrowKey.isPressed) move += right;
+            if (kb.leftArrowKey.isPressed)  move -= right;
             if (kb.qKey.wasPressedThisFrame) _yawTarget -= yawStep;
             if (kb.eKey.wasPressedThisFrame) _yawTarget += yawStep;
         }
@@ -95,7 +111,11 @@ public class RTSCamera : MonoBehaviour
         if (mouse != null)
         {
             // ---- right / middle drag pan (NEVER left) ----
-            bool wantDrag = mouse.rightButton.isPressed || mouse.middleButton.isPressed;
+            // A right-DRAG pans; a right-CLICK is an order (PlayerInput). Pan only once the cursor has
+            // really moved, so a click with a slightly shaky hand is still a click.
+            if (mouse.rightButton.wasPressedThisFrame || mouse.middleButton.wasPressedThisFrame) { _pressPos = mouse.position.ReadValue(); _panArmed = !overUi; }
+            bool held = mouse.rightButton.isPressed || mouse.middleButton.isPressed;
+            bool wantDrag = held && _panArmed && (_dragging || (mouse.position.ReadValue() - _pressPos).sqrMagnitude > 64f);
             Vector2 pos = mouse.position.ReadValue();
             if (wantDrag && !_dragging) { _dragging = true; _lastMouse = pos; }
             else if (!wantDrag) _dragging = false;
@@ -124,7 +144,20 @@ public class RTSCamera : MonoBehaviour
             }
 
             // ---- zoom toward the cursor ----
-            float scroll = mouse.scroll.ReadValue().y * scrollScale;
+            // SELF-CALIBRATING (closes PROGRESS.md Q5 without a magic constant). The "Windows
+            // reports +/-120" claim was refuted, so no number is assumed: the smallest non-zero
+            // |delta| ever seen is treated as ONE notch, and every event is measured in notches.
+            // A wheel then steps ~12% per notch; a trackpad, whose deltas are many small multiples
+            // of its own smallest value, zooms smoothly. Same code, both devices, no platform #if.
+            float raw = mouse.scroll.ReadValue().y, scroll = 0f;
+            if (Mathf.Abs(raw) > 0.0001f && !overUi)
+            {
+                float mag = Mathf.Abs(raw);
+                if (mag < _notch) _notch = mag;
+                float notches = Mathf.Clamp(mag / _notch, 0f, 6f);
+                scroll = Mathf.Sign(raw) * notches * (mag / _notch > 1.5f || _sawSmall ? 0.035f : 0.12f);
+                if (mag / _notch > 1.5f) _sawSmall = true;      // deltas vary in size -> this is a trackpad-like device
+            }
             if (Mathf.Abs(scroll) > 0.0001f)
             {
                 float before = _heightTarget;

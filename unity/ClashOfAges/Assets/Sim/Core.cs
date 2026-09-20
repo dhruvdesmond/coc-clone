@@ -47,7 +47,7 @@ namespace COA.Sim
         public void Refund(Cost c) { foreach (Res r in Enum.GetValues(typeof(Res))) _v[(int)r] += c[r]; }
     }
 
-    public enum EventType
+    public enum SimEventType
     {
         Deposit, NodeDepleted, TreeFelled, BuildingPlaced, BuildingComplete, BuildingDestroyed, UnitSpawned, UnitDied,
         Attack, Hit, WorkImpact, TechComplete, AgeAdvanceStarted, AgeAdvanced, RaidIncoming, RaidDefeated,
@@ -56,6 +56,6 @@ namespace COA.Sim
 
     public struct SimEvent
     {
-        public EventType type; public int a, b; public Vec2 pos; public float amount; public string text;
+        public SimEventType type; public int a, b; public Vec2 pos; public float amount; public string text;
     }
 }
