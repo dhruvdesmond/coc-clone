@@ -38,7 +38,7 @@ namespace COA.Game
 
             // a real skeleton if the model has one (rig_figure.py), otherwise limbs posed in code
             var controller = root.models.Controller(u.def.model);
-            if (controller != null && RigAnimator.Supports(go)) { var ra = go.AddComponent<RigAnimator>(); ra.Init(controller); v._anim = ra; }
+            if (controller != null && RigAnimator.Supports(go)) { var ra = go.AddComponent<RigAnimator>(); ra.Init(controller, RigAnimator.StyleFor(u.def.model)); v._anim = ra; }
             else v._anim = go.AddComponent<FigureAnimator>();
             v._ring = MeshKit.Make("Ring", MeshKit.Ring, u.owner == World.Human ? root.models.ring : root.models.ringEnemy, go.transform);
             v._ring.transform.localPosition = new Vector3(0f, 0.06f, 0f);
@@ -138,8 +138,12 @@ namespace COA.Game
             // pose
             _anim.speed = speed;
             bool ranged = _u.def.range > 3f;
-            if (speed > 0.3f) _anim.clip = _u.carry > 0.5f ? UnitAnim.Clip.Carry : UnitAnim.Clip.Walk;
-            else if (_u.state == UnitState.Gathering) _anim.clip = _u.lastKind == NodeKind.Berry || _u.lastKind == NodeKind.Farm ? UnitAnim.Clip.Hammer : UnitAnim.Clip.Chop;
+            if (speed > 0.3f) _anim.clip = _u.carry > 0.5f ? UnitAnim.Clip.Carry
+                                         : _u.state == UnitState.Attacking && _u.def.cls != UnitClass.Worker ? UnitAnim.Clip.Charge   // closing on an enemy: run
+                                         : UnitAnim.Clip.Walk;
+            else if (_u.state == UnitState.Gathering)
+                _anim.clip = _u.lastKind == NodeKind.Tree ? UnitAnim.Clip.Chop : _u.lastKind == NodeKind.Farm ? UnitAnim.Clip.Farm
+                           : _u.lastKind == NodeKind.Berry ? UnitAnim.Clip.Forage : UnitAnim.Clip.Mine;
             else if (_u.state == UnitState.Building) _anim.clip = UnitAnim.Clip.Hammer;
             else if (_u.state == UnitState.Attacking) _anim.clip = ranged ? UnitAnim.Clip.Shoot : UnitAnim.Clip.Attack;
             else _anim.clip = UnitAnim.Clip.Idle;
@@ -149,6 +153,8 @@ namespace COA.Game
         }
 
         public void Strike() { if (_anim != null) _anim.Strike(); }
+        public void Hit() { if (_anim != null) _anim.Hit(); }
+        public void Cheer(float seconds) { if (_anim != null) _anim.Cheer(seconds); }
 
         /// <summary>The thing being carried must be readable: a log, a berry basket, a stone, an ingot.</summary>
         void UpdateLoad()

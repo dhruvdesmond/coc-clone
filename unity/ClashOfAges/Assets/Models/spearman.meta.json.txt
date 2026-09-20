@@ -29,62 +29,15 @@
   ],
   "fps": 30,
   "walkSpeed": 3.34,
-  "clips": [
-    {
-      "name": "Idle",
-      "frames": 72,
-      "seconds": 2.4,
-      "loop": true
-    },
-    {
-      "name": "Walk",
-      "frames": 24,
-      "seconds": 0.8,
-      "loop": true
-    },
-    {
-      "name": "Carry",
-      "frames": 24,
-      "seconds": 0.8,
-      "loop": true
-    },
-    {
-      "name": "Chop",
-      "frames": 48,
-      "seconds": 1.6,
-      "loop": true
-    },
-    {
-      "name": "Hammer",
-      "frames": 33,
-      "seconds": 1.1,
-      "loop": true
-    },
-    {
-      "name": "Attack",
-      "frames": 27,
-      "seconds": 0.9,
-      "loop": false
-    },
-    {
-      "name": "Shoot",
-      "frames": 36,
-      "seconds": 1.2,
-      "loop": false
-    },
-    {
-      "name": "Death",
-      "frames": 33,
-      "seconds": 1.1,
-      "loop": false
-    }
-  ],
+  "runSpeed": 4.4,
+  "clips": [],
   "dimensionsMetres": {
-    "x": 1.1606,
-    "y": 2.3522,
-    "z": 1.7325
+    "x": 1.0651,
+    "y": 2.2866,
+    "z": 2.0332
   },
   "toleranceFraction": 0.04,
+  "restPose": "canonical: torso upright, every limb straight down, bone roll pinned to forward",
   "facing": "Unity +Z",
   "pivot": "ground contact under the pelvis"
 }

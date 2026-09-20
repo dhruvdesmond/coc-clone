@@ -1,29 +1,35 @@
-"""Give a lib/figure.py humanoid a REAL skeleton: armature, skinning, authored clips -> one FBX for Unity.
+"""Give a lib/figure.py humanoid a REAL skeleton -- and make every humanoid share ONE clip library.
 
-    blender -b --factory-startup <figure>.blend --python blender/scripts/rig_figure.py -- \
-        --name villager --out <dir> [--sheet <png>] [--save-blend <path>]
+    # a figure: skeleton + skinned mesh, NO clips (it plays the shared library)
+    blender -b --factory-startup <figure>.blend --python blender/scripts/rig_figure.py -- --name swordsman --out <dir>
+
+    # the library: the same rig, plus every clip. Exported once, from any figure.
+    blender -b --factory-startup villager.blend --python blender/scripts/rig_figure.py -- \
+        --name humanoid_clips --prefix villager --with-clips --out <dir>
 
 WHAT IT BUILDS
-    * An ARMATURE of 12 bones -- Root, Body, Head, ArmL/ForeL, ArmR/ForeR, LegL/ShinL, LegR/ShinR --
-      whose heads are the figure's joint spheres and whose tails are the far end of each segment.
-    * ONE skinned mesh. Every part of these figures is a rigid box, so the bind is rigid: each vertex
-      belongs to exactly one bone at weight 1.0. Nothing to paint, nothing to blend, and it deforms
-      exactly as the separate parts did. One SkinnedMeshRenderer instead of ten MeshRenderers.
-    * EIGHT ACTIONS at 30 fps, keyed on every frame: Idle, Walk, Carry, Chop, Hammer, Attack, Shoot,
-      Death. Looping clips repeat their first frame as their last.
+    * An ARMATURE of 11 bones -- Root, Body, Head, ArmL/ForeL, ArmR/ForeR, LegL/ShinL, LegR/ShinR.
+    * ONE skinned mesh, bound RIGIDLY: every part of these figures is a rigid box, so each vertex belongs to
+      exactly one bone at weight 1.0. Nothing to paint; it deforms exactly as the loose parts did.
+    * With --with-clips: every clip in CLIPS, 30 fps, every bone keyed on every frame.
 
-WHY THE POSES ARE ABSOLUTE
-    The figures are not authored in a neutral stance -- the archer is already aiming, the swordsman has
-    his shield up. So each limb's REST direction is measured (joint -> far end) and corrected to
-    "hanging straight down", and the clip angles are applied on top of that. The same clip then means
-    the same thing on every figure. Angles are in the convention the clips were first written in
-    (X = pitch forward/back, Y = yaw about up, Z = roll about forward).
+THE CANONICAL REST POSE  (PROGRESS N12 / DL43)
+    The figures are not authored neutral -- the archer is already aiming, the swordsman has his shield up.
+    The first rig corrected for that per figure at pose time, which forced every FBX to carry its own copy
+    of every clip: fine for 4 figures x 8 clips, hopeless for 60 x 43. So the correction now happens ONCE,
+    to the geometry: each limb's mesh is rotated about its joint until the torso is upright and every limb
+    hangs straight down. Every humanoid then has the SAME rest skeleton, a clip is just bone rotations, and
+    one library drives them all. The bind is rigid, so this is exact -- no skin to distort.
+    Unity asserts it: FigureRigSetup compares every figure's rest rotations against the library's.
 
-WHY THIS EXPORT PATH
-    An earlier attempt shipped a nested OBJECT hierarchy with bake_space_transform=True and it arrived
-    in Unity broken at the bind pose. An ARMATURE is different: it is the path every rigged character
-    takes from Blender to Unity, and bone transforms are converted consistently by both ends. It is
-    still VERIFIED, not assumed -- FigureRigSetup in Unity asserts bone count, clip list and height.
+GROUND LOCK
+    After a pose is computed the lower ankle is measured and the pelvis shifted so it sits where it rests.
+    Crouches, kneels and the walk's bob need no hand-tuned offsets. Clips that leave the ground or lie on
+    it (deaths) opt out and give their own offset.
+
+ANGLES (the convention every clip below is written in)
+    X pitch: NEGATIVE swings a limb FORWARD/UP, positive back.   Body/Head X: positive leans/looks forward-down.
+    Y yaw about up.   Z roll about forward: ArmL outward is negative, ArmR outward is positive.
 """
 import bpy, sys, os, json, math, pathlib
 from mathutils import Matrix, Vector, Quaternion
@@ -33,131 +39,390 @@ import export_figure as EF                                                     #
 
 FPS = 30
 LIMBS = EF.LIMBS
-PARENT = dict(EF.PARENT)                         # limb -> parent limb
-CORR_PARENT = {"ForeL": "ArmL", "ForeR": "ArmR", "ShinL": "LegL", "ShinR": "LegR"}
-DOWN = Vector((0, 0, -1))
-WALK_SPEED = 3.34                                # m/s the Walk/Carry cycle is authored for (24 frames)
+PARENT = dict(EF.PARENT)
+CHILD = {"ArmL": "ForeL", "ArmR": "ForeR", "LegL": "ShinL", "LegR": "ShinR"}
+DOWN, UP, FORWARD = Vector((0, 0, -1)), Vector((0, 0, 1)), Vector((0, -1, 0))
+WALK_SPEED, RUN_SPEED = 3.34, 4.40               # m/s the 24-frame walk and 20-frame run cycles are authored for
 
 
-# ------------------------------------------------------------------------------ clips
+# ====================================================================================== clips
 def lerp(a, b, t): return a + (b - a) * max(0.0, min(1.0, t))
 def smooth(t): t = max(0.0, min(1.0, t)); return t * t * (3 - 2 * t)
+def wave(f, n, ph=0.0): return math.sin(2 * math.pi * f / n + ph)
 
 
+def snap(a, keys):
+    """Piecewise-LINEAR through (time, value) keys. Violence does not ease (docs/09): a strike is a straight
+    line from wind-up to impact over two or three frames, and that is the whole trick."""
+    if a <= keys[0][0]: return keys[0][1]
+    for (t0, v0), (t1, v1) in zip(keys, keys[1:]):
+        if a <= t1: return v0 + (v1 - v0) * (a - t0) / (t1 - t0)
+    return keys[-1][1]
+
+
+STANCE = {"LegL": (-12, 0, -4), "ShinL": (14, 0, 0), "LegR": (12, 0, 4), "ShinR": (8, 0, 0)}     # a fighting stance
+
+
+# ---------------------------------------------------------------- shared
 def clip_idle(f, n):
-    s = math.sin(2 * math.pi * f / n)
-    return {"Body": (s * 1.2, 0, 0), "Head": (s * -1.5, math.sin(2 * math.pi * f / n + 1.0) * 9, 0),
+    s = wave(f, n)
+    return {"Body": (2 + s * 1.2, 0, 0), "Head": (s * -1.5, wave(f, n, 1.0) * 9, 0),
             "ArmL": (-6 + s * 2, 0, -8), "ForeL": (-22, 0, 0), "ArmR": (-6 - s * 2, 0, 8), "ForeR": (-26, 0, 0),
-            "LegL": (-5, 0, -3), "ShinL": (6, 0, 0), "LegR": (6, 0, 3), "ShinR": (3, 0, 0)}, 0.0
+            "LegL": (-5, 0, -3), "ShinL": (6, 0, 0), "LegR": (6, 0, 3), "ShinR": (3, 0, 0)}
 
 
-def _stride(f, n, carry):
-    ph = 2 * math.pi * f / n
-    s, c = math.sin(ph), math.cos(ph)
-    st = 25.0
-    p = {"LegL": (s * st, 0, 0), "LegR": (-s * st, 0, 0),
-         "ShinL": (max(0.0, -c) * st * 1.25, 0, 0), "ShinR": (max(0.0, c) * st * 1.25, 0, 0),
-         "Body": (5, s * 3.5, 0), "Head": (-3, 0, 0)}
-    if carry:
-        p.update({"ArmL": (-58, 0, 0), "ForeL": (-48, 0, 0), "ArmR": (-58, 0, 0), "ForeR": (-48, 0, 0)})
-    else:   # the tool arm swings less: it is carrying something
-        p.update({"ArmL": (-s * st * 0.8, 0, -6), "ForeL": (-20, 0, 0), "ArmR": (s * st * 0.45, 0, 6), "ForeR": (-32, 0, 0)})
-    return p, abs(c) * 0.035
+def _gait(f, n, stride, lean, arms):
+    s, c = wave(f, n), math.cos(2 * math.pi * f / n)
+    p = {"LegL": (s * stride, 0, 0), "LegR": (-s * stride, 0, 0),
+         "ShinL": (max(0.0, -c) * stride * 1.3, 0, 0), "ShinR": (max(0.0, c) * stride * 1.3, 0, 0),
+         "Body": (lean, s * 3.5, 0), "Head": (-lean * 0.5, 0, 0)}
+    p.update(arms(s))
+    return p
 
 
-def clip_walk(f, n): return _stride(f, n, False)
-def clip_carry(f, n): return _stride(f, n, True)
+def clip_walk(f, n):    # the tool arm swings less: it is carrying something
+    return _gait(f, n, 25, 5, lambda s: {"ArmL": (-s * 20, 0, -6), "ForeL": (-20, 0, 0), "ArmR": (s * 11, 0, 6), "ForeR": (-32, 0, 0)})
 
 
-def _work(f, n):
-    """Slow raise, a SNAP down with no easing, a short rest. Violence does not ease (docs/09)."""
+def clip_carry(f, n):
+    return _gait(f, n, 25, 5, lambda s: {"ArmL": (-58, 0, 0), "ForeL": (-48, 0, 0), "ArmR": (-58, 0, 0), "ForeR": (-48, 0, 0)})
+
+
+def clip_run(f, n):
+    return _gait(f, n, 36, 13, lambda s: {"ArmL": (-s * 34 - 10, 0, -8), "ForeL": (-78, 0, 0), "ArmR": (s * 26 - 10, 0, 8), "ForeR": (-72, 0, 0)})
+
+
+def clip_hitreact(f, n):
+    k = snap(f / FPS, [(0, 0), (0.07, 1), (0.40, 0)])
+    return {"Body": (2 - 16 * k, 6 * k, 0), "Head": (-12 * k, 0, 0), "ArmL": (-6 - 20 * k, 0, -8 - 22 * k), "ForeL": (-22 - 20 * k, 0, 0),
+            "ArmR": (-6 - 14 * k, 0, 8 + 18 * k), "ForeR": (-26, 0, 0), "LegL": (-5 + 12 * k, 0, -3), "ShinL": (6 + 8 * k, 0, 0),
+            "LegR": (6 + 8 * k, 0, 3), "ShinR": (3, 0, 0)}
+
+
+def clip_death(f, n):           # falls onto his back
+    k = min(1.0, (f / FPS) / 0.55); k *= k
+    return ({"Body": (-86 * k, 0, 6 * k), "Head": (-14 * k, 0, 0), "ArmL": (-30 * k, 0, -55 * k), "ArmR": (-20 * k, 0, 62 * k),
+             "ForeL": (-24 * k, 0, 0), "ForeR": (-35 * k, 0, 0), "LegL": (8 * k, 0, -9 * k), "LegR": (-4 * k, 0, 11 * k),
+             "ShinL": (14 * k, 0, 0), "ShinR": (26 * k, 0, 0)}, -0.80 * k)
+
+
+def clip_deathfront(f, n):      # pitches forward, arms out to break a fall that does not get broken
+    k = min(1.0, (f / FPS) / 0.50); k *= k
+    return ({"Body": (84 * k, 0, -5 * k), "Head": (-22 * k, 18 * k, 0), "ArmL": (-130 * k, 0, -28 * k), "ArmR": (-112 * k, 0, 34 * k),
+             "ForeL": (-38 * k, 0, 0), "ForeR": (-52 * k, 0, 0), "LegL": (-6 * k, 0, -7 * k), "LegR": (10 * k, 0, 9 * k),
+             "ShinL": (8 * k, 0, 0), "ShinR": (30 * k, 0, 0)}, -0.82 * k)
+
+
+# ---------------------------------------------------------------- worker
+def _swing(f, n, up, down, body_up, body_dn, reach=0.0):
+    """Slow raise, a SNAP down, a short rest on the wood."""
     u = (f % n) / n
-    raise_ = smooth(u / 0.62) if u < 0.62 else (1 - (u - 0.62) / 0.08 if u < 0.70 else 0.0)
-    return {"ArmR": (lerp(-35, -150, raise_), 0, 0), "ForeR": (lerp(-25, -70, raise_), 0, 0),
-            "ArmL": (lerp(-30, -95, raise_), 0, 0), "ForeL": (-40, 0, 0),
-            "Body": (lerp(16, -10, raise_), lerp(6, -12, raise_), 0), "Head": (lerp(8, -12, raise_), 0, 0),
-            "LegL": (-8, 0, 0), "LegR": (10, 0, 0), "ShinL": (8, 0, 0), "ShinR": (6, 0, 0)}, 0.0
+    r = smooth(u / 0.62) if u < 0.62 else (1 - (u - 0.62) / 0.08 if u < 0.70 else 0.0)
+    return {"ArmR": (lerp(down, up, r), 0, 0), "ForeR": (lerp(-25, -70, r), 0, 0),
+            "ArmL": (lerp(down + 5 - reach, up * 0.63, r), 0, 0), "ForeL": (-40, 0, 0),
+            "Body": (lerp(body_dn, body_up, r), lerp(6, -12, r), 0), "Head": (lerp(8, -12, r), 0, 0),
+            "LegL": (-10, 0, -3), "LegR": (12, 0, 3), "ShinL": (10, 0, 0), "ShinR": (8, 0, 0)}
 
 
-def clip_chop(f, n): return _work(f, n)
-def clip_hammer(f, n): return _work(f, n)
+def clip_chop(f, n): return _swing(f, n, -150, -35, -10, 16)
+def clip_hammer(f, n): return _swing(f, n, -120, -48, -4, 12)
+def clip_mine(f, n): return _swing(f, n, -172, -22, -14, 30, reach=10)          # a pick comes from right overhead, into the ground
 
 
-def clip_attack(f, n):
-    a = f / FPS                                   # anticipation (3 frames back), SNAP, recover
-    arm = lerp(-40, -155, a / 0.10) if a < 0.10 else lerp(-155, 25, (a - 0.10) / 0.06) if a < 0.16 else lerp(25, -40, (a - 0.16) / 0.45)
-    tw = lerp(0, -28, a / 0.10) if a < 0.10 else lerp(-28, 30, (a - 0.10) / 0.06) if a < 0.16 else lerp(30, 0, (a - 0.16) / 0.45)
-    return {"ArmR": (arm, 0, -12), "ForeR": (-30, 0, 0), "Body": (6, tw, 0), "ArmL": (-55, 0, 0), "ForeL": (-70, 0, 0),
-            "LegL": (-14, 0, 0), "LegR": (16, 0, 0), "ShinL": (10, 0, 0), "ShinR": (4, 0, 0), "Head": (0, -tw * 0.5, 0)}, 0.0
+def clip_farm(f, n):            # hoeing: reach out, chop down, drag back
+    u = (f % n) / n
+    reach = snap(u, [(0, 0), (0.30, 1), (0.38, 1), (0.46, 0.55), (1.0, 0)])
+    return {"Body": (22 + 10 * reach, 0, 0), "Head": (10, 0, 0),
+            "ArmR": (lerp(-28, -78, reach), 0, 4), "ForeR": (lerp(-62, -12, reach), 0, 0),
+            "ArmL": (lerp(-40, -92, reach), 0, -4), "ForeL": (lerp(-58, -8, reach), 0, 0),
+            "LegL": (-16, 0, -3), "ShinL": (18, 0, 0), "LegR": (14, 0, 3), "ShinR": (10, 0, 0)}
+
+
+def clip_forage(f, n):          # crouched at the bush, hands working alternately
+    s = wave(f, n)
+    return {"Body": (34, s * 4, 0), "Head": (6, s * -8, 0),
+            "ArmL": (-74 + s * 18, 0, -10), "ForeL": (-34 - s * 22, 0, 0), "ArmR": (-74 - s * 18, 0, 10), "ForeR": (-34 + s * 22, 0, 0),
+            "LegL": (-62, 0, -6), "ShinL": (96, 0, 0), "LegR": (-48, 0, 6), "ShinR": (104, 0, 0)}
+
+
+def clip_flee(f, n):            # a run with the hands up: it must read as panic from thirty metres
+    p = _gait(f, n, 38, 10, lambda s: {})
+    s = wave(f, n)
+    p.update({"ArmL": (-152 + s * 16, 0, -26), "ForeL": (-38 - s * 14, 0, 0), "ArmR": (-152 - s * 16, 0, 26), "ForeR": (-38 + s * 14, 0, 0),
+              "Head": (-10, s * 14, 0)})
+    return p
+
+
+def clip_cheer(f, n):           # the age advance: both arms up, pumping, a bounce in the knees
+    s, s2 = wave(f, n), wave(f, n / 2)
+    b = (s2 + 1) * 0.5
+    return {"Body": (-6, s * 5, 0), "Head": (-14, 0, 0),
+            "ArmR": (-158 + b * 18, 0, 16), "ForeR": (-26 - b * 22, 0, 0), "ArmL": (-150 + (1 - b) * 18, 0, -18), "ForeL": (-30 - (1 - b) * 22, 0, 0),
+            "LegL": (-8 - b * 12, 0, -4), "ShinL": (12 + b * 22, 0, 0), "LegR": (-6 - b * 12, 0, 4), "ShinR": (10 + b * 22, 0, 0)}
+
+
+# ---------------------------------------------------------------- sword + shield
+# The shield arm. With the arm hanging the shield faces forward (canonicalise). PITCHING the forearm up would lay it
+# flat, so the forearm is ROLLED across the chest instead, and the upper arm's forward pitch is cancelled in the forearm.
+SHIELD_UP = {"ArmL": (-35, 0, -20), "ForeL": (35, 0, 100)}
+GUARD_SWORD = {**SHIELD_UP, "ArmR": (-24, 0, 14), "ForeR": (-58, 0, 0)}
+
+
+def clip_runshield(f, n):      # the shared Run pumps the forearm, which tips a shield face-up. A shield is carried IN FRONT.
+    return _gait(f, n, 36, 13, lambda s: {**SHIELD_UP, "ArmR": (10 + s * 20, 0, 8), "ForeR": (-40, 0, 0)})
+
+
+def clip_guardidle(f, n):
+    s = wave(f, n)
+    p = dict(STANCE); p.update(GUARD_SWORD)
+    p.update({"Body": (6 + s, -12, 0), "Head": (-2, 12 + wave(f, n, 1.3) * 5, 0), "ArmR": (-24 + s * 2, 0, 14)})
+    return p
+
+
+def clip_attack(f, n):          # overhead cut: anticipation, SNAP, recover
+    a = f / FPS
+    arm = snap(a, [(0, -40), (0.10, -158), (0.16, 22), (0.62, -24)])
+    tw = snap(a, [(0, 0), (0.10, -28), (0.16, 30), (0.62, -12)])
+    p = dict(STANCE); p.update(GUARD_SWORD)
+    p.update({"ArmR": (arm, 0, 12), "ForeR": (-30, 0, 0), "Body": (6 + tw * 0.2, tw, 0), "Head": (0, -tw * 0.5, 0)})
+    return p
+
+
+def clip_attack2(f, n):         # a flat backhand across the body, so two cuts in a row are not the same cut
+    a = f / FPS
+    yaw = snap(a, [(0, 0), (0.12, 62), (0.18, -58), (0.62, 0)])
+    tw = snap(a, [(0, -12), (0.12, 34), (0.18, -36), (0.62, -12)])
+    p = dict(STANCE); p.update(GUARD_SWORD)
+    p.update({"ArmR": (-84, yaw, 0), "ForeR": (-14, 0, 0), "Body": (8, tw, 0), "Head": (0, -tw * 0.45, 0)})
+    return p
+
+
+def clip_block(f, n):           # the shield comes UP and across, fast, and is held a beat
+    k = snap(f / FPS, [(0, 0), (0.06, 1), (0.30, 1), (0.50, 0)])
+    p = dict(STANCE); p.update(GUARD_SWORD)
+    p.update({"ArmL": (lerp(-35, -55, k), 0, lerp(-20, -48, k)), "ForeL": (lerp(35, 55, k), 0, lerp(100, 132, k)),
+              "Body": (6 - 9 * k, -12 - 8 * k, 0), "Head": (-2 + 8 * k, 12, 0),
+              "LegL": (-12 - 6 * k, 0, -4), "ShinL": (14 + 10 * k, 0, 0), "LegR": (12 + 8 * k, 0, 4), "ShinR": (8 + 6 * k, 0, 0)})
+    return p
+
+
+# ---------------------------------------------------------------- two-handed
+HANDS_2H = {"ArmR": (-42, -24, 6), "ForeR": (-72, 0, 0), "ArmL": (-56, 30, -4), "ForeL": (-66, 0, 0)}
+
+
+def clip_idle2h(f, n):
+    s = wave(f, n)
+    p = dict(STANCE); p.update(HANDS_2H)
+    p.update({"Body": (5 + s, -8, 0), "Head": (-2, 8 + wave(f, n, 0.8) * 6, 0)})
+    return p
+
+
+def clip_attack2h(f, n):        # the cleave: both hands, right overhead, all the way down
+    a = f / FPS
+    up = snap(a, [(0, 0), (0.16, 1), (0.23, -0.12), (0.70, 0)])
+    p = dict(STANCE)
+    p.update({"ArmR": (lerp(-42, -170, up), lerp(-24, -6, abs(up)), 6), "ForeR": (lerp(-72, -34, abs(up)), 0, 0),
+              "ArmL": (lerp(-56, -166, up), lerp(30, 8, abs(up)), -4), "ForeL": (lerp(-66, -30, abs(up)), 0, 0),
+              "Body": (lerp(5, -14, up) if up > 0 else lerp(5, 30, -up / 0.12), -8, 0), "Head": (lerp(-2, -14, max(up, 0)), 8, 0)})
+    return p
+
+
+def clip_attackspin(f, n):      # the berserker's whirl: arms out, the whole body is the weapon
+    a = f / FPS
+    yaw = snap(a, [(0, 0), (0.14, -70), (0.34, 250), (0.80, 360)])
+    out = snap(a, [(0, 0), (0.14, 1), (0.34, 1), (0.80, 0)])
+    p = dict(STANCE)
+    p.update({"Body": (8, yaw, 0), "Head": (0, 0, 0),
+              "ArmR": (lerp(-42, -88, out), lerp(-24, 40, out), 6), "ForeR": (lerp(-72, -10, out), 0, 0),
+              "ArmL": (lerp(-56, -84, out), lerp(30, -20, out), -4), "ForeL": (lerp(-66, -20, out), 0, 0)})
+    return p
+
+
+# ---------------------------------------------------------------- spear
+# The spear is level when the arm hangs (canonicalise), so its pitch is the NET pitch of upper arm + forearm.
+GUARD_SPEAR = {"ArmR": (25, 0, 10), "ForeR": (-35, 0, 0), **SHIELD_UP}
+
+
+def clip_guardspear(f, n):
+    s = wave(f, n)
+    p = dict(STANCE); p.update(GUARD_SPEAR)
+    p.update({"Body": (7 + s, -16, 0), "Head": (-2, 16 + wave(f, n, 1.1) * 5, 0)})
+    return p
+
+
+def clip_thrust(f, n):          # draw back, SNAP the point out with the whole body behind it, recover
+    a = f / FPS
+    k = snap(a, [(0, 0), (0.12, -1), (0.18, 1), (0.30, 1), (0.60, 0)])        # -1 = drawn back, +1 = extended
+    p = dict(STANCE); p.update(GUARD_SPEAR)
+    ext = max(k, 0); back = max(-k, 0)
+    p.update({"ArmR": (25 + back * 22 - ext * 87, 0, 10), "ForeR": (-35 - back * 17 + ext * 72, 0, 0),
+              "Body": (7 + ext * 16 - back * 6, -16 + ext * 22 - back * 10, 0), "Head": (-2 - ext * 8, 16 - ext * 16, 0),
+              "LegL": (-12 - ext * 22, 0, -4), "ShinL": (14 + ext * 20, 0, 0), "LegR": (12 + ext * 14, 0, 4)})
+    return p
+
+
+def clip_brace(f, n):           # set against a charge: low, front knee bent, butt of the spear grounded
+    s = wave(f, n)
+    return {"Body": (14 + s * 0.8, -20, 0), "Head": (-10, 20, 0),
+            "ArmR": (12, 0, 12), "ForeR": (-58, 0, 0), "ArmL": (-40, 0, -24), "ForeL": (40, 0, 96),
+            "LegL": (-58, 0, -6), "ShinL": (84, 0, 0), "LegR": (26, 0, 8), "ShinR": (58, 0, 0)}
+
+
+# ---------------------------------------------------------------- bow
+def _archer(draw, sway=0.0):
+    return {"ArmL": (-88, -8 + sway, 0), "ForeL": (-4, 0, 0), "ArmR": (-75, 30, 0), "ForeR": (lerp(-20, -95, draw), 0, 0),
+            "Body": (0, -24 + sway, 0), "Head": (0, 22, 0), "LegL": (-8, 0, -4), "LegR": (10, 0, 4), "ShinL": (6, 0, 0), "ShinR": (4, 0, 0)}
 
 
 def clip_shoot(f, n):
-    a = f / FPS                                   # release, then draw again and hold
-    draw = 1 - a / 0.12 if a < 0.12 else max(0.0, min(1.0, (a - 0.35) / 0.7))
-    return {"ArmL": (-88, -8, 0), "ForeL": (-4, 0, 0), "ArmR": (-75, 30, 0), "ForeR": (lerp(-20, -95, draw), 0, 0),
-            "Body": (0, -24, 0), "Head": (0, 22, 0), "LegL": (-6, 0, 0), "LegR": (8, 0, 0), "ShinL": (0, 0, 0), "ShinR": (0, 0, 0)}, 0.0
+    a = f / FPS
+    return _archer(1 - a / 0.12 if a < 0.12 else max(0.0, min(1.0, (a - 0.35) / 0.7)))
 
 
-def clip_death(f, n):
-    k = min(1.0, (f / FPS) / 0.55); k = k * k     # accelerating fall, no ease-out
-    return {"Body": (-86 * k, 0, 6 * k), "Head": (-14 * k, 0, 0), "ArmL": (-30 * k, 0, -55 * k), "ArmR": (-20 * k, 0, 62 * k),
-            "ForeL": (-24 * k, 0, 0), "ForeR": (-35 * k, 0, 0), "LegL": (8 * k, 0, -9 * k), "LegR": (-4 * k, 0, 11 * k),
-            "ShinL": (14 * k, 0, 0), "ShinR": (26 * k, 0, 0)}, -0.80 * k
+def clip_aimidle(f, n): return _archer(0.35, wave(f, n) * 2.5)
 
 
-#        name      frames  loop   function
-CLIPS = [("Idle",   72, True,  clip_idle),   ("Walk",   24, True,  clip_walk),  ("Carry",  24, True,  clip_carry),
-         ("Chop",   48, True,  clip_chop),   ("Hammer", 33, True,  clip_hammer),
-         ("Attack", 27, False, clip_attack), ("Shoot",  36, False, clip_shoot), ("Death",  33, False, clip_death)]
+# ---------------------------------------------------------------- standard bearer
+BANNER_ARM = {"ArmR": (-78, 0, 8), "ForeR": (-58, 0, 0)}
 
 
-# ------------------------------------------------------------------------------ maths
+def clip_banneridle(f, n):
+    s = wave(f, n)
+    p = {"Body": (1 + s, 0, 0), "Head": (-6, wave(f, n, 0.9) * 8, 0), "ArmL": (-6, 0, -8), "ForeL": (-22, 0, 0),
+         "LegL": (-5, 0, -3), "ShinL": (6, 0, 0), "LegR": (6, 0, 3), "ShinR": (3, 0, 0)}
+    p.update(BANNER_ARM); return p
+
+
+def clip_bannerwalk(f, n):
+    return _gait(f, n, 25, 3, lambda s: {"ArmL": (-s * 20, 0, -6), "ForeL": (-20, 0, 0), **BANNER_ARM})
+
+
+#         name           frames loop   fn                ground-lock
+CLIPS = [("Idle",         72, True,  clip_idle,        True),  ("Walk",        24, True,  clip_walk,       True),
+         ("Run",          20, True,  clip_run,         True),  ("HitReact",    14, False, clip_hitreact,   True),
+         ("Death",        33, False, clip_death,       False), ("DeathFront",  33, False, clip_deathfront, False),
+         ("Carry",        24, True,  clip_carry,       True),  ("Chop",        48, True,  clip_chop,       True),
+         ("Hammer",       33, True,  clip_hammer,      True),  ("Mine",        48, True,  clip_mine,       True),
+         ("Farm",         54, True,  clip_farm,        True),  ("Forage",      60, True,  clip_forage,     True),
+         ("Flee",         18, True,  clip_flee,        True),  ("Cheer",       40, True,  clip_cheer,      True),
+         ("Attack",       27, False, clip_attack,      True),  ("Attack2",     27, False, clip_attack2,    True),
+         ("Block",        18, False, clip_block,       True),  ("GuardIdle",   72, True,  clip_guardidle,  True),
+         ("Idle2H",       72, True,  clip_idle2h,      True),  ("Attack2H",    30, False, clip_attack2h,   True),
+         ("AttackSpin",   30, False, clip_attackspin,  True),  ("GuardSpear",  72, True,  clip_guardspear, True),
+         ("Thrust",       24, False, clip_thrust,      True),  ("Brace",       60, True,  clip_brace,      True),
+         ("Shoot",        36, False, clip_shoot,       True),  ("AimIdle",     60, True,  clip_aimidle,    True),
+         ("BannerIdle",   72, True,  clip_banneridle,  True),  ("BannerWalk",  24, True,  clip_bannerwalk, True),
+         ("RunShield",    20, True,  clip_runshield,   True)]
+
+
+# ====================================================================================== maths
 def euler_q(x, y, z):
-    """Clip angles -> Blender quaternion. X = pitch, Y = yaw about UP (Blender Z), Z = roll about FORWARD
-    (the figure faces Blender -Y). Composition order Y * X * Z, as the clips were authored."""
     return (Matrix.Rotation(math.radians(y), 3, "Z") @ Matrix.Rotation(math.radians(x), 3, "X")
             @ Matrix.Rotation(math.radians(-z), 3, "Y")).to_quaternion()
 
 
-def world_rotations(pose, corr):
-    """limb -> the rotation (armature space) that takes it from REST to the posed orientation."""
+def world_rotations(pose):
+    """limb -> rotation (armature space) from REST to posed. The rest pose is canonical, so this is just the
+    chain of clip rotations -- the per-figure corrections the first rig needed are gone."""
     E = {l: euler_q(*pose.get(l, (0, 0, 0))) for l in LIMBS}
     W = {"Body": E["Body"]}
-    W["Head"] = W["Body"] @ E["Head"]
-    for l in ("ArmL", "ArmR", "LegL", "LegR"):
-        W[l] = W["Body"] @ (E[l] @ corr[l])
-    for l, p in CORR_PARENT.items():
-        cp = corr[p]
-        W[l] = W[p] @ (cp.inverted() @ E[l] @ corr[l] @ cp)
+    for l in ("Head", "ArmL", "ArmR", "LegL", "LegR"):
+        W[l] = W["Body"] @ E[l]
+    for p, c in CHILD.items():
+        W[c] = W[p] @ E[c]
     return W
 
 
+# ====================================================================================== canonical rest pose
+def canonicalise(limb_obj, pivots, tips):
+    """Rotate the GEOMETRY until the torso is upright and every limb hangs straight down. See module docstring."""
+    def subtree(l):
+        out = [l]
+        for c, p in PARENT.items():
+            if p == l: out += subtree(c)
+        return out
+
+    def rotate(limbs, q, about):
+        R = q.to_matrix()
+        for l in limbs:
+            limb_obj[l].data.transform(R.to_4x4())                     # vertices are stored relative to the limb's own joint
+            limb_obj[l].data.update()
+            pivots[l] = about + q @ (pivots[l] - about)
+            if l in tips: tips[l] = about + q @ (tips[l] - about)
+            limb_obj[l].matrix_world = Matrix.Translation(pivots[l])
+
+    rotate(subtree("Body"), (pivots["Head"] - pivots["Body"]).normalized().rotation_difference(UP), pivots["Body"].copy())
+    for l in ("ArmL", "ArmR", "LegL", "LegR"):
+        rotate(subtree(l), (tips[l] - pivots[l]).normalized().rotation_difference(DOWN), pivots[l].copy())
+    for l in ("ForeL", "ForeR", "ShinL", "ShinR"):
+        rotate([l], (tips[l] - pivots[l]).normalized().rotation_difference(DOWN), pivots[l].copy())
+
+    # HELD DISCS (shields). One figure straps his shield facing forward, the next faces it along the forearm, and a
+    # guard pose can only suit one of them. So: with the arm hanging, every shield faces FORWARD. A disc is found by
+    # its shape -- one thin axis, two wide ones -- not by its name. Long props (sword, spear, bow) are left as authored.
+    import numpy as np
+    for l in ("ForeL", "ForeR"):
+        o = limb_obj[l]
+        for g in [g for g in o.vertex_groups if g.name.startswith("prop:")]:
+            idx = [v.index for v in o.data.vertices if any(e.group == g.index for e in v.groups)]
+            pts = np.array([o.data.vertices[i].co[:] for i in idx])
+            c = pts.mean(axis=0)
+            w, v = np.linalg.eigh(np.cov((pts - c).T))                  # ascending
+            if len(idx) >= 8 and w[0] < 0.15 * w[1] and w[1] > 0.45 * w[2]:
+                nrm = Vector(v[:, 0]); hand = tips[l] - pivots[l]           # limb-local, like the vertices
+                if nrm.dot(Vector(c) - hand) < 0: nrm.negate()              # the face is the side away from the fist
+                R = nrm.rotation_difference(FORWARD).to_matrix()
+                for i in idx:
+                    o.data.vertices[i].co = hand + R @ (o.data.vertices[i].co - hand)
+                print(f"[rig] {l} {g.name}: disc, turned {math.degrees(nrm.angle(FORWARD)):.0f} deg to face forward")
+            elif len(idx) >= 8 and w[1] < 0.05 * w[2] and np.ptp((pts - c) @ v[:, 2]) > 1.4:
+                # A POLEARM. Carried "at the trail": level, point forward, when the arm hangs. Then a thrust is the hand
+                # travelling forward with the forearm kept plumb, and the point stays on the enemy instead of the turf.
+                axis = Vector(v[:, 2]); hand = tips[l] - pivots[l]
+                along = (pts - c) @ v[:, 2]
+                far = pts[np.argmax(np.abs(along + (Vector(c) - hand).dot(axis)))]      # the end furthest from the fist is the point
+                if axis.dot(Vector(far) - hand) < 0: axis.negate()
+                R = axis.rotation_difference(FORWARD).to_matrix()
+                for i in idx:
+                    o.data.vertices[i].co = hand + R @ (o.data.vertices[i].co - hand)
+                print(f"[rig] {l} {g.name}: polearm {np.ptp(along):.2f} m, turned {math.degrees(axis.angle(FORWARD)):.0f} deg to the trail")
+            o.vertex_groups.remove(g)
+        o.data.update()
+    if limb_obj["Body"].vertex_groups:                                   # none expected; a stray one would fail the skin check
+        for g in list(limb_obj["Body"].vertex_groups): limb_obj["Body"].vertex_groups.remove(g)
+
+    # stand it on the ground, pelvis over the origin. Feet only: a spear hanging from a relaxed hand goes below them.
+    zmin = min((limb_obj[l].matrix_world @ v.co).z for l in ("ShinL", "ShinR") for v in limb_obj[l].data.vertices)
+    shift = Vector((-pivots["Body"].x, -pivots["Body"].y, -zmin))
+    for l in LIMBS:
+        pivots[l] = pivots[l] + shift
+        if l in tips: tips[l] = tips[l] + shift
+        limb_obj[l].matrix_world = Matrix.Translation(pivots[l])
+    bpy.context.view_layer.update()
+
+
+# ====================================================================================== main
 def main():
     args = EF._argv()
     name, out = EF._opt(args, "--name"), EF._opt(args, "--out")
     prefix = EF._opt(args, "--prefix", name)
+    with_clips = "--with-clips" in args
     pathlib.Path(out).mkdir(parents=True, exist_ok=True)
     scene = bpy.context.scene
     scene.render.fps = FPS
 
     ctx = EF.prepare(name, prefix)
     limb_obj, pivots, tips, coll = ctx["limb_obj"], ctx["pivots"], ctx["tips"], ctx["coll"]
+    canonicalise(limb_obj, pivots, tips)
 
-    # ---- rest data --------------------------------------------------------------------------
     head = {l: pivots[l].copy() for l in LIMBS}
     tail = {l: tips[l].copy() for l in tips}
-    tail["Body"] = pivots["Head"].copy()                         # pelvis -> base of the neck
+    tail["Body"] = pivots["Head"].copy()
     tail["Head"] = pivots["Head"] + Vector((0, 0, 0.22))
-    corr = {}
-    for l in ("ArmL", "ArmR", "LegL", "LegR"):
-        corr[l] = (tail[l] - head[l]).normalized().rotation_difference(DOWN)
-    for l, p in CORR_PARENT.items():
-        corr[l] = (corr[p] @ (tail[l] - head[l]).normalized()).rotation_difference(DOWN)
 
-    # ---- skin: one vertex group per limb, weight 1.0, then ONE mesh ---------------------------
+    # ---- skin ------------------------------------------------------------------------------------
     for l, o in limb_obj.items():
-        g = o.vertex_groups.new(name=l)
-        g.add([v.index for v in o.data.vertices], 1.0, "REPLACE")
+        o.vertex_groups.new(name=l).add([v.index for v in o.data.vertices], 1.0, "REPLACE")
     bpy.ops.object.select_all(action="DESELECT")
     for o in limb_obj.values():
         o.select_set(True)
@@ -170,7 +435,7 @@ def main():
     if loose:
         print(f"[rig] ! {len(loose)} vertices are not bound to exactly one bone"); sys.exit(1)
 
-    # ---- armature -------------------------------------------------------------------------------
+    # ---- armature ----------------------------------------------------------------------------------
     arm_data = bpy.data.armatures.new(name + "_rig")
     arm = bpy.data.objects.new("Rig", arm_data)
     coll.objects.link(arm)
@@ -178,66 +443,70 @@ def main():
     arm.select_set(True); bpy.context.view_layer.objects.active = arm
     bpy.ops.object.mode_set(mode="EDIT")
     eb = arm_data.edit_bones
-    root = eb.new("Root"); root.head = (0, 0, 0); root.tail = (0, -0.3, 0)       # points where the figure faces
+    root = eb.new("Root"); root.head = (0, 0, 0); root.tail = (0, -0.3, 0)
     for l in LIMBS:
         b = eb.new(l); b.head = head[l]; b.tail = tail[l]
-        if (b.tail - b.head).length < 0.02:
-            b.tail = b.head + Vector((0, 0, 0.05))
+        # The rest pose is only shared if the bone ROLL is too. Limbs all point straight down and Body/Head
+        # straight up, so pin each bone's local Z to the figure's forward: identical on every figure.
+        b.align_roll(Vector((0, -1, 0)))
     for l in LIMBS:
         eb[l].parent = eb[PARENT[l]] if l in PARENT else eb["Root"]
         eb[l].use_connect = False
     bpy.ops.object.mode_set(mode="OBJECT")
-
     mesh.parent = arm
-    mod = mesh.modifiers.new("Armature", "ARMATURE"); mod.object = arm
+    mesh.modifiers.new("Armature", "ARMATURE").object = arm
     bpy.context.view_layer.update()
 
-    rest = {l: arm_data.bones[l].matrix_local.copy() for l in LIMBS}             # armature space
-    rest_rot = {l: rest[l].to_3x3().to_4x4() for l in LIMBS}
+    root_rest = arm_data.bones["Root"].matrix_local.copy()
+    rest_rot = {l: arm_data.bones[l].matrix_local.to_3x3().to_4x4() for l in LIMBS}
+    ankle = {s: tail[s].copy() for s in ("ShinL", "ShinR")}
+    ankle_rest_z = min(a.z for a in ankle.values())
     levels = [["Body"], ["Head", "ArmL", "ArmR", "LegL", "LegR"], ["ForeL", "ForeR", "ShinL", "ShinR"]]
 
-    def apply_pose(pose, bob):
-        W = world_rotations(pose, corr)
-        P = {"Body": head["Body"] + Vector((0, 0, bob))}
+    def apply_pose(pose, bob, ground):
+        W = world_rotations(pose)
+        P = {"Body": head["Body"].copy()}
         for lvl in levels[1:]:
             for l in lvl:
-                par = PARENT[l]
-                P[l] = P[par] + W[par] @ (head[l] - head[par])
-        for lvl in levels:                                  # parents first; a child's matrix is resolved
-            for l in lvl:                                   # against its parent's CURRENT pose
+                P[l] = P[PARENT[l]] + W[PARENT[l]] @ (head[l] - head[PARENT[l]])
+        if ground:      # GROUND LOCK: put the lower ankle back where it rests
+            low = min((P[s] + W[s] @ (ankle[s] - head[s])).z for s in ("ShinL", "ShinR"))
+            bob += ankle_rest_z - low
+        # The offset rides on ROOT, which sits at the origin on EVERY figure, so the curve is portable. Keyed on
+        # Body it would carry the library figure's pelvis height into everyone else.
+        arm.pose.bones["Root"].matrix = Matrix.Translation((0, 0, bob)) @ root_rest
+        bpy.context.view_layer.update()
+        for l in P: P[l] = P[l] + Vector((0, 0, bob))
+        for lvl in levels:
+            for l in lvl:
                 arm.pose.bones[l].matrix = Matrix.Translation(P[l]) @ W[l].to_matrix().to_4x4() @ rest_rot[l]
             bpy.context.view_layer.update()
 
-    # ---- actions ----------------------------------------------------------------------------------
-    arm.animation_data_create()
     report = []
-    for clip, n, loop, fn in CLIPS:
-        act = bpy.data.actions.new(clip)
-        act.use_fake_user = True
-        arm.animation_data.action = act
-        prev = {}
-        for f in range(n + 1):
-            pose, bob = fn(0 if (loop and f == n) else f, n)           # a looping clip ends where it began
-            apply_pose(pose, bob)
-            for l in LIMBS:
-                pb = arm.pose.bones[l]
-                q = pb.rotation_quaternion.copy()
-                if l in prev and prev[l].dot(q) < 0:                   # q and -q are the same rotation, but the
-                    q.negate(); pb.rotation_quaternion = q             # interpolation between them is a full spin
-                prev[l] = q
-                pb.keyframe_insert("rotation_quaternion", frame=f)
-            arm.pose.bones["Body"].keyframe_insert("location", frame=f)
-        report.append((clip, n, loop))
-    arm.animation_data.action = bpy.data.actions["Idle"]
-    scene.frame_start, scene.frame_end = 0, 72
-    scene.frame_set(0)
+    if with_clips:
+        arm.animation_data_create()
+        for clip, n, loop, fn, ground in CLIPS:
+            act = bpy.data.actions.new(clip); act.use_fake_user = True
+            arm.animation_data.action = act
+            prev = {}
+            for f in range(n + 1):
+                r = fn(0 if (loop and f == n) else f, n)               # a looping clip ends where it began
+                pose, bob = r if isinstance(r, tuple) else (r, 0.0)
+                apply_pose(pose, bob, ground)
+                for l in LIMBS:
+                    pb = arm.pose.bones[l]
+                    q = pb.rotation_quaternion.copy()
+                    if l in prev and prev[l].dot(q) < 0:               # q and -q are one rotation; the path between is a spin
+                        q.negate(); pb.rotation_quaternion = q
+                    prev[l] = q
+                    pb.keyframe_insert("rotation_quaternion", frame=f)
+                arm.pose.bones["Root"].keyframe_insert("location", frame=f)
+            report.append((clip, n, loop))
+        arm.animation_data.action = bpy.data.actions["Idle"]
+        scene.frame_start, scene.frame_end = 0, 72
+        scene.frame_set(0)
 
-    # ---- optional inspection sheet: one static copy of the skinned mesh per (clip, frame) ------------
-    sheet = EF._opt(args, "--sheet")
-    if sheet:
-        render_sheet(scene, arm, mesh, sheet)
-
-    # ---- export --------------------------------------------------------------------------------------
+    # ---- export ------------------------------------------------------------------------------------
     mesh.data.calc_loop_triangles(); tris = len(mesh.data.loop_triangles)
     pts = [mesh.matrix_world @ v.co for v in mesh.data.vertices]
     dims = [round(max(p[i] for p in pts) - min(p[i] for p in pts), 4) for i in range(3)]
@@ -251,41 +520,49 @@ def main():
         object_types={"ARMATURE", "MESH"}, use_mesh_modifiers=True, mesh_smooth_type="FACE",
         bake_space_transform=False, add_leaf_bones=False, primary_bone_axis="Y", secondary_bone_axis="X",
         use_armature_deform_only=False, armature_nodetype="NULL",
-        bake_anim=True, bake_anim_use_all_bones=True, bake_anim_use_nla_strips=False,
+        bake_anim=with_clips, bake_anim_use_all_bones=True, bake_anim_use_nla_strips=False,
         bake_anim_use_all_actions=True, bake_anim_force_startend_keying=True,
         bake_anim_step=1.0, bake_anim_simplify_factor=0.0, path_mode="STRIP")
 
-    mats = sorted({s.name for s in mesh.material_slots if s.name})
     meta = {
         "_comment": "GENERATED by blender/scripts/rig_figure.py. Do not hand-edit.",
-        "name": name, "kind": "rig", "triangles": tris, "materials": mats,
-        "bones": ["Root"] + LIMBS, "fps": FPS, "walkSpeed": WALK_SPEED,
+        "name": name, "kind": "clips" if with_clips else "rig", "triangles": tris,
+        "materials": sorted({s.name for s in mesh.material_slots if s.name}),
+        "bones": ["Root"] + LIMBS, "fps": FPS, "walkSpeed": WALK_SPEED, "runSpeed": RUN_SPEED,
         "clips": [{"name": c, "frames": n, "seconds": round(n / FPS, 4), "loop": lp} for c, n, lp in report],
         "dimensionsMetres": {"x": dims[0], "y": dims[1], "z": dims[2]}, "toleranceFraction": 0.04,
+        "restPose": "canonical: torso upright, every limb straight down, bone roll pinned to forward",
         "facing": "Unity +Z", "pivot": "ground contact under the pelvis",
     }
     with open(os.path.join(out, f"{name}.meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
 
+    # ---- optional inspection sheet: --sheet out.png --shots "Thrust:3,Thrust:5,Brace:0" ----------------------
+    sheet = EF._opt(args, "--sheet")
+    if sheet and with_clips:
+        shots = [(c, int(fr)) for c, fr in (s.split(":") for s in EF._opt(args, "--shots", "Idle:0").split(","))]
+        render_sheet(scene, arm, mesh, sheet, shots, float(EF._opt(args, "--turn", "0")))
+
     keep = EF._opt(args, "--save-blend")
     if keep:
         bpy.ops.wm.save_as_mainfile(filepath=keep)
 
+    leg = (head["LegL"] - tail["ShinL"]).length
+    print(f"[rig] {name}: pelvis {head['Body'].z:.3f} m, leg {leg:.3f} m, shoulder {head['ArmR'].z:.3f} m")
     print(f"[rig] {name}: {ctx['parts']} parts -> 1 skinned mesh, {tris} tris, {len(LIMBS) + 1} bones, "
           f"{len(report)} clips, {dims[0]} x {dims[1]} x {dims[2]} m")
-    print(f"[rig] clips: " + ", ".join(f"{c}({n}f{' loop' if lp else ''})" for c, n, lp in report))
+    if report:
+        print("[rig] clips: " + ", ".join(f"{c}({n}f{' loop' if lp else ''})" for c, n, lp in report))
     print(f"[rig] wrote {fbx} ({os.path.getsize(fbx) // 1024} KB)")
     print("[rig] OK")
 
 
-def render_sheet(scene, arm, mesh, path):
+def render_sheet(scene, arm, mesh, path, shots, turn=0.0):
     """Freeze the SKINNED mesh at chosen frames of chosen actions and lay the copies out in a row. What this
     shows is the armature deforming the mesh -- the real thing, not a re-implementation of the pose maths."""
     sys.path.insert(0, "/Users/dhruv/blender/lib")
     import norse as N
     from nodeutils import new_mat, principled, noise_node, math_node, maprange
-    shots = [("Idle", 0), ("Walk", 6), ("Walk", 18), ("Carry", 6), ("Chop", 29), ("Chop", 34),
-             ("Attack", 3), ("Attack", 5), ("Shoot", 12), ("Death", 33)]
     dg_objs = []
     for i, (clip, frame) in enumerate(shots):
         arm.animation_data.action = bpy.data.actions[clip]
@@ -294,7 +571,8 @@ def render_sheet(scene, arm, mesh, path):
         me = bpy.data.meshes.new_from_object(mesh.evaluated_get(dg))
         o = bpy.data.objects.new(f"shot_{clip}_{frame}", me)
         scene.collection.objects.link(o)
-        o.location = ((i - (len(shots) - 1) / 2) * 1.9, 0, 0)
+        o.location = ((i - (len(shots) - 1) / 2) * 2.3, 0, 0)
+        o.rotation_euler = (0, 0, math.radians(turn))
         dg_objs.append(o)
     arm.animation_data.action = bpy.data.actions["Idle"]; scene.frame_set(0)
     mesh.hide_render = True
@@ -303,7 +581,7 @@ def render_sheet(scene, arm, mesh, path):
     nt = stick.node_tree; nt.nodes.clear()
     e = nt.nodes.new("ShaderNodeEmission"); e.inputs[0].default_value = (1.0, 0.25, 0.05, 1); e.inputs[1].default_value = 5.0
     nt.links.new(e.outputs[0], nt.nodes.new("ShaderNodeOutputMaterial").inputs[0])
-    x0 = dg_objs[0].location.x - 1.9
+    x0 = dg_objs[0].location.x - 2.3
     for b in arm.data.bones:
         if b.name == "Root": continue
         h, t = b.head_local, b.tail_local
@@ -315,16 +593,17 @@ def render_sheet(scene, arm, mesh, path):
     bpy.context.object.data.materials.append(N.turf_material(new_mat, principled, noise_node, math_node, maprange,
                                              lush=(0.05, 0.11, 0.03, 1), dry=(0.09, 0.12, 0.04, 1)))
     N.daylight(sun_energy=2.8, sky_strength=0.32, elevation=44.0, rotation=150.0)
-    cd = bpy.data.cameras.new("Cam"); cd.type = "ORTHO"; cd.ortho_scale = 21.5
+    cd = bpy.data.cameras.new("Cam"); cd.type = "ORTHO"; cd.ortho_scale = 2.3 * (len(shots) + 1.4)
     cam = bpy.data.objects.new("Cam", cd); scene.collection.objects.link(cam); scene.camera = cam
-    cam.location = (-0.95, -16, 5.2); cam.rotation_euler = (math.radians(76), 0, 0)
-    N.render_settings(scene, path.replace(".png", "_"), res=(2400, 560), samples=96, exposure=-1.3)
+    cam.location = (-1.15, -16, 5.4); cam.rotation_euler = (math.radians(76), 0, 0)
+    N.render_settings(scene, path.replace(".png", "_"), res=(2600, 640), samples=96, exposure=-1.3)
     scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
     for o in dg_objs:
         bpy.data.objects.remove(o)
     mesh.hide_render = False
     print("[rig] sheet ->", path)
+
 
 
 if __name__ == "__main__":

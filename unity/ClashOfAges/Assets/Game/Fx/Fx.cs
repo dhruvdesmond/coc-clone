@@ -76,6 +76,7 @@ namespace COA.Game
                 case SimEventType.Hit:
                 {
                     var u = w.U(e.a); if (u == null) break;
+                    if (_g.unitViews.TryGetValue(e.a, out var hv)) hv.Hit();
                     var p = Ground.At(u.pos) + Vector3.up * 1.1f;
                     if (Blood) Burst(p, Red, 5, 2.4f, 0.05f); else Burst(p, Spark, 3, 2.0f, 0.04f);
                     break;
@@ -94,7 +95,10 @@ namespace COA.Game
                 case SimEventType.TechComplete: if (e.b == World.Human) Sfx.I.Play2D(Sfx.Clip.Complete, 0.8f); break;
                 case SimEventType.RaidIncoming: Sfx.I.Play2D(Sfx.Clip.Horn, 0.95f); break;
                 case SimEventType.RaidDefeated: Sfx.I.Play2D(Sfx.Clip.Complete, 0.7f); break;
-                case SimEventType.AgeAdvanced: Sfx.I.Play2D(Sfx.Clip.Fanfare, 1f); break;
+                case SimEventType.AgeAdvanced:
+                    Sfx.I.Play2D(Sfx.Clip.Fanfare, 1f);
+                    foreach (var u in w.units) if (u.owner == e.b && _g.unitViews.TryGetValue(u.id, out var cv)) cv.Cheer(4.5f);   // whoever is idle, cheers
+                    break;
                 case SimEventType.Victory: Sfx.I.Play2D(Sfx.Clip.Fanfare, 1f); break;
                 case SimEventType.Defeat: Sfx.I.Play2D(Sfx.Clip.Horn, 1f); break;
             }

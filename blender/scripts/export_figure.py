@@ -127,6 +127,10 @@ def prepare(name, prefix):
         if limb is None:
             limb = held_limb.get(part[o].split("_")[0], "Body") if "_" in part[o] else "Body"
             props.append(f"{part[o]}->{limb}")
+            if limb in ("ForeL", "ForeR"):
+                # tag a HELD prop so it can still be found after the join: rig_figure.py turns shields to one
+                # canonical facing, or a guard pose that suits one figure lays another's shield flat as a table
+                o.vertex_groups.new(name="prop:" + part[o].split("_")[0]).add([v.index for v in o.data.vertices], 1.0, "REPLACE")
         groups[limb].append(o)
 
     missing = [l for l in LIMBS if not groups[l]]

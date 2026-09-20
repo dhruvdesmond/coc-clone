@@ -110,7 +110,7 @@ namespace COA.Game
             float dt = Time.deltaTime; _t += dt; strike += dt;
             float bob = 0f;
 
-            switch (clip)
+            switch (Basic(clip))
             {
                 case Clip.Idle:
                 {

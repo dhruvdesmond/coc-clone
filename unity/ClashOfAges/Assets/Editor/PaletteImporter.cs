@@ -128,8 +128,13 @@ public class PaletteImporter : AssetPostprocessor
     public static bool IsRig(string modelPath)
     {
         var sidecar = Path.ChangeExtension(modelPath, null) + ".meta.json.txt";
-        return File.Exists(sidecar) && File.ReadAllText(sidecar).Contains("\"kind\": \"rig\"");
+        if (!File.Exists(sidecar)) return false;
+        var s = File.ReadAllText(sidecar);
+        return s.Contains("\"kind\": \"rig\"") || s.Contains("\"kind\": \"clips\"");
     }
+
+    /// <summary>The ONE FBX that carries the humanoid clips. Every figure plays them; none carries its own.</summary>
+    public const string ClipLibrary = "Assets/Models/humanoid_clips.fbx";
 
     static readonly HashSet<string> Looping = new HashSet<string> { "Idle", "Walk", "Carry", "Chop", "Hammer" };
 

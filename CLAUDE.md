@@ -29,7 +29,7 @@ clash-of-clans/                     ← this repo
 ├── tools/                          ← u.sh (guarded Unity runner) · test.sh · export_all.sh
 ├── art/unit_sheet.png              ← the units, their pivots and their poses, rendered in Blender
 ├── blender/scripts/                ← AUTHORITATIVE pipeline scripts: export_palette · export_assets ·
-│                                      rig_figure (skeleton + clips) · export_figure (flat fallback) ·
+│                                      rig_figure (skeleton + THE shared clip library) · export_figure (flat fallback) ·
 │                                      export_nature · figure_sheet
 ├── blender/base/age1_demo/         ← models authored HERE (Rune Hall, Muster Hall, Farm)
 └── unity/ClashOfAges/              ← the game
@@ -193,4 +193,4 @@ correction confirmed applied once.
 
 **Borders, build-inside-only, attrition and regen are built.** Cities, rare resources, nations and the Armageddon
 counter (the rest of `docs/12-territory.html`) are not. The opponent is a scripted `RaidDirector`, not doc 06's AI.
-**The units have real skeletons** (DL41): `blender/scripts/rig_figure.py` → 11 bones, rigid skin, 8 clips → Unity `Animator`, asserted by `FigureRigSetup`. See `PROGRESS.md` §5 for what is next.
+**The units have real skeletons and share ONE clip library** (DL41, DL44, DL45): `blender/scripts/rig_figure.py` gives every figure the same canonical rest pose (limbs, shields and spears), so the 29 clips are authored once in `humanoid_clips.fbx` and the figure FBXs carry none. `FigureRigSetup` asserts each figure's bind pose against the library and builds one `humanoid.controller`; `RigAnimator.Style` picks the weapon-class clip set. Look at a clip before Unity with `--with-clips --sheet x.png --turn 55 --shots "Thrust:6"`. See `PROGRESS.md` §5b for the remaining ~51 clips.
