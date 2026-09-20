@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lighting · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a class="here" href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">11 · Lighting</div>
+  <h1>Sun, Shadows &amp; Lighting</h1>
+  <p class="lede">The best-supported document in this folder. Everything marked <span class="tag done">verified</span>
+  was confirmed against the Unity 6 manual by three independent checks; everything marked
+  <span class="tag hot">refuted</span> is a belief that <b>failed</b> verification and must not be
+  built on. Research pass: 2026-09-20.</p>
+</header>
+
+<h2>The setup, in one table</h2>
+<table>
+  <tr><th>Setting</th><th>Value</th><th>Confidence</th></tr>
+  <tr><td>Sun</td><td>One <b>Realtime</b> directional light</td><td><span class="tag done">verified</span></td></tr>
+  <tr><td>Indirect</td><td><b>Adaptive Probe Volumes</b> (baked)</td><td><span class="tag done">verified</span></td></tr>
+  <tr><td>Shadows Max Distance</td><td>Driven by <b>camera zoom height (18–90 m)</b>, never by map size</td><td><span class="tag done">verified</span></td></tr>
+  <tr><td>Depth bias</td><td>~0.02–0.05</td><td><span class="tag done">verified as a range</span></td></tr>
+  <tr><td>Normal bias</td><td>~0.5–1.5</td><td><span class="tag done">verified as a range</span></td></tr>
+  <tr><td>Shadowmask</td><td><b>Do not use</b> for ground cover. Static authored geometry only, if at all.</td><td><span class="tag done">verified</span></td></tr>
+  <tr><td>Era mood change</td><td>Realtime sun colour / angle / intensity + fog + sky. <b>Not</b> APV Lighting Scenarios.</td><td><span class="tag done">verified</span></td></tr>
+  <tr><td>Cascade count &amp; splits</td><td><b>Unknown.</b> Needs a measurement pass.</td><td><span class="tag todo">open</span></td></tr>
+</table>
+
+<h2>Why the sun is fully realtime</h2>
+<div class="note good">
+  <span class="lbl">Verified — and it settles the biggest open question in the project</span>
+  Mixed lighting with Shadowmask requires the light to be Mixed, the light to cast shadows, <b>and the
+  GameObject to be static</b>. Our ~18,000 ground-cover instances are drawn with
+  <code>DrawMeshInstancedIndirect</code> and <b>have no GameObjects at all</b> — so they can never be
+  shadowmasked, under any configuration. The decision makes itself: <b>one fully realtime directional
+  sun for everything.</b> Distance Shadowmask stays available for genuinely static authored geometry,
+  but at one light and this scene composition it buys almost nothing.
+</div>
+<p>This is a good outcome, not a compromise. A realtime sun means the six era moods cost nothing to
+implement, there is no bake to invalidate when the map generator changes, and the age-advance building
+swap — which replaces every building mesh in place — cannot corrupt lighting data that does not exist.</p>
+
+<h3>Shadow distance is set by the camera, not the map</h3>
+<p>URP stretches the shadow map across the URP Asset's <b>Shadows → Max Distance</b>. Shadow pixel
+density is therefore a function of that distance and nothing else — the 240/420/640 m map extents are
+irrelevant to it. Unity's own worked example: dropping Max Distance from 40 to 10 lets you drop the
+shadow map from 2048 to 1024 px <i>and still get higher quality near the camera</i>.</p>
+<p><b>So:</b> Max Distance tracks the camera's 18–90 m zoom band plus visible frustum depth at full
+zoom-out. Two caveats carried from the verification, both real:</p>
+<ul>
+  <li>That 40→10 / 2048→1024 arithmetic is quoted <b>at Cascade Count 1</b> and does not transfer
+  directly to the 2–4 cascade setup we will actually ship (Unity's default is 4 cascades over 150 m).</li>
+  <li><b>Changing Max Distance at runtime causes visible shadow popping.</b> If we tie it to zoom, step
+  it between a few discrete zoom bands and test whether the step is hidden — do not lerp it per-frame.</li>
+</ul>
+
+<h3>Bias is a bounded window, not a ramp</h3>
+<p>Unity 6 manual, verbatim and stable across 6000.0–6000.4:</p>
+<pre><code>"By adjusting the shadow bias values you can reduce or eliminate such shadow artifacts
+ as shadow acne, shadow detachment (also known as peter-panning), light leaking,
+ and self-shadowing."
+
+"Using high shadow bias values might result in light leaking through meshes. This is
+ where there is a visible gap between the shadow and its caster."</code></pre>
+<p>Start at <b>Depth ~0.02–0.05, Normal ~0.5–1.5</b> and tune inside that window. Excess Depth bias
+pushes the shadow away from the caster; excess Normal bias narrows the caster and bleeds light at the
+contact point. They are different artifacts with different fixes.</p>
+<div class="note warn">
+  <span class="lbl">Two things to know before you read Unity's docs on this</span>
+  <b>The docs never mention terrain.</b> This is generic surface guidance that happens to apply; there
+  is no terrain-specific published figure.<br>
+  <b>Unity's vocabulary is muddy.</b> What the manual calls "light leaking" (a gap between shadow and
+  caster) is what the wider graphics literature calls peter-panning. Reason about the mechanism, not
+  the label.
+</div>
+<p class="tag hot" style="display:inline-block">refuted 0-3</p>
+<p>The belief that the sun's bias <b>must</b> be tuned on the Light component in Custom mode rather
+than the URP Asset default <b>failed verification</b>. Either location works. Set it wherever is
+convenient.</p>
+
+<h2>Indirect light — Adaptive Probe Volumes</h2>
+<p>APV is the right choice here. It auto-places probes (replacing manual Light Probe Groups), samples
+<b>per-pixel rather than per-GameObject</b> — which removes the seams you otherwise get between many
+small adjacent objects, exactly our case with props and ground cover — and streams data larger than
+memory.</p>
+<div class="note">
+  <span class="lbl">The limit that matters</span>
+  <b>APV is bake-only. It is not realtime GI.</b> It gives us good, cheap, seam-free indirect light for
+  a fixed lighting condition — it does not give us indirect light that follows a moving sun.
+</div>
+
+<h2>The six era moods — realtime, not Lighting Scenarios</h2>
+<div class="note good">
+  <span class="lbl">Verified, and it saves a large amount of work</span>
+  APV offers exactly two runtime mechanisms for changing lighting: <b>Lighting Scenarios</b> and
+  <b>sky occlusion</b>. Scenarios are the more accurate of the two — <b>but sharing and blending
+  scenarios requires identical Light Probe counts and positions across every bake</b>, and age
+  advancement swaps every building mesh in place, which breaks exactly that requirement.
+  <br><br>
+  <b>Therefore: drive the six era moods with realtime sun colour, angle and intensity, plus fog and
+  sky.</b> No scenario baking, no blending constraints, no bake invalidated by an age advance.
+</div>
+<table>
+  <tr><th>Age</th><th>Sun colour / angle</th><th>Fog</th><th>Reads as</th></tr>
+  <tr><td>I · Settlement</td><td>Warm low gold, 28°</td><td>Light, cool, distance-blue</td><td>Northern morning</td></tr>
+  <tr><td>II · Feudal</td><td>Neutral white, 45°</td><td>Light</td><td>Clear, high, ordered</td></tr>
+  <tr><td>III · Gunpowder</td><td>Slightly warm, 40°</td><td>Medium, hazy</td><td>Smoke on the air</td></tr>
+  <tr><td>IV · Industrial</td><td>Desaturated, 38°</td><td>Heavy, brown-grey</td><td>The sky has been dirtied</td></tr>
+  <tr><td>V · Modern</td><td>Hard white, 55°</td><td>Thin</td><td>High contrast, clinical</td></tr>
+  <tr><td>VI · Atomic</td><td>Cold pale, 50°</td><td>Thin, slight green cast</td><td>Something is wrong with the light</td></tr>
+</table>
+<p>The progression is its own argument: the light gets colder and the air gets dirtier as the
+civilisation advances. Free, because it is six sets of numbers on one realtime light.</p>
+<p class="tag hot" style="display:inline-block">refuted 0-3</p>
+<p>The claim that <b>sky occlusion needs only a single bake to support a full day-night cycle</b> and
+outperforms scenario swapping <b>failed verification</b>. Do not plan a day/night cycle around it
+without testing it first.</p>
+
+<h2>What is still unknown</h2>
+<table>
+  <tr><th>Question</th><th>How to settle it</th></tr>
+  <tr><td><b>Cascade count and split ratios</b> for a fixed-50° camera at 18–90 m</td><td>Measurement pass in-editor at both zoom extremes. Nothing published survived verification, and Unity's worked example is at Cascade Count 1.</td></tr>
+  <tr><td>Does stepping Max Distance between discrete zoom bands hide the popping?</td><td>Same pass. Test 3 bands.</td></tr>
+  <tr><td>Do era building swaps break APV probe subdivision?</td><td>Bake subdivision against <b>terrain and props only</b>, excluding era buildings from the probe-influencing static set, and check whether indirect light around buildings is acceptable. Fallback: a separate Baking Set per era, no blending.</td></tr>
+</table>
+
+<h2>Sources</h2>
+<ul>
+  <li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/urp/shadows-troubleshooting-urp.html">URP shadow troubleshooting — Unity 6 manual</a> (bias quotes; verified in 6000.0 and 6000.4)</li>
+  <li><a href="https://docs.unity3d.com/6000.1/Documentation/Manual/urp/shadow-resolution-urp.html">URP shadow resolution — Unity 6 manual</a> (Max Distance → density; verified in 6000.1 and 6000.3)</li>
+  <li><a href="https://docs.unity3d.com/6000.3/Documentation/Manual/shadows-optimization.html">Shadow optimization — Unity 6 manual</a></li>
+  <li><a href="https://docs.unity3d.com/6000.0/Documentation/Manual/urp/probevolumes-understand-changing-lighting-at-runtime.html">APV — changing lighting at runtime</a></li>
+  <li><a href="https://catlikecoding.com/unity/tutorials/custom-srp/directional-shadows/">Catlike Coding — Directional Shadows</a> (independent corroboration on bias behaviour)</li>
+</ul>
+<p style="font-size:12px;color:var(--dim)"><b>Citation note:</b> several Unity hub pages do not carry
+the text attributed to them in secondary sources. The URLs above are the corrected ones that actually
+contain the quoted passages.</p>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-20.
+</footer>
+</div>
+</body>
+</html>

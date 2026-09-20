@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Buildings & Units · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a class="here" href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">04 · Content</div>
+  <h1>Buildings &amp; Units</h1>
+  <p class="lede">The complete roster. Costs are first-pass and will move; the <i>shape</i> — what
+  counters what, what each building is for — should not.</p>
+</header>
+
+<h2>Buildings</h2>
+
+<h3>Universal — exists in every age, model swaps</h3>
+<p>These four get all six model variants. Everything else is age-local.</p>
+<table>
+  <tr><th>Building</th><th>Job</th><th class="num">Cost</th><th class="num">Build</th><th class="num">HP</th><th>Age I → VI naming</th></tr>
+  <tr><td>Town Centre</td><td>Trains citizens · resource drop-off · territory anchor</td><td class="num">—</td><td class="num">—</td><td class="num">2400</td><td>Longhouse → Keep → Town Hall → Exchange → City Hall → Command Centre</td></tr>
+  <tr><td>House</td><td>+5 population</td><td class="num">40 W</td><td class="num">15 s</td><td class="num">400</td><td>Hut → Cottage → Townhouse → Terrace → Apartment → Block</td></tr>
+  <tr><td>Barracks</td><td>Trains the age's core infantry</td><td class="num">100 W 30 M</td><td class="num">30 s</td><td class="num">900</td><td>Muster → Barracks → Drill Yard → Depot → Barracks → Garrison</td></tr>
+  <tr><td>Wall + Gate</td><td>Blocks movement, gives a firing line</td><td class="num">8 S /segment</td><td class="num">4 s</td><td class="num">600</td><td>Palisade → Stone → Bastion → Brick → Concrete → Blast wall</td></tr>
+</table>
+
+<h3>Age I · Settlement <span class="tag done">art mostly exists</span></h3>
+<table>
+  <tr><th>Building</th><th>Job</th><th class="num">Cost</th><th class="num">Build</th><th>Blender source</th></tr>
+  <tr><td>Storehouse</td><td>Resource drop-off point</td><td class="num">60 W</td><td class="num">20 s</td><td><code>stabbur</code> ✓</td></tr>
+  <tr><td>Rune Hall</td><td>Knowledge 0.20/s · 2 scholar slots · research</td><td class="num">120 W 40 S</td><td class="num">40 s</td><td>new — reuse hall kit</td></tr>
+  <tr><td>Forge</td><td>Metal drop-off · weapon/armour techs</td><td class="num">100 W 50 M</td><td class="num">35 s</td><td><code>forge</code> ✓</td></tr>
+  <tr><td>Watchtower</td><td>Vision + garrisoned archers</td><td class="num">60 W 40 S</td><td class="num">25 s</td><td><code>tower_a/b/c</code> ✓</td></tr>
+  <tr><td>Well</td><td>Small territory + heal radius</td><td class="num">30 S</td><td class="num">12 s</td><td><code>well</code> ✓</td></tr>
+  <tr><td>Stable</td><td>Trains horsemen (Age I light cav)</td><td class="num">120 W 40 F</td><td class="num">35 s</td><td><code>stable</code> ✓</td></tr>
+  <tr><td>Boathouse</td><td>Fishing boats, transports</td><td class="num">100 W</td><td class="num">30 s</td><td><code>boathouse</code> ✓</td></tr>
+  <tr><td>Farm</td><td>Infinite slow food, 2 worker slots</td><td class="num">50 W</td><td class="num">18 s</td><td>new</td></tr>
+</table>
+
+<h3>Age II · Feudal</h3>
+<table>
+  <tr><th>Building</th><th>Job</th><th class="num">Cost</th><th>Notes</th></tr>
+  <tr><td>Market</td><td>Unlocks Gold · resource conversion 1.4:1</td><td class="num">150 W 60 S</td><td>First Gold source</td></tr>
+  <tr><td>Caravan post</td><td>Sends caravans between your Town Centres for Gold/s</td><td class="num">100 W 50 G</td><td>Caravans are killable — the Age II loss condition made real</td></tr>
+  <tr><td>Quarry</td><td>Infinite stone, 3 worker slots</td><td class="num">80 W</td><td>Must be placed on a rock cluster</td></tr>
+  <tr><td>Mine</td><td>Infinite metal, 4 worker slots</td><td class="num">80 W 20 S</td><td>Must be placed on an ore vein</td></tr>
+  <tr><td>Chapel</td><td>Heals nearby units · +1 scholar slot globally</td><td class="num">120 S 80 G</td><td></td></tr>
+  <tr><td>Archery range</td><td>Trains archers and crossbows</td><td class="num">120 W 40 M</td><td></td></tr>
+  <tr><td>Siege workshop</td><td>Trebuchet, ram</td><td class="num">180 W 80 M</td><td></td></tr>
+</table>
+
+<h3>Age III · Gunpowder</h3>
+<table>
+  <tr><th>Building</th><th>Job</th><th class="num">Cost</th><th>Notes</th></tr>
+  <tr><td>University</td><td>Knowledge 0.45/s · 4 scholars</td><td class="num">200 S 150 G</td><td>Replaces Rune Hall</td></tr>
+  <tr><td>Harbour</td><td>Warships, deep-water fishing, naval repair</td><td class="num">200 W 80 M</td><td>Replaces Boathouse</td></tr>
+  <tr><td>Cannon foundry</td><td>Field guns, bombards</td><td class="num">200 M 100 G</td><td></td></tr>
+  <tr><td>Bastion</td><td>Angled artillery fort — the answer to cannon</td><td class="num">250 S 100 M</td><td>Walls stop working this age; this is the replacement</td></tr>
+</table>
+
+<h3>Age IV · Industrial</h3>
+<table>
+  <tr><th>Building</th><th>Job</th><th class="num">Cost</th><th>Notes</th></tr>
+  <tr><td>Factory</td><td>Converts Coal + Metal → military units much faster</td><td class="num">300 M 200 S 100 C</td><td>Consumes 0.3 coal/s while idle. Upkeep is real.</td></tr>
+  <tr><td>Colliery</td><td>Unlocks Coal, 4 worker slots</td><td class="num">150 W 100 M</td><td>Must sit on a coal seam</td></tr>
+  <tr><td>Rail depot</td><td>Rail line between depots: +60% transport speed, instant resource move</td><td class="num">250 M 150 C</td><td>&ldquo;Logistics beat geography&rdquo;</td></tr>
+  <tr><td>Artillery park</td><td>Howitzers</td><td class="num">300 M 150 C</td><td></td></tr>
+</table>
+
+<h3>Age V · Modern <span class="tag done">art mostly exists</span></h3>
+<table>
+  <tr><th>Building</th><th>Job</th><th class="num">Cost</th><th>Blender source</th></tr>
+  <tr><td>Command Centre</td><td>Age V Town Centre</td><td class="num">—</td><td><code>command</code> ✓</td></tr>
+  <tr><td>Barracks</td><td>Riflemen, AT, engineers</td><td class="num">200 M 100 O</td><td><code>barracks</code> ✓</td></tr>
+  <tr><td>Airfield</td><td>Fighters, bombers</td><td class="num">400 M 300 O</td><td><code>airport</code> ✓</td></tr>
+  <tr><td>Hangar</td><td>Aircraft repair + capacity</td><td class="num">250 M 150 O</td><td><code>hangar</code> ✓</td></tr>
+  <tr><td>Field hospital</td><td>Heals, revives at 40%</td><td class="num">200 M 80 G</td><td><code>medical</code> ✓</td></tr>
+  <tr><td>Derrick</td><td>Unlocks Oil, autonomous</td><td class="num">200 M 100 C</td><td>new</td></tr>
+  <tr><td>Power plant</td><td>Powers Lab, radar, AA. Coal or oil fed.</td><td class="num">350 M 200 C</td><td>new</td></tr>
+  <tr><td>Tank works</td><td>Armour</td><td class="num">400 M 250 O</td><td>new</td></tr>
+  <tr><td>AA battery</td><td>The counter to the new air domain</td><td class="num">150 M 60 O</td><td>new</td></tr>
+</table>
+
+<h3>Age VI · Atomic</h3>
+<table>
+  <tr><th>Building</th><th>Job</th><th class="num">Cost</th><th>Notes</th></tr>
+  <tr><td>Laboratory</td><td>Knowledge 0.90/s · needs power</td><td class="num">400 M 200 G</td><td></td></tr>
+  <tr><td>Uranium refinery</td><td>Raw uranium → weapons-grade</td><td class="num">500 M 300 O</td><td>Slow, loud, a magnet for attack</td></tr>
+  <tr><td>Radar station</td><td>Reveals a wide cone · detects incoming missiles</td><td class="num">300 M 150 O</td><td></td></tr>
+  <tr><td><b>Missile silo</b></td><td>Builds and launches the warhead</td><td class="num">800 M 400 O 60 U</td><td class="tag hot">the endgame object — see <a href="09-fx-audio.html">09 · FX</a></td></tr>
+  <tr><td>ABM site</td><td>Intercepts one missile per 4 min</td><td class="num">600 M 300 O</td><td>Makes the nuke a decision, not a win button</td></tr>
+</table>
+
+<h2>Units</h2>
+
+<h3>The counter triangle — constant across all six ages</h3>
+<div class="note">
+  <span class="lbl">The one combat rule to remember</span>
+  <b>Light beats ranged · ranged beats heavy · heavy beats light.</b> Every unit in every age fills one
+  of those three roles, plus siege (beats buildings, loses to everything) and support. A player who
+  learns the triangle in Age I is still correct in Age VI. <b>Do not add a fourth corner.</b>
+</div>
+
+<table>
+  <tr><th>Role</th><th>Age I</th><th>Age II</th><th>Age III</th><th>Age IV</th><th>Age V</th><th>Age VI</th></tr>
+  <tr><td>Light (fast)</td><td>Swordsman ✓</td><td>Man-at-arms</td><td>Musketeer</td><td>Line infantry</td><td>Rifleman</td><td>Special forces</td></tr>
+  <tr><td>Ranged</td><td>Archer ✓</td><td>Crossbow</td><td>Arquebus</td><td>Rifleman</td><td>Machine gun</td><td>Missile team</td></tr>
+  <tr><td>Heavy (anti-light)</td><td>Spearman ✓ · Berserker ✓</td><td>Pikeman</td><td>Pike &amp; shot</td><td>Grenadier</td><td>AT gun</td><td>AT missile</td></tr>
+  <tr><td>Cavalry / mobile</td><td>Horseman ✓ · Horsearcher ✓</td><td>Lancer ✓ · Knight</td><td>Dragoon</td><td>Hussar</td><td>Half-track</td><td>APC</td></tr>
+  <tr><td>Armour</td><td>—</td><td>—</td><td>—</td><td>Armoured car</td><td>Tank</td><td>Main battle tank</td></tr>
+  <tr><td>Siege</td><td>Axeman ✓ (vs buildings)</td><td>Trebuchet · Ram</td><td>Bombard</td><td>Howitzer</td><td>Rocket truck</td><td>Ballistic missile</td></tr>
+  <tr><td>Air</td><td>—</td><td>—</td><td>—</td><td>Observation balloon</td><td>Fighter · Bomber</td><td>Jet · Strategic bomber</td></tr>
+  <tr><td>Naval</td><td>Longship</td><td>Cog</td><td>Galleon · Frigate</td><td>Ironclad</td><td>Destroyer · Carrier</td><td>Missile cruiser · Sub</td></tr>
+  <tr><td>Support</td><td>Standard bearer ✓</td><td>Monk</td><td>Surgeon</td><td>Engineer</td><td>Medic · Engineer</td><td>Radar truck</td></tr>
+  <tr><td>Exotic</td><td>War elephant ✓</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+<p>✓ = the model already exists in <code>~/blender/base/troops/models/</code>. Ten of them. See
+<a href="05-assets.html">05 · Assets</a>.</p>
+
+<h3>Sample stat block — Age I, for calibration</h3>
+<table>
+  <tr><th>Unit</th><th class="num">Cost</th><th class="num">Train</th><th class="num">HP</th><th class="num">DPS</th><th class="num">Range</th><th class="num">Speed</th><th class="num">Pop</th></tr>
+  <tr><td>Citizen</td><td class="num">50 F</td><td class="num">20 s</td><td class="num">60</td><td class="num">3</td><td class="num">1 m</td><td class="num">3.2 m/s</td><td class="num">1</td></tr>
+  <tr><td>Swordsman</td><td class="num">60 F 20 M</td><td class="num">18 s</td><td class="num">140</td><td class="num">12</td><td class="num">1 m</td><td class="num">3.4</td><td class="num">1</td></tr>
+  <tr><td>Spearman</td><td class="num">50 F 15 W</td><td class="num">16 s</td><td class="num">120</td><td class="num">9 <span style="color:var(--green)">(×2.5 vs cavalry)</span></td><td class="num">2 m</td><td class="num">3.2</td><td class="num">1</td></tr>
+  <tr><td>Archer</td><td class="num">50 F 25 W</td><td class="num">20 s</td><td class="num">80</td><td class="num">10</td><td class="num">14 m</td><td class="num">3.0</td><td class="num">1</td></tr>
+  <tr><td>Axeman</td><td class="num">70 F 30 M</td><td class="num">22 s</td><td class="num">150</td><td class="num">8 <span style="color:var(--green)">(×4 vs buildings)</span></td><td class="num">1 m</td><td class="num">3.0</td><td class="num">1</td></tr>
+  <tr><td>Berserker</td><td class="num">90 F 40 M</td><td class="num">28 s</td><td class="num">190</td><td class="num">20</td><td class="num">1 m</td><td class="num">4.0</td><td class="num">2</td></tr>
+  <tr><td>Horseman</td><td class="num">80 F 30 M</td><td class="num">26 s</td><td class="num">180</td><td class="num">14</td><td class="num">1 m</td><td class="num">6.0</td><td class="num">2</td></tr>
+  <tr><td>Horsearcher</td><td class="num">80 F 40 W</td><td class="num">30 s</td><td class="num">120</td><td class="num">9</td><td class="num">11 m</td><td class="num">5.6</td><td class="num">2</td></tr>
+  <tr><td>Standard bearer</td><td class="num">100 F</td><td class="num">30 s</td><td class="num">130</td><td class="num">0</td><td class="num">—</td><td class="num">3.4</td><td class="num">1</td></tr>
+  <tr><td>War elephant</td><td class="num">200 F 80 M</td><td class="num">50 s</td><td class="num">600</td><td class="num">30</td><td class="num">2 m</td><td class="num">2.6</td><td class="num">4</td></tr>
+</table>
+<p><b>Calibration target:</b> a swordsman kills another swordsman in <code>140 / 12 ≈ 12 seconds</code>.
+That is deliberately slow — it makes reinforcement, positioning and retreat matter, and it gives the
+animation work in <a href="09-fx-audio.html">09 · FX</a> time to be seen. Later ages compress this:
+a modern rifle squad fight should resolve in 4–5 seconds, which is itself part of how each age feels
+different.</p>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Map · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a class="here" href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">08 · World</div>
+  <h1>The Map</h1>
+  <p class="lede">A continuous 3D landscape. No grid, no hexes. You place a building where the ground
+  will take it, and the ground is real terrain with slope, water and a shoreline.</p>
+</header>
+
+<h2>Dimensions</h2>
+<table>
+  <tr><th>Map</th><th class="num">Size</th><th class="num">Players</th><th class="num">Target game</th><th>Note</th></tr>
+  <tr><td>Duel</td><td class="num">240 × 240 m</td><td class="num">2</td><td class="num">25–35 min</td><td>Three-age skirmish. The one people replay.</td></tr>
+  <tr><td>Standard</td><td class="num">420 × 420 m</td><td class="num">2–4</td><td class="num">60–80 min</td><td>The full six-age game</td></tr>
+  <tr><td>Grand</td><td class="num">640 × 640 m</td><td class="num">4–6</td><td class="num">90 min+</td><td>Later. Needs the flow-field cost to be proven first.</td></tr>
+</table>
+<p>For scale: the existing <code>map_village</code> is 104 × 84 m and holds a dressed Norse village
+comfortably. A 420 m map is therefore about <b>20 villages</b> of space — the right amount for four
+players to expand into without the walk between bases becoming the game.</p>
+
+<h2>Terrain construction</h2>
+<p>The existing <code>lib/mapgen.py</code> and <code>lib/terrain.py</code> already do this well, and
+the three ideas below are the ones worth carrying forward without modification.</p>
+
+<h4>1. Biome as a vertex attribute, not submeshes</h4>
+<p>One <code>biome</code> BYTE_COLOR attribute on mesh corners:
+<b>R = biome index 0–1 across <code>[sand, grass, forest, rocky, snow]</code>, G = wear.</b>
+Adjacent biomes <i>interpolate</i>. The alternative — sorting every quad into one of four submeshes —
+produces stair-stepped boundaries, because a boundary that exists as a discrete edge can step. This
+one has no boundary to step on.</p>
+
+<h4>2. Paths written into the terrain's vertex data, not laid on top</h4>
+<p><code>route_network()</code> builds a minimum spanning tree over the structures, adds shortcut
+edges, applies meander, and bakes the result into the <b>wear channel</b>. No decals, no z-fighting,
+conforms to the ground for free. Roads built by the player in-game write into the same channel at
+runtime.</p>
+
+<h4>3. <code>review()</code> is an asserting test for placement</h4>
+<p>Floating objects, sunken objects, overlaps, off-map — all checked with tolerances, and the build
+fails rather than producing a map somebody has to notice is wrong by eye. This is the flat-map test's
+discipline applied to geometry, and it is the reason to trust a generated map at all.</p>
+
+<h2>Features</h2>
+<table>
+  <tr><th>Feature</th><th>Gameplay role</th><th>Implementation</th></tr>
+  <tr><td><b>Flat ground</b></td><td>Buildable. Most of the map.</td><td>Slope &lt; 12°</td></tr>
+  <tr><td><b>Slopes</b></td><td>Not buildable; units move 30% slower uphill</td><td>12–35°</td></tr>
+  <tr><td><b>Cliffs</b></td><td>Impassable. The natural walls that shape every fight.</td><td>&gt; 35°, flagged in the flow-field cost grid as blocked</td></tr>
+  <tr><td><b>Mountains</b></td><td>Map frame + chokepoints; ore and coal cluster at their feet</td><td>Low-frequency noise ridge, hand-placed per map archetype</td></tr>
+  <tr><td><b>Rivers</b></td><td>Slow crossings at fords; bridges are a Feudal build and a target</td><td>Carved along a downhill flow trace; fords are hand-marked shallow spans</td></tr>
+  <tr><td><b>Lakes &amp; sea</b></td><td>Fishing, naval, transport</td><td>Flat water plane at a fixed height + shoreline foam</td></tr>
+  <tr><td><b>Forest</b></td><td>Wood; blocks vision; slows infantry, blocks vehicles</td><td>Clumped scatter — <b>not uniform</b>, see below</td></tr>
+  <tr><td><b>Volcano</b></td><td>One per map, centre of a hazard zone. Uranium spawns near it.</td><td>Cone + lava flow + ash field. Periodic ash fall reduces vision map-wide for 20 s.</td></tr>
+  <tr><td><b>Control points</b></td><td>The Territory win condition</td><td>6–12 flat clearings at natural junctions</td></tr>
+</table>
+
+<div class="note warn">
+  <span class="lbl">Scatter — the mistake to not repeat</span>
+  Uniform tree scatter produces <b>an impenetrable hedge</b>. 864 trees placed evenly formed a wall
+  with no way through and no visual interest. The fix that works: a <b>low-frequency clump mask</b>
+  multiplied into the density, plus a <b>keep-out radius</b> around structures and paths. Forests must
+  have edges, clearings and gaps you can walk through, or the map plays as a maze.
+</div>
+
+<h2>Ground cover is not decoration</h2>
+<div class="note good">
+  <span class="lbl">Measured, on the last map</span>
+  A dressed village came to <b>23,085 objects and 3.8 M triangles</b>. Of that,
+  <b>grass tufts were 7,434 objects and 2.92 M triangles — 76% of the entire scene.</b> Flowers,
+  mushrooms and ferns added another 10,400 objects. Against a comparable map with zero ground cover,
+  that difference is most of the gap between &ldquo;a place&rdquo; and &ldquo;a golf course&rdquo;.
+</div>
+<p><b>Therefore:</b> ground cover ships as ~42 small meshes plus a <code>cover.json</code> of transforms,
+GPU-instanced in Unity. Budget 15,000–20,000 instances on a Standard map. This is one
+<code>DrawMeshInstancedIndirect</code> call per mesh, so the cost is triangles, not draw calls — which
+is the resource a desktop GPU actually has spare.</p>
+
+<h2>Map generation</h2>
+<p>Maps are generated by script from a seed and an archetype, then reviewed by the asserting harness,
+then hand-adjusted only through parameters — never by moving things in the GUI, which is lost on the
+next build.</p>
+<table>
+  <tr><th>Archetype</th><th>Shape</th><th>Plays like</th></tr>
+  <tr><td>Fjord</td><td>Sea inlet splitting the map; bases on opposite shores</td><td>Naval matters from minute one. Transports decide the game.</td></tr>
+  <tr><td>Highland</td><td>Central mountain, four valleys</td><td>Chokepoint control. Walls stay relevant an age longer.</td></tr>
+  <tr><td>River basin</td><td>One river, three fords, flat banks</td><td>The classic. Fords are the whole map.</td></tr>
+  <tr><td>Ashlands</td><td>Volcano centre, resources ringed around it</td><td>Greed versus hazard. Uranium sits in the worst place.</td></tr>
+  <tr><td>Open plain</td><td>Gentle rolls, few blockers</td><td>Cavalry and armour. No hiding.</td></tr>
+</table>
+
+<h2>Fog of war</h2>
+<table>
+  <tr><th>State</th><th>Terrain</th><th>Buildings</th><th>Units</th></tr>
+  <tr><td>Unexplored</td><td>Black</td><td>Hidden</td><td>Hidden</td></tr>
+  <tr><td>Explored, not visible</td><td>Visible, desaturated 60%</td><td>Shown as last seen</td><td><b>Hidden</b></td></tr>
+  <tr><td>Visible</td><td>Full</td><td>Live</td><td>Live</td></tr>
+</table>
+<p>Implemented as a 1 m-resolution visibility texture updated on a 4 Hz tick, sampled by a full-screen
+URP post-process and by the minimap. <b>The AI is subject to it</b> — see
+<a href="06-ai.html">06 · AI</a>, where that constraint is the difference between an opponent you can
+outwit and one you can only out-produce.</p>
+
+<h2>World scale — validated against a shipped RTS</h2>
+<div class="note good">
+  <span class="lbl">Verified 3–0 · Supreme Commander 2</span>
+  SC2 shipped its pathfinding world at <b>1 grid square = 1 world metre</b>, partitioned into
+  <b>10 × 10 m sectors</b> joined by portal windows. That is direct, first-hand confirmation from the
+  engineer who shipped it, and it validates our two core conventions: <b>1 Unity unit = 1 metre</b>,
+  and <b>1 m flow-field cells</b>.
+</div>
+<table>
+  <tr><th>Map</th><th class="num">Cells at 1 m</th><th class="num">8-bit cost field</th><th>Verdict</th></tr>
+  <tr><td>Duel · 240 m</td><td class="num">57,600</td><td class="num">~58 KB</td><td>Trivial</td></tr>
+  <tr><td>Standard · 420 m</td><td class="num">176,400</td><td class="num">~176 KB</td><td>Trivial</td></tr>
+  <tr><td>Grand · 640 m</td><td class="num">409,600</td><td class="num">~410 KB</td><td>Trivial</td></tr>
+</table>
+<p><b>Pathfinding memory is a non-issue at every map size we plan to ship.</b> Note that a more
+detailed per-cell memory breakdown from the same source was <b>refuted 0–3</b>, so budget from the
+8-bit cost field above and measure the rest rather than trusting published per-field figures.</p>
+<div class="note warn">
+  <span class="lbl">The honest scope note</span>
+  Flow-field <i>tiles</i> decouple planning cost from unit count — A* runs only over a sparse portal
+  graph and tiles are cached across agents and across goals. <b>At a 200-unit cap that full
+  portal/tile architecture is over-engineering.</b> Per-agent steering and local avoidance stay
+  O(agents) and will dominate the frame. <b>Build the plain shared flow field first</b>, profile, and
+  only add portals and tile caching if the profile actually asks for them.
+</div>
+
+<h2>Camera</h2>
+<p>Desktop RTS camera, and the mistakes from the mobile build are specifically excluded.</p>
+<table>
+  <tr><th>Input</th><th>Action</th></tr>
+  <tr><td>Right-click drag / middle-click drag</td><td>Pan</td></tr>
+  <tr><td>Scroll wheel</td><td>Zoom <b>at the cursor</b>, not at screen centre</td></tr>
+  <tr><td>Trackpad two-finger scroll</td><td>Pan · pinch to zoom (macOS)</td></tr>
+  <tr><td>WASD / arrow keys</td><td>Pan</td></tr>
+  <tr><td>Mouse at screen edge</td><td>Pan, toggleable in settings</td></tr>
+  <tr><td>Q / E</td><td>Rotate yaw in 45° steps</td></tr>
+  <tr><td><b>Left-click</b></td><td><b>Selection only. Never bound to pan.</b></td></tr>
+</table>
+<div class="note warn">
+  <span class="lbl">Refuted 0–3 — do not write this code</span>
+  The widely repeated claim that <b>Windows reports mouse-wheel scroll in steps of ±120 in Unity's
+  Input System</b> (inherited from <code>WM_MOUSEWHEEL</code>) <b>failed verification twice</b>.
+  <b>Do not build cross-platform zoom around a divide-by-120 constant or any other assumed
+  magnitude.</b> The correct normalisation is unknown, and this is now <i>less</i> settled than before
+  the research pass, not more.
+  <br><br>
+  <b>What to do instead:</b> a half-day measurement harness that logs raw
+  <code>Mouse.current.scroll</code> deltas for a wheel notch, a macOS trackpad two-finger flick, and a
+  pinch, on both platforms — then normalise from the measurements. <b>This blocks zoom-at-cursor.</b>
+</div>
+
+<div class="note">
+  <span class="lbl">On reference implementations</span>
+  No verified best-practice guidance for a desktop RTS camera was found. The one reference repo that
+  surfaced targets <b>Cinemachine 2 on Unity 2022.3</b> on its default branch, with Cinemachine 3 —
+  the version Unity 6 ships — only on an experimental branch. Its binding set also failed verification
+  (1–2). <b>Treat the camera as unsolved and write it ourselves</b>, with one useful structural idea
+  worth taking: put input behind an interface with interchangeable provider components, so the input
+  backend can be swapped without touching camera logic.
+</div>
+
+<p>Pitch is fixed at 50°, zoom range 18–90 m above ground, and <b>bounds and zoom limits must respond
+to aspect ratio</b> — desktop runs 1080p to 4K, windowed and resizable, and a camera tuned for a fixed
+phone aspect shows the edge of the world at 21:9.</p>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

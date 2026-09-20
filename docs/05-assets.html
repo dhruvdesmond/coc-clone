@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Asset Manifest · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a class="here" href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">05 · Art</div>
+  <h1>Asset Manifest</h1>
+  <p class="lede">Every model the game needs, what already exists, and the order to build the rest.
+  This page is the <b>input to the asset agents</b> — when one is dispatched, it is given a row from
+  these tables, not a paragraph of prose.</p>
+</header>
+
+<div class="bar">
+  <span class="pill">Built <b class="ok">35</b></span>
+  <span class="pill">Planned <b>~192</b></span>
+  <span class="pill">Buildings <b>~70</b></span>
+  <span class="pill">Units <b>~62</b></span>
+  <span class="pill">Props &amp; terrain <b>~60</b></span>
+</div>
+
+<h2>What already exists <span class="tag done">35 assets</span></h2>
+<p>All in <code>/Users/dhruv/blender/base/&lt;family&gt;/models/&lt;name&gt;.blend</code>, procedural,
+built by <code>build.py</code>. Do not re-author these — extend them.</p>
+<table>
+  <tr><th>Family</th><th class="num">n</th><th>Assets</th><th>Maps to</th></tr>
+  <tr><td>hall</td><td class="num">1</td><td><code>hall</code></td><td>Age I Town Centre (Longhouse)</td></tr>
+  <tr><td>huts</td><td class="num">5</td><td><code>hut_a … hut_e</code></td><td>Age I House ×5 variants</td></tr>
+  <tr><td>outbuildings</td><td class="num">5</td><td><code>stabbur, forge, boathouse, stable, well</code></td><td>Storehouse, Forge, Boathouse, Stable, Well</td></tr>
+  <tr><td>towers</td><td class="num">3</td><td><code>tower_a, tower_b, tower_c</code></td><td>Age I Watchtower ×3</td></tr>
+  <tr><td>modern</td><td class="num">5</td><td><code>barracks, hangar, airport, command, medical</code></td><td>Age V Barracks, Hangar, Airfield, Command Centre, Hospital</td></tr>
+  <tr><td>terrain</td><td class="num">6</td><td><code>tile_grass, tile_forest, tile_rocky, tile_water, tile_snow, tile_sand</code></td><td>Biome reference for the heightfield shader</td></tr>
+  <tr><td>troops</td><td class="num">10</td><td><code>swordsman, spearman, archer, axeman, berserker, standard, horseman, lancer, horsearcher, warelephant</code></td><td>Most of the Age I–II roster</td></tr>
+</table>
+<div class="note good">
+  <span class="lbl">The happy accident</span>
+  The existing library is not a random pile — it is <b>Age I almost complete and Age V's core five
+  already done</b>. The two hardest ages to art-direct are the ones already standing. What is missing
+  is the middle, which is also the cheapest to make, because Feudal/Gunpowder/Industrial share a
+  masonry-and-timber vocabulary that the Norse kit half-covers already.
+</div>
+
+<h2>Build order — what the agents make, in this sequence</h2>
+<p>Ordered so that a playable slice exists as early as possible. Do not build Age VI art before Age I
+plays.</p>
+
+<h3>Wave 1 — finish Age I so slice 1 can be played <span class="tag hot">next</span></h3>
+<table>
+  <tr><th>Asset</th><th>Kit</th><th>Notes for the agent</th><th class="num">Est.</th></tr>
+  <tr><td><code>citizen</code></td><td>figure.py</td><td>The most important model in the game. Unarmed, carries a bundle. Needs carry/chop/build/idle poses.</td><td class="num">L</td></tr>
+  <tr><td><code>runehall</code></td><td>norse.py</td><td>Small hall variant, carved posts, no long roof. Distinct silhouette from <code>hall</code>.</td><td class="num">M</td></tr>
+  <tr><td><code>farm</code></td><td>norse.py</td><td>Fenced plot + furrows + a lean-to. Must read at 60° camera.</td><td class="num">S</td></tr>
+  <tr><td><code>palisade</code> + <code>palisade_gate</code></td><td>norse.py</td><td>Modular 4 m segment, corner piece, gate. Tiling matters more than detail.</td><td class="num">M</td></tr>
+  <tr><td><code>longship</code></td><td>meshkit.py</td><td>Age I naval + transport. Sail up and down variants.</td><td class="num">M</td></tr>
+  <tr><td><code>fishingboat</code></td><td>meshkit.py</td><td>Small, 2 oars</td><td class="num">S</td></tr>
+  <tr><td>Resource nodes ×6</td><td>terrain.py</td><td><code>node_berry, node_deer, node_tree_*, node_rock, node_ore, node_fish</code>. Each needs a <b>depleted</b> variant — see rule in 03.</td><td class="num">M</td></tr>
+</table>
+
+<h3>Wave 2 — Age II Feudal</h3>
+<table>
+  <tr><th>Asset</th><th>Notes</th></tr>
+  <tr><td><code>keep</code></td><td>Age II Town Centre. Stone, square, crenellated. The &ldquo;we are defending now&rdquo; statement.</td></tr>
+  <tr><td><code>cottage</code>, <code>market</code>, <code>caravanpost</code>, <code>chapel</code>, <code>quarry</code>, <code>mine</code>, <code>archeryrange</code>, <code>siegeworkshop</code></td><td>Masonry kit. Build a <code>feudal.py</code> library module alongside <code>norse.py</code>.</td></tr>
+  <tr><td><code>wall_stone</code>, <code>wall_stone_gate</code>, <code>wall_stone_tower</code></td><td>Modular, same 4 m grid as the palisade</td></tr>
+  <tr><td>Units: <code>manatarms, crossbow, pikeman, knight, monk, trebuchet, ram, cog</code></td><td>8 units. <code>lancer</code> already exists and serves as the knight base.</td></tr>
+</table>
+
+<h3>Wave 3 — Age V Modern completion</h3>
+<p>Jumped ahead of III and IV deliberately: Age V has five buildings already, so the marginal cost of
+finishing it is low, and it gives us both ends of the arc to test the age-transition system against.</p>
+<table>
+  <tr><th>Asset</th><th>Notes</th></tr>
+  <tr><td><code>derrick</code>, <code>powerplant</code>, <code>tankworks</code>, <code>aabattery</code>, <code>apartment</code></td><td>Extend <code>modern.py</code></td></tr>
+  <tr><td>Units: <code>rifleman, mg_team, at_gun, halftrack, tank, fighter, bomber, destroyer, carrier, medic, engineer, rockettruck</code></td><td>12. <b>The tank and the fighter are the two that must be excellent</b> — they carry Age V.</td></tr>
+</table>
+
+<h3>Wave 4 — Age VI Atomic</h3>
+<table>
+  <tr><th>Asset</th><th>Notes</th></tr>
+  <tr><td><code>silo</code></td><td class="tag hot">The single highest-value model in the project. Closed, opening and open states; the missile is a separate object.</td></tr>
+  <tr><td><code>missile</code></td><td>Separate asset. Needs to fly, so origin at base, exhaust socket at tail.</td></tr>
+  <tr><td><code>lab</code>, <code>refinery</code>, <code>radar</code>, <code>abm_site</code>, <code>block</code></td><td>Radar dish must rotate — separate object with a named pivot.</td></tr>
+  <tr><td>Units: <code>specops, missileteam, atmissile, apc, mbt, jet, strategicbomber, cruiser, submarine, radartruck</code></td><td>10</td></tr>
+</table>
+
+<h3>Waves 5–6 — Ages III and IV</h3>
+<p>Last, because they are the middle of the arc and the least visible in a vertical slice. ~11
+buildings and ~14 units across the two, sharing a <code>industrial.py</code> kit.</p>
+
+<h2>Props, terrain and set dressing <span class="tag todo">~60</span></h2>
+<p>From §52 of the studio log: <b>ground cover was three quarters of what made the good map good.</b>
+This is not optional decoration — budget it as first-class work.</p>
+<table>
+  <tr><th>Group</th><th class="num">n</th><th>Assets</th></tr>
+  <tr><td>Ground cover</td><td class="num">~20</td><td>grass tufts ×6, flowers ×5, mushrooms ×3, ferns ×3, pebbles ×3 — instanced in the thousands</td></tr>
+  <tr><td>Trees</td><td class="num">~12</td><td>birch, pine, oak, dead, stump, and a chopped variant per species</td></tr>
+  <tr><td>Rock &amp; cliff</td><td class="num">~10</td><td>boulders ×4, cliff faces ×3, scree ×3</td></tr>
+  <tr><td>Water</td><td class="num">~6</td><td>shoreline foam, river rapids, waterfall, lily, reed, dock</td></tr>
+  <tr><td>Volcano</td><td class="num">~5</td><td>cone, lava flow, obsidian field, ash, vent — see <a href="08-map.html">08 · Map</a></td></tr>
+  <tr><td>Battlefield</td><td class="num">~8</td><td>craters ×3, rubble ×3, wreck, scorch decal</td></tr>
+</table>
+
+<h2>The rules every asset agent must follow</h2>
+<div class="note warn">
+  <span class="lbl">Non-negotiable — these are paid-for lessons</span>
+  <ol style="margin:8px 0 0 18px">
+    <li><b><code>build.py</code> is the source of truth, not the <code>.blend</code>.</b> Anything done by
+    hand in the GUI is destroyed on the next build.</li>
+    <li><b>Procedural only.</b> Primitives, modifiers, shader nodes. No downloaded models, no image
+    textures.</li>
+    <li><b>Shared code lives in <code>lib/</code>.</b> If two scenes would need it, it belongs in the
+    library — never duplicated into a scene script.</li>
+    <li><b>Fixed <code>random.seed()</code></b> at the top of every build script. Builds must be
+    reproducible.</li>
+    <li><b>Preview render before the final, and look at the image.</b> Previews are prefixed
+    <code>preview_</code> — a preview once overwrote a finished final render.</li>
+    <li><b>Run <code>scripts/set_viewport_colors.py</code> after building</b> or the scene is grey in the
+    GUI.</li>
+    <li><b>Read <code>matrix_basis</code>, not <code>matrix_world</code></b>, on appended objects — the
+    depsgraph never evaluates a hidden collection, and everything collapses to one point.</li>
+    <li><b>Append once, instance with <code>obj.copy()</code>.</b> Three appends make six duplicate
+    materials.</li>
+    <li><b>Never hash two Cycles renders to test for a regression.</b> GPU denoising is not
+    bit-reproducible. Compare object counts and geometry.</li>
+    <li><b>Colour crossing to Unity is raised by <code>pow(v, 0.62)</code></b> — these palettes are
+    authored for Cycles with AgX. Apply it to <i>every</i> surface or none.</li>
+  </ol>
+</div>
+
+<h2>Naming and layout, exactly</h2>
+<pre><code>blender/base/&lt;family&gt;/
+├── build.py                    the source of truth
+├── &lt;family&gt;.blend              build artifact, overwritten
+├── models/&lt;asset&gt;.blend        one file per asset — objects + materials, no camera
+└── renders/
+    ├── &lt;family&gt;_0001.png       final
+    ├── preview_&lt;family&gt;_0001.png
+    └── review/                 plan + angles + close-ups</code></pre>
+<ul>
+  <li>Family folder is lowercase, singular or a family plural: <code>hall</code>, <code>huts</code>,
+  <code>map_village</code>.</li>
+  <li>Always <code>build.py</code> — never <code>main.py</code> or <code>&lt;family&gt;_build.py</code>.</li>
+  <li>Build artifact is named after its folder.</li>
+  <li>Asset files are named after the asset: <code>hut_a.blend</code>.</li>
+</ul>
+
+<h2>Definition of done, per asset</h2>
+<p>An agent may not mark an asset complete until all six are true:</p>
+<ol>
+  <li><code>models/&lt;asset&gt;.blend</code> exists and opens clean from <code>--factory-startup</code></li>
+  <li>A final render exists in <code>renders/</code> and <b>has been looked at</b></li>
+  <li>Triangle count is recorded and is within the budget in <a href="10-tech.html">10 · Tech</a></li>
+  <li>The asset is recentred on its ground-contact point, not its authoring offset</li>
+  <li>Materials use the shared palette from <code>lib/materials.py</code> — no ad-hoc colours</li>
+  <li>The row in <code>PROGRESS.md</code> is moved to <b>Done</b> with the triangle count</li>
+</ol>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

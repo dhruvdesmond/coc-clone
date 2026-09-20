@@ -1,0 +1,48 @@
+# ---- Unity ----------------------------------------------------------------
+# Library/ alone is 1.6 GB and is fully regenerable from Assets + ProjectSettings.
+unity/*/Library/
+unity/*/Temp/
+unity/*/Obj/
+unity/*/Logs/
+unity/*/UserSettings/
+unity/*/Build/
+unity/*/Builds/
+unity/*/MemoryCaptures/
+unity/*/Recordings/
+unity/*/[Aa]ssets/AssetStoreTools*
+unity/*/.vsconfig
+
+# Generated C# project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Generated verification output -- regenerate with SliceZero.Verify
+unity/*/Verification/
+
+# ---- Blender ---------------------------------------------------------------
+*.blend1
+*.blend2
+__pycache__/
+*.pyc
+
+# ---- macOS -----------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ---- editors ---------------------------------------------------------------
+.idea/
+.vscode/
+*.swp

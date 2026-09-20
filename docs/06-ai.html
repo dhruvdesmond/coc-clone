@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI — Game and Workflow · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a class="here" href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">06 · Intelligence</div>
+  <h1>AI — Game and Workflow</h1>
+  <p class="lede">Two different things share this page because they share a principle: <b>an agent
+  should be given a goal and a budget, not a script.</b> First, the opponent AI that plays the game.
+  Second, how the Claude agents building this project must behave.</p>
+</header>
+
+<h2 style="border:none;padding-top:0">Part 1 — The opponent AI</h2>
+
+<h3>Three layers, and why three</h3>
+<p>The recurring finding in RTS AI literature is that the difficulty is not unit behaviour — it is
+that one system has to simultaneously watch a large map, manage many units of different kinds, and
+hold a long-term strategy that updates during play. Trying to do all three in one structure is what
+produces AI that either macros well and fights stupidly, or micros well and never builds anything.
+<b>So: three layers, each with one job and a clean interface to the next.</b></p>
+
+<table>
+  <tr><th>Layer</th><th>Technique</th><th>Tick rate</th><th>Decides</th><th>Output</th></tr>
+  <tr><td>1 · Commander</td><td><b>Utility AI</b></td><td>every 2 s</td><td>Strategy: expand, tech, army, defend, attack</td><td>A weighted list of <i>Goals</i></td></tr>
+  <tr><td>2 · Officer</td><td><b>Behaviour trees</b>, one per goal</td><td>every 0.5 s</td><td>How to achieve a goal: which base, which squad, which target</td><td><i>Orders</i> to groups</td></tr>
+  <tr><td>3 · Unit</td><td>Small state machine + steering</td><td>every frame</td><td>Move, fire, flee, reload, hold</td><td>Motion and animation</td></tr>
+</table>
+
+<h4>Layer 1 — the Commander is a utility system</h4>
+<p>Utility AI scores every possible action with a formula and picks the best (or samples from the top
+by weight). It is the right tool here specifically because the literature is consistent that utility
+systems suit <b>resource management and strategy</b> — which is exactly what layer 1 does — while
+behaviour trees suit ordered, conditional sequences, which is exactly what layer 2 does.</p>
+<p>The commander scores ~12 goals each tick. A sketch of the real thing:</p>
+<pre><code>score(EXPAND)     = unclaimed_nodes_nearby × 0.8
+                  × saturation(current_nodes)        // 1.0 when workers are idle
+                  × (1 - threat_level)               // don't expand under attack
+
+score(TECH_AGE)   = (knowledge / age_cost)           // 0..1, how close we are
+                  × economy_health
+                  × (1 + 0.6 × enemy_is_ahead)       // urgency if behind
+
+score(BUILD_ARMY) = threat_level × 1.2
+                  + (army_ratio &lt; 0.8 ? 0.5 : 0)     // we are outnumbered
+                  + opportunity(enemy_army_away)
+
+score(ATTACK)     = army_ratio_advantage
+                  × scouted_weakness
+                  × (1 - our_base_threat)
+                  × commitment_hysteresis            // see below</code></pre>
+<div class="note">
+  <span class="lbl">The two details that make utility AI feel intelligent instead of twitchy</span>
+  <b>Hysteresis</b> — once a goal is chosen it gets a +0.25 bonus for the next 20 seconds, so the AI
+  commits instead of oscillating between attack and defend every two seconds. <b>Weighted random over
+  the top three</b> rather than strict argmax, so the same opening does not appear in every match.
+  Without these two, a correct utility system still plays like a malfunctioning appliance.
+</div>
+
+<h4>Layer 2 — Officers are behaviour trees</h4>
+<p>One tree per goal type, instantiated per squad or per base. Behaviour trees are chosen here for the
+reason they became standard: sequences, selectors and decorators are a natural, modular, readable way
+to express &ldquo;do this, then that, unless this&rdquo; — and they are easy for a designer to edit
+without touching the scoring maths.</p>
+<pre><code>ATTACK_GOAL
+└── Selector
+    ├── Sequence  [retreat]
+    │   ├── Condition: squad_strength &lt; 35%
+    │   ├── Action: find_nearest_safe_point
+    │   └── Action: move_formation
+    ├── Sequence  [engage]
+    │   ├── Condition: enemy_in_range
+    │   ├── Action: pick_targets_by_counter_table
+    │   └── Action: attack_move
+    └── Sequence  [approach]
+        ├── Action: request_flow_field(target)
+        └── Action: move_formation</code></pre>
+
+<h4>Layer 3 — Units are dumb on purpose</h4>
+<p>A unit knows five states: <code>Idle · Moving · Attacking · Fleeing · Working</code>. It never
+pathfinds for itself and it never chooses a strategic target. It follows the flow field it was given
+and shoots whatever the officer marked. This is what keeps 200 units cheap.</p>
+
+<h3>Movement: flow fields, not 200 A* queries</h3>
+<p>A flow field is a grid where every cell stores a direction vector pointing along the cheapest route
+to the destination, avoiding static obstacles. One field is computed per <i>destination</i> and shared
+by every unit heading there — so moving 60 units costs one pathfinding solve instead of sixty. This is
+the standard answer for large groups, and A* — even with jump point search — is the wrong shape here
+because its cost scales with the number of agents.</p>
+<table>
+  <tr><th>Situation</th><th>Use</th><th>Why</th></tr>
+  <tr><td>Group move order (&gt;4 units)</td><td><b>Flow field</b></td><td>One solve, shared by all</td></tr>
+  <tr><td>Single unit, e.g. a citizen to a tree</td><td>A*</td><td>A whole field is wasteful for one agent</td></tr>
+  <tr><td>Local avoidance between units</td><td>Steering / RVO on top</td><td>The field handles terrain; steering handles each other</td></tr>
+  <tr><td>Formation shape</td><td>Slot offsets around an anchor</td><td>See below</td></tr>
+</table>
+<div class="note good">
+  <span class="lbl">Formations — the one design decision worth copying exactly</span>
+  <b>Keep the layout independent from the movement.</b> The formation system generates local slots
+  around a moving anchor and hands each unit a slot in world space. A unit must never know whether its
+  target came from a grid, a wedge or a ring — it just walks to a point. That separation is what makes
+  it possible to add a new formation later without touching a single line of unit code.
+</div>
+
+<h3>Difficulty without cheating</h3>
+<p>The temptation is to give the AI resource multipliers. It is the wrong lever: it produces an
+opponent that is not harder to <i>outplay</i>, only harder to <i>out-produce</i>, and players can feel
+it immediately.</p>
+<table>
+  <tr><th>Level</th><th>Reaction delay</th><th>Map knowledge</th><th>Micro</th><th>Resource bonus</th></tr>
+  <tr><td>Easy</td><td>4.0 s</td><td>Fog respected; scouts rarely</td><td>None — units attack-move only</td><td class="num">×1.0</td></tr>
+  <tr><td>Normal</td><td>2.0 s</td><td>Fog respected; scouts on a schedule</td><td>Focus fire</td><td class="num">×1.0</td></tr>
+  <tr><td>Hard</td><td>0.8 s</td><td>Fog respected; scouts reactively</td><td>Focus fire + retreat wounded</td><td class="num">×1.0</td></tr>
+  <tr><td>Brutal</td><td>0.3 s</td><td>Fog respected; near-perfect scouting</td><td>Full: kiting, counter-swaps, raids</td><td class="num">×1.15</td></tr>
+</table>
+<p><b>Fog of war is respected at every level including Brutal.</b> An AI that sees through fog cannot
+be outwitted, only out-statted, and every feint the player attempts silently fails. The 15% economy
+bonus appears only at Brutal, and is declared in the UI.</p>
+
+<h3>What the AI must never do</h3>
+<ul>
+  <li><b>Never read the player's unit list directly.</b> It reads its own <i>belief</i> of the map,
+  updated by scouting, with stale entries decaying after 45 s. This single constraint is what makes
+  feints, hidden expansions and surprise tech work at all.</li>
+  <li><b>Never idle its citizens.</b> An idle-worker check every 2 s, because the most common way a
+  competent-looking AI reveals itself as broken is eight builders standing in a field.</li>
+  <li><b>Never attack in a trickle.</b> Squads gather at a rally point and move as one. Units arriving
+  one at a time into a defended base is the single worst-looking AI behaviour in the genre.</li>
+</ul>
+
+<h2>Part 2 — How the Claude agents on this project must behave</h2>
+<p>This project is built largely by dispatched agents. These rules exist because the alternative has
+already been paid for, repeatedly, in the studio log.</p>
+
+<h4>Before doing anything</h4>
+<ol>
+  <li>Read <code>PROGRESS.md</code>. It is the state of the world.</li>
+  <li>Read the design doc for the area you are touching. If your task contradicts it, <b>say so and
+  stop</b> — do not silently do the sensible thing.</li>
+  <li>For Blender work: load the <code>blender-procedural</code> and
+  <code>procedural-map-assembly</code> skills, and read <code>~/blender/CLAUDE.md</code>.</li>
+</ol>
+
+<h4>While working</h4>
+<ul>
+  <li><b>One agent, one asset or one system.</b> Agents that are given &ldquo;build the Feudal age&rdquo;
+  produce eight mediocre models. Agents given &ldquo;build the keep&rdquo; produce one good one.</li>
+  <li><b>Never hand-edit a generated artifact.</b> Not <code>.blend</code> files, not generated Unity
+  scenes. Change the generator. This has silently destroyed work before.</li>
+  <li><b>Look at the render.</b> A build that completes is not a build that is correct. Asset agents
+  must open the image.</li>
+  <li><b>Two tables of the same fact is one table too many.</b> When a material palette, a cost or a
+  stat exists in both Python and C#, they will diverge, and the divergence will be found late.</li>
+</ul>
+
+<h4>When reporting back</h4>
+<div class="note warn">
+  <span class="lbl">The rule that cost the most to learn</span>
+  <b>A measurement rounded past the thing you are measuring is not evidence.</b> A log reading
+  <code>bounds (0.00, 0.00, 0.00)</code> was read as &ldquo;empty mesh&rdquo; and used to reverse a
+  correct fix; it was a 3 mm mesh printed at two decimals. Print enough precision to distinguish the
+  hypotheses, and include a count alongside any dimension. Report what you actually verified, not what
+  the command's exit code implies.
+</div>
+<ul>
+  <li>State what was built, what was verified, and <b>what was not checked</b>.</li>
+  <li>Update your row in <code>PROGRESS.md</code> before finishing. An agent that does good work and
+  leaves no trace has, from the next session's point of view, done nothing.</li>
+</ul>
+
+<h2>Sources</h2>
+<ul>
+  <li><a href="https://en.wikipedia.org/wiki/Utility_system">Utility system — Wikipedia</a></li>
+  <li><a href="https://tonogameconsultants.com/game-ai-planning/">Game AI Planning: GOAP, Utility, and Behavior Trees</a></li>
+  <li><a href="https://gamedev.net/forums/topic/692447-game-ai-architecture-for-a-rts-game/">Game AI architecture for an RTS game — GameDev.net</a></li>
+  <li><a href="https://arxiv.org/pdf/2111.12144">Mimicking Playstyle by Adapting Parameterized Behavior Trees in RTS Games</a></li>
+  <li><a href="https://www.gameaipro.com/GameAIPro3/GameAIPro3_Chapter14_Combining_Scripted_Behavior_with_Game_Tree_Search_for_Stronger_More_Robust_Game_AI.pdf">Game AI Pro 3, ch. 14 — Combining Scripted Behavior with Game Tree Search</a></li>
+  <li><a href="https://www.jdxdev.com/blog/2020/05/03/flowfields/">RTS Pathfinding 1 — Flowfields, jdxdev</a></li>
+  <li><a href="https://dev.to/roma_k1978/how-to-build-readable-unit-formations-in-unity-procedural-layouts-runtime-behaviours-4jh4">Readable Unit Formations in Unity — procedural layouts and runtime behaviours</a></li>
+  <li><a href="https://medium.com/c-sharp-programming/making-a-rts-game-23-implementing-behaviour-trees-for-our-units-1-3-unity-c-1a61840058a6">Making an RTS game #23 — behaviour trees for units (Unity/C#)</a></li>
+</ul>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Animation, VFX & Sound · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a class="here" href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">09 · Feel</div>
+  <h1>Animation, VFX &amp; Sound</h1>
+  <p class="lede">The layer that decides whether the game feels made or generated. Everything here is
+  cheap except the three things that are not, and those three are named.</p>
+</header>
+
+<h2>The doctrine — three speeds, never blended</h2>
+<div class="note">
+  <span class="lbl">Carried over from MOTION.md, and it holds here</span>
+  <b>World speed</b> — 4–30 s, linear. Clouds, water, smoke drift, day cycle.<br>
+  <b>Business speed</b> — 200–600 ms, smooth with a slight overshoot. UI, build placement, selection
+  rings, resource ticks.<br>
+  <b>Violence speed</b> — 60–180 ms, <b>no easing at all</b>. Impacts, muzzle flash, recoil, death.<br><br>
+  The rule is that these never blend into each other. A death that eases is a death that reads as a
+  UI animation. Violence is the absence of easing — that is the whole trick, and it is free.
+</div>
+
+<h2>Unit animation</h2>
+<p>The ten existing troop models are already rigged and walk. The clip set below is what each unit
+needs; foot units share a skeleton so clips are authored once per <i>weapon class</i>, not per unit.</p>
+<table>
+  <tr><th>Clip</th><th class="num">Length</th><th>Notes</th></tr>
+  <tr><td>idle</td><td class="num">2.4 s loop</td><td>Weight shift + breath. Randomised start phase so a squad is not synchronised — this single line prevents the &ldquo;chorus line&rdquo; look.</td></tr>
+  <tr><td>walk / run</td><td class="num">1.0 / 0.7 s loop</td><td>Root motion off; speed driven by the movement system</td></tr>
+  <tr><td>attack_melee</td><td class="num">0.9 s</td><td><b>Impact frame at 0.35 s</b> — damage applies there, not at clip start</td></tr>
+  <tr><td>attack_ranged</td><td class="num">1.2 s</td><td>Draw · hold · release. Projectile spawns on the release frame.</td></tr>
+  <tr><td>attack_fire (gun)</td><td class="num">0.4 s</td><td>Recoil is an additive layer on the spine, so it stacks on walk</td></tr>
+  <tr><td>death ×2</td><td class="num">1.1 s</td><td>Two variants, chosen by hit direction. Last pose holds, then the body sinks and fades at 12 s.</td></tr>
+  <tr><td>work_chop / work_mine / work_build</td><td class="num">1.6 s loop</td><td>Citizens only. Impact frame drives the chip particle and the sound.</td></tr>
+  <tr><td>carry</td><td class="num">1.0 s loop</td><td>Walk variant with the load visible in-hand — the resource being carried must be readable</td></tr>
+</table>
+
+<h4>The sword arc, specifically</h4>
+<p>It was asked for by name, so it gets specified. <b>The arm is not the effect.</b> A melee swing reads
+from four things, in this order of importance:</p>
+<ol>
+  <li><b>The trail</b> — a 6-segment ribbon along the blade path, 120 ms lifetime, white-hot at the tip
+  fading to nothing. Without it the arm is just moving.</li>
+  <li><b>The hitstop</b> — on impact, freeze <i>both</i> units for 60 ms. This is the single highest
+  value-per-line effect in the entire game.</li>
+  <li><b>The anticipation</b> — 4 frames of wind-up in the opposite direction before the swing.</li>
+  <li><b>The arm.</b> Last. It carries the other three.</li>
+</ol>
+
+<h2>Weapons and impacts</h2>
+<table>
+  <tr><th>Event</th><th>Visual</th><th class="num">Life</th></tr>
+  <tr><td>Arrow / bolt</td><td>Thin mesh projectile on a ballistic arc; sticks in the ground or the target</td><td class="num">8 s stuck</td></tr>
+  <tr><td>Musket / rifle</td><td>Muzzle flash sprite (2 frames, 60 ms) + smoke puff + shell eject from Age IV</td><td class="num">1.5 s smoke</td></tr>
+  <tr><td>Machine gun</td><td>Flash every 3rd round, continuous smoke, tracer every 5th</td><td class="num">—</td></tr>
+  <tr><td>Cannon / artillery</td><td>Directional muzzle blast cone + ground dust ring + <b>camera shake if on screen</b></td><td class="num">2 s</td></tr>
+  <tr><td>Tank main gun</td><td>Flash + recoil on the hull (additive) + dust sheet under the barrel</td><td class="num">2 s</td></tr>
+  <tr><td>Bomb / shell impact</td><td>Flash → debris burst → smoke column → <b>persistent crater decal</b></td><td class="num">crater permanent</td></tr>
+  <tr><td>Building destroyed</td><td>Collapse in 3 chunks + dust + fire for 20 s, then a rubble mesh stays</td><td class="num">rubble permanent</td></tr>
+</table>
+
+<h2>The missile and the blast</h2>
+<p>This is Age VI's payoff and the most-watched 14 seconds in the game. It is scripted as a
+<b>sequence</b>, not a particle system, because it must be identical and correct every time.</p>
+<table>
+  <tr><th class="num">t</th><th>What happens</th><th>Camera</th><th>Audio</th></tr>
+  <tr><td class="num">−3.0 s</td><td>Silo doors grind open. Steam venting.</td><td>Free</td><td>Metal grind, low. Alarm klaxon starts <b>for both players</b>.</td></tr>
+  <tr><td class="num">0.0 s</td><td>Ignition. White flare fills the silo mouth.</td><td>Free</td><td>Ignition crack</td></tr>
+  <tr><td class="num">+0.4 s</td><td>Missile clears the silo. Exhaust plume, ground scorch, dust ring to 30 m.</td><td>Optional auto-cut to the silo</td><td>Sustained roar, heavily low-passed</td></tr>
+  <tr><td class="num">+1.0–8.0 s</td><td>Ascent, then ballistic arc. <b>Visible on the minimap to both players.</b></td><td>Free — the defender has this window to fire an ABM</td><td>Roar fades to distance</td></tr>
+  <tr><td class="num">+8.0 s</td><td>Terminal dive. A thin white line down the sky.</td><td>Free</td><td>Rising whistle</td></tr>
+  <tr><td class="num">+9.5 s</td><td><b>Detonation.</b> Full-screen white, 200 ms, no easing.</td><td>Locks to the impact point</td><td><b>Silence.</b> Every other sound cuts.</td></tr>
+  <tr><td class="num">+9.7 s</td><td>White falls away to a fireball and a rising column. Shockwave ring expands at 60 m/s, flattening trees and killing units as it passes.</td><td>Hard shake, decaying over 2 s</td><td>Still silent — only a high ringing tone</td></tr>
+  <tr><td class="num">+12.0 s</td><td>The blast wave sound arrives. Deep, long, and louder than anything else in the game.</td><td>Settle</td><td><b>The boom lands late, on purpose.</b></td></tr>
+  <tr><td class="num">+14 s →</td><td>Mushroom column rises over 20 s. Ground is a glass crater. Ash falls map-wide for 40 s, reducing vision.</td><td>Released</td><td>Fires, wind, no music for 30 s</td></tr>
+</table>
+<div class="note">
+  <span class="lbl">The two decisions that make it land</span>
+  <b>The delayed boom</b> — sound arriving 2.5 s after the light is physically true and almost nobody
+  does it, and it is the difference between an explosion and an event. <b>The silence</b> — cutting all
+  audio at detonation makes a loud moment feel enormous, where layering more sound would just make it
+  loud. Both are free.
+</div>
+
+<h2>Blood and death persistence</h2>
+<p>Asked for specifically: bodies and blood stay for 10–15 s. Settled at <b>12 s</b>, with this
+lifecycle:</p>
+<table>
+  <tr><th class="num">t after death</th><th>What</th></tr>
+  <tr><td class="num">0.0 s</td><td>Death clip plays. A small directional blood burst — 8 particles, 300 ms, gravity on.</td></tr>
+  <tr><td class="num">0.4 s</td><td>A blood decal projects onto the terrain under the body, growing from 0 to full over 600 ms</td></tr>
+  <tr><td class="num">0 – 12 s</td><td>Body and decal hold at full. Collision off; other units walk over.</td></tr>
+  <tr><td class="num">12 – 14 s</td><td>Body sinks 0.3 m into the ground while fading. Decal fades to 35% opacity.</td></tr>
+  <tr><td class="num">14 s →</td><td>Decal <b>remains at 35%</b> until the decal budget evicts it, oldest first.</td></tr>
+</table>
+<p><b>Budget: 250 decals and 60 corpses on screen.</b> Oldest-first eviction. A big battlefield should
+stay stained long after the fight — the lingering decal is what makes a map feel fought over — but the
+corpses must clear or a late-game field becomes unreadable.</p>
+<div class="note warn">
+  <span class="lbl">Ship a toggle</span>
+  <b>Settings → Blood: On / Reduced / Off.</b> Reduced keeps the decals and drops the particle burst.
+  Some storefronts and some regions require it, and retrofitting a gore toggle late is far more work
+  than adding the branch now.
+</div>
+
+<h2>Sound</h2>
+<table>
+  <tr><th>Bus</th><th>Contents</th><th>Note</th></tr>
+  <tr><td>Music</td><td>6 age stems, same key family, swapped on the bar line at age advance</td><td>Drops out entirely for 30 s after a nuke</td></tr>
+  <tr><td>Ambience</td><td>Wind, birds, water, forest, distant industry. Cross-faded by camera position and age.</td><td>Age IV onward the ambience is <i>machinery</i> — the world stops sounding natural</td></tr>
+  <tr><td>Units</td><td>Footsteps by surface, weapon fire, impacts, <b>death vocals</b></td><td>See below</td></tr>
+  <tr><td>Buildings</td><td>Construction, completion chime, working loops, destruction</td><td>Working loops attenuate hard with distance or the base is a wall of noise</td></tr>
+  <tr><td>UI</td><td>Select, order, deny, resource tick, age-advance fanfare</td><td>Quiet and dry. UI is the one place easing is allowed.</td></tr>
+</table>
+
+<h4>Death vocals — the honest note</h4>
+<p>Asked for specifically. <b>4 variants per faction per age, pitch-randomised ±8%</b>, and cut short —
+0.5 to 0.9 s. Three constraints that matter more than the recording:</p>
+<ul>
+  <li><b>Hard voice limit of 6 simultaneous death sounds</b>, with the nearest to camera winning. Twenty
+  units dying at once without a limiter is a wall of noise that sounds comic rather than grim.</li>
+  <li><b>A 120 ms minimum gap between any two.</b> Without it a volley kill sounds like one distorted
+  sound.</li>
+  <li><b>Distance-gated.</b> Beyond 45 m, deaths get a muffled thud instead of a voice. Grim up close,
+  abstract at a distance — which is also the game's argument.</li>
+</ul>
+
+<h2>The 35-second showcase</h2>
+<p>Asked for: &ldquo;how the map will look for 35 seconds&rdquo;. This is a scripted camera flythrough,
+rendered from the real Unity scene at 4K60, and it doubles as <b>the regression test for the whole art
+pipeline</b> — if it renders correctly, the pipeline is intact.</p>
+<table>
+  <tr><th class="num">t</th><th>Shot</th><th>Shows</th></tr>
+  <tr><td class="num">0–5 s</td><td>Low over water, rising to the shoreline</td><td>Water, foam, shoreline, ground cover at close range</td></tr>
+  <tr><td class="num">5–12 s</td><td>Push through forest into the Age I village</td><td>Clumped scatter, tree density, the Norse kit, smoke from the hall</td></tr>
+  <tr><td class="num">12–18 s</td><td>Orbit the village; citizens working</td><td>Unit animation, carry loops, the worn paths baked into the terrain</td></tr>
+  <tr><td class="num">18–24 s</td><td>Rise and pull back over the river to the mountains</td><td>Map scale, biome interpolation, cliff geometry</td></tr>
+  <tr><td class="num">24–30 s</td><td><b>Hard cut</b> — same location, Age V. Same terrain, unrecognisable civilisation.</td><td>The age system's whole argument, in one cut</td></tr>
+  <tr><td class="num">30–35 s</td><td>Pull to the silo as the doors open. Cut to black on ignition.</td><td>The endgame object, and a reason to want to play</td></tr>
+</table>
+<div class="note good">
+  <span class="lbl">Why this specific sequence</span>
+  It is not a trailer, it is a <b>checklist rendered as a camera move</b>. Every shot is a system that
+  can silently break: water, scatter, animation, terrain baking, the age swap, the silo state machine.
+  Run it after every art change and look at it. Fifteen seconds of watching beats an hour of debugging
+  a build.
+</div>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

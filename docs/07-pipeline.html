@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blender → Unity Pipeline · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a class="here" href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">07 · Production</div>
+  <h1>Blender → Unity Pipeline</h1>
+  <p class="lede">This is the document that saves the most time, because every trap in it has already
+  been fallen into once on the Norse RTS and Vale projects. Read it before exporting anything.</p>
+</header>
+
+<div class="note warn">
+  <span class="lbl">The central fact</span>
+  <b>Procedural Blender materials cannot be exported.</b> Not to FBX, not to glTF. They arrive in Unity
+  untextured grey. Every one of our assets is procedurally shaded. Therefore <b>there is no such thing
+  as &ldquo;just export the model&rdquo;</b> — there are three real strategies and you must pick one
+  per asset class, on purpose.
+</div>
+
+<h2>The three strategies</h2>
+<table>
+  <tr><th>Strategy</th><th>What crosses</th><th>Cost</th><th>Use for</th></tr>
+  <tr><td><b>A · Bake</b></td><td>Mesh + baked albedo/normal/roughness textures</td><td>UV unwrap + bake time per asset; texture memory</td><td><b>Terrain</b>, and any surface whose material is hand-painted into the mesh</td></tr>
+  <tr><td><b>B · Rebuild in engine</b></td><td>Mesh only; material re-authored as a Unity shader</td><td>Writing the shader twice, in two languages</td><td><b>Buildings and units</b> — the palette is simple, flat colour + roughness per material slot</td></tr>
+  <tr><td><b>C · Sprite render</b></td><td>Nothing. Offline Cycles renders as 2D sprites.</td><td>Loses 3D entirely — fixed camera, fixed angles</td><td>Not this project. It was correct for the mobile Norse build; a PC RTS needs a rotating camera.</td></tr>
+</table>
+
+<h3>The decision for Clash of Ages</h3>
+<p><b>B for everything that moves or is built; A for the terrain.</b></p>
+<ul>
+  <li><b>Buildings and units → strategy B.</b> Export mesh via FBX with material <i>slots</i> intact
+  and names preserved. A single Unity URP shader plus a palette <code>ScriptableObject</code> maps
+  material name → colour, roughness, metallic. This preserves the 3D camera the genre requires and
+  costs one lookup table.</li>
+  <li><b>Terrain → strategy A.</b> The terrain material reads a <code>biome</code> vertex attribute
+  that encodes the hand-authored biome blend and the trodden paths. That is a painted map, and a
+  painted map is exactly what a texture is for. Bake at <b>2.5 cm per texel</b> to a 4K sheet.</li>
+</ul>
+<div class="note">
+  <span class="lbl">Why baking the terrain is not a contradiction</span>
+  The rule &ldquo;ground material belongs in the engine&rdquo; is about materials that respond to
+  <i>geometry</i> — those get frozen wrong the moment the shape changes. This one responds to an
+  attribute <b>authored into the mesh</b>. It cannot be frozen wrong, because the thing it reads does
+  not change either. Different case, different answer.
+</div>
+
+<h2>The material palette — one table, not two</h2>
+<div class="note warn">
+  <span class="lbl">This has already bitten</span>
+  On the Vale port, <b>seven Norse materials arrived unmapped</b> — <code>Timber</code>,
+  <code>BeamWood</code>, <code>Shingle</code>, <code>Stone</code> and others — because the C# palette
+  was written for a different kit while the Python importer's table had them. Two tables of the same
+  fact is one table too many. <b>Fix for this project: the palette is exported from
+  <code>lib/materials.py</code> to JSON as a build step, and Unity reads that JSON.</b> There is one
+  authority and it is the Python.
+</div>
+<pre><code># blender/scripts/export_palette.py  — run whenever materials.py changes
+# emits unity/Assets/Resources/palette.json
+{
+  "Timber":    { "albedo": [0.42, 0.28, 0.17], "rough": 0.78, "metal": 0.0 },
+  "Shingle":   { "albedo": [0.24, 0.21, 0.19], "rough": 0.85, "metal": 0.0 },
+  "IronDark":  { "albedo": [0.18, 0.18, 0.20], "rough": 0.45, "metal": 0.9 }
+}</code></pre>
+<p>Unity's importer fails <b>loudly</b> on an unmapped material name — a magenta material and a console
+error, never a silent grey. The only reason the Vale bug was ever found is that the import printed what
+it could not map.</p>
+
+<h4>Tone correction</h4>
+<p>Every colour crossing to Unity is raised by <code>pow(v, 0.62)</code>, because these palettes are
+authored for Cycles with the AgX view transform and Unity is not applying it. <b>Apply it to every
+surface or to none.</b> On Vale it was applied to the buildings and not the baked ground, and the
+result was bright orange timber sitting on pale exhausted grass.</p>
+
+<h2>Scale — the 3 mm grass problem</h2>
+<div class="note warn">
+  <span class="lbl">Read this before touching a MeshFilter</span>
+  Blender writes FBX in <b>centimetres</b>. Unity compensates with <code>0.01</code> on the mesh and
+  <code>100</code> on the <b>prefab root</b> — the two cancel, <i>but only if you instantiate the
+  prefab</i>. Lifting <code>sharedMesh</code> onto a bare GameObject to avoid thousands of prefab
+  connections throws the 100 away, and everything arrives 1/100th size.
+  <br><br>
+  <b>And do not then compound it with <code>lossyScale</code></b> — <code>lossyScale</code> on the
+  MeshFilter already <i>is</i> the whole chain from the root down. Applying both counts it twice:
+  10,000×, and grass 236 metres tall.
+</div>
+<p><b>Rule:</b> set FBX import scale explicitly, instantiate prefabs for anything you did not author the
+transform of, and when instancing raw meshes, apply the root scale <i>once</i>, from the prefab asset,
+not from the instance.</p>
+
+<h2>Export — the silent-failure list</h2>
+<table>
+  <tr><th>Trap</th><th>Symptom</th><th>Guard</th></tr>
+  <tr><td>Objects in a collection excluded from the view layer</td><td><code>select_set</code> reports nothing, an <b>empty FBX</b> is written, no error anywhere. 2,510 objects once vanished this way.</td><td>Assert exported object count equals expected count. Fail the build on mismatch.</td></tr>
+  <tr><td>Stale <code>matrix_world</code> on appended objects</td><td>Every part of a building collapses to one point</td><td>Read <code>matrix_basis</code> — the depsgraph never evaluates a hidden collection</td></tr>
+  <tr><td>Authoring offsets baked into the asset</td><td>A hut places 11.77 m from where you asked</td><td>Recentre every asset on its ground-contact point at load</td></tr>
+  <tr><td>Material explosion</td><td>3 appends produce 6 duplicate materials</td><td>Append once, instance with <code>obj.copy()</code></td></tr>
+  <tr><td>Grouping key split on the first <code>_</code></td><td><code>hut_a…hut_e</code> merge into one &ldquo;hut&rdquo;; 11 structures read as 7</td><td>Split at the first <code>_</code> <b>after</b> the <code>@</code></td></tr>
+  <tr><td>Terrain object naming</td><td>Exporter exits; the review script silently uses a fallback extent</td><td>Look up both known names plus a size fallback, and log which matched</td></tr>
+  <tr><td>Comparing renders by hash</td><td>False regressions forever</td><td>Cycles with GPU denoising is <b>not</b> bit-reproducible. Compare object counts and geometry, never pixels.</td></tr>
+</table>
+
+<h2>The pipeline, end to end</h2>
+<pre><code>1. AUTHOR      blender/base/&lt;family&gt;/build.py          → models/&lt;asset&gt;.blend
+2. REVIEW      scripts/render.py (preview) → LOOK AT IT → final render
+3. PALETTE     scripts/export_palette.py               → unity/Assets/Resources/palette.json
+4. EXPORT      scripts/export_assets.py                → unity/Assets/Models/&lt;asset&gt;.fbx
+                 · mesh only, material slots named, +Y up, metres
+                 · asserts object count, fails loudly
+5. TERRAIN     scripts/export_map.py                   → terrain.fbx + terrain_albedo.png (4K)
+                 + cover.json  (instanced ground-cover transforms)
+6. IMPORT      Unity AssetPostprocessor
+                 · applies palette.json to material slots
+                 · applies pow(v,0.62) tone correction
+                 · magenta + console error on any unmapped name
+7. ASSEMBLE    MapBuilder (editor script) builds the scene from the manifest
+8. BUILD       Builder.PerformWindowsBuild / PerformMacBuild</code></pre>
+
+<h2>Verified on 2026-09-20 — slice 0 <span class="tag done">9/9 pass</span></h2>
+<p>The whole path was built and run end to end on <code>hut_a</code>. These are measurements, not
+intentions.</p>
+<table>
+  <tr><th>Check</th><th>Result</th></tr>
+  <tr><td>Scale</td><td><b>5.513 × 5.042 × 4.585 m</b>, matching Blender exactly. The 3 mm bug does not occur with <code>FBX_SCALE_ALL</code> + <code>useFileScale</code>.</td></tr>
+  <tr><td>Draw-call shape</td><td><b>108 Blender objects → 1 renderer, 6 submeshes</b></td></tr>
+  <tr><td>Triangles</td><td><b>22,548</b> exact (9,860 before modifiers — 95 bevels and 12 displaces)</td></tr>
+  <tr><td>Materials</td><td><b>6/6 mapped, 0 magenta</b>, from 79 exported palette entries</td></tr>
+  <tr><td>Tone</td><td>Timber base R = <b>0.349</b> (raw linear 0.183), so <code>pow(v,0.62)</code> is applied once</td></tr>
+</table>
+
+<h3>Six traps found building it</h3>
+<table>
+  <tr><th>Trap</th><th>Symptom</th><th>Fix</th></tr>
+  <tr><td><code>Camera.Render()</code> under an SRP</td><td>Correct geometry and shadows, <b>materials silently ignored</b> — everything flat grey</td><td><code>RenderPipeline.SubmitRenderRequest</code> with a <code>SingleCameraRequest</code></td></tr>
+  <tr><td>SRP Batcher during a scripted capture</td><td>Capture comes out dark and flat</td><td>Disable it around the capture; leave it on for the player</td></tr>
+  <tr><td><code>-batchmode</code></td><td><b>Every draw uses one material.</b> A red control quad turned the whole scene red.</td><td>Run the Editor in GUI mode for any visual check</td></tr>
+  <tr><td><code>Resources.Load</code> in an <code>AssetPostprocessor</code></td><td>FBX imported <i>before</i> palette.json existed → null → every material magenta</td><td>Import order is not guaranteed. Read generated data with <code>File.ReadAllText</code>.</td></tr>
+  <tr><td>FBX material remap in the <code>.meta</code></td><td><code>OnAssignMaterialModel</code> never fires again; materials from a failed import stay wrong forever</td><td><code>GetExternalObjectMap()</code> + <code>RemoveRemap()</code> before reimport</td></tr>
+  <tr><td>Objects unlinked from the scene in an asset <code>.blend</code></td><td><code>select_set</code> throws or reports nothing; <b>modifiers are never evaluated</b></td><td>Link into the scene collection first, then apply modifiers, then count</td></tr>
+</table>
+<div class="note warn">
+  <span class="lbl">The method lesson, which is worth more than any of the six</span>
+  The render was flat grey and the obvious conclusion was &ldquo;the materials are broken&rdquo;. They
+  were not — reading the material assets directly gave correct colours the whole time. Adding a
+  <b>pure red control quad</b> settled it in one run: red rendered grey too, so the fault was the
+  capture path, not the palette. <b>When a measurement disagrees with the thing it measures, add a
+  control before you change the thing.</b>
+</div>
+
+<h2>Exact commands</h2>
+<pre><code>BL=/Applications/Blender.app/Contents/MacOS/Blender
+U=/Users/dhruv/.unity/bin/unity
+P=/Users/dhruv/clash-of-clans/unity/ClashOfAges
+
+# rebuild an asset family
+$BL -b --factory-startup --python /Users/dhruv/blender/base/huts/build.py
+
+# preview render (~10-30 s)
+RENDER_QUALITY=preview $BL -b --factory-startup \
+    /Users/dhruv/blender/base/huts/huts.blend \
+    --python /Users/dhruv/blender/scripts/render.py -f 1
+
+# 1. palette  (79 materials -> palette.json)
+ -b --factory-startup --python /Users/dhruv/blender/scripts/export_palette.py -- \
+    --out /Assets/Resources
+
+# 2. one asset (joins per material, writes the assertion sidecar)
+ -b --factory-startup /Users/dhruv/blender/base/huts/models/hut_a.blend \
+    --python /Users/dhruv/blender/scripts/export_assets.py -- \
+    --name hut_a --out /Assets/Models
+
+# 3. verify -- NOT -batchmode, or the PNG is a single-material grey
+/Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app/Contents/MacOS/Unity \
+    -projectPath  -executeMethod SliceZero.Verify -logFile /tmp/slice0.log -quit
+
+# desktop build
+export UNITY_NO_BANNER=1 UNITY_NON_INTERACTIVE=1
+$U build $P --editor-version 6000.0.83f1 --target StandaloneOSX \
+   --execute-method Builder.PerformMacBuild --json</code></pre>
+
+<h2>Environment, confirmed working</h2>
+<table>
+  <tr><th>Tool</th><th>Version / path</th><th>Note</th></tr>
+  <tr><td>Blender</td><td>5.2.1 LTS · <code>/Applications/Blender.app</code></td><td>Metal GPU rendering enabled</td></tr>
+  <tr><td>Unity</td><td>6000.0.83f1 · <code>/Users/dhruv/.unity/bin/unity</code></td><td>Personal licence active. 6000.6.0f1 also installed.</td></tr>
+  <tr><td>Render pipeline</td><td>URP</td><td>3D this time, not the 2D variant used for the mobile build</td></tr>
+  <tr><td>Targets</td><td><code>StandaloneWindows64</code>, <code>StandaloneOSX</code></td><td>Mac arm64 or Universal</td></tr>
+</table>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

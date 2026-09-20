@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clash of Ages · Design Hub</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Dhruv · Game Studio</div>
+  <h1>⚔️ Clash of Ages</h1>
+  <p class="lede">A real-time strategy game for PC. You begin with <b>one citizen</b> and a patch of
+  ground in the Norse iron age. You end with missile silos. Everything in between — gathering,
+  building, population, research, war — is the game. Rise of Nations' age ladder, Clash of Clans'
+  base-building intimacy, built entirely from procedural Blender assets and Unity.</p>
+</header>
+
+<div class="bar">
+  <span class="pill">Engine <b>Unity 6000.0.83f1</b></span>
+  <span class="pill">Art <b>Blender 5.2.1 LTS, procedural</b></span>
+  <span class="pill">Target <b>Windows + macOS</b></span>
+  <span class="pill">Ages <b>6</b></span>
+  <span class="pill">Resources <b>9 (max 6 on screen)</b></span>
+  <span class="pill">Assets <b>35 built / ~192 planned</b></span>
+  <span class="pill">Docs <b>11</b></span>
+</div>
+
+<div class="note">
+  <span class="lbl">Read this first</span>
+  <b>PROGRESS.md</b>, next to this file, is the living state of the project — what is done, what is
+  in flight, what is next. It survives lost chat sessions; this hub does not track state, it holds
+  the design. If you are a new session: open <code>PROGRESS.md</code>, then come back here.
+</div>
+
+<h2>The design documents</h2>
+<div class="grid">
+
+  <a class="card" href="docs/01-concept.html">
+    <div class="n">01 · Foundation</div>
+    <h3>The Game</h3>
+    <p>What it is in one paragraph, the core loop, the session shape, the win conditions, and the
+    five rules that decide every later argument.</p>
+    <div class="tags"><span class="tag done">drafted</span><span class="tag hot">north star</span></div>
+  </a>
+
+  <a class="card" href="docs/02-ages.html">
+    <div class="n">02 · Progression</div>
+    <h3>The Six Ages</h3>
+    <p>Settlement → Feudal → Gunpowder → Industrial → Modern → Atomic. What each age changes, what
+    it costs, and the story the ladder tells.</p>
+    <div class="tags"><span class="tag done">drafted</span></div>
+  </a>
+
+  <a class="card" href="docs/03-resources.html">
+    <div class="n">03 · Economy</div>
+    <h3>Resources &amp; Minerals</h3>
+    <p>Food, Wood, Stone, Metal, Coal, Oil, Uranium, Knowledge, Gold. Where each comes from, when it
+    unlocks, and the starting numbers for gather rates and costs.</p>
+    <div class="tags"><span class="tag done">drafted</span><span class="tag wip">needs tuning</span></div>
+  </a>
+
+  <a class="card" href="docs/04-roster.html">
+    <div class="n">04 · Content</div>
+    <h3>Buildings &amp; Units</h3>
+    <p>The full roster, age by age: what each building does, what each unit counters, costs, build
+    times and population weight.</p>
+    <div class="tags"><span class="tag done">drafted</span></div>
+  </a>
+
+  <a class="card" href="docs/05-assets.html">
+    <div class="n">05 · Art</div>
+    <h3>Asset Manifest</h3>
+    <p>Every model the game needs, with what already exists in <code>~/blender</code> marked. The
+    build order for the asset agents.</p>
+    <div class="tags"><span class="tag done">drafted</span><span class="tag hot">agent input</span></div>
+  </a>
+
+  <a class="card" href="docs/06-ai.html">
+    <div class="n">06 · Intelligence</div>
+    <h3>AI — Game and Workflow</h3>
+    <p>Three-layer opponent AI (utility commander, behaviour-tree units, flow-field movement), how
+    to make it hard without cheating, and how the Claude agents on this project must behave.</p>
+    <div class="tags"><span class="tag done">drafted</span><span class="tag new">researched</span></div>
+  </a>
+
+  <a class="card" href="docs/07-pipeline.html">
+    <div class="n">07 · Production</div>
+    <h3>Blender → Unity Pipeline</h3>
+    <p>The hard-won one: procedural materials cannot be exported. Bake, sprite, or rebuild in
+    engine — when to use which, and the ten bugs already paid for.</p>
+    <div class="tags"><span class="tag done">drafted</span><span class="tag hot">load-bearing</span></div>
+  </a>
+
+  <a class="card" href="docs/08-map.html">
+    <div class="n">08 · World</div>
+    <h3>The Map</h3>
+    <p>Continuous real-time terrain — no grid, no hexes. Heightfield, biomes as vertex data, rivers,
+    mountains, a volcano, shoreline and fog of war.</p>
+    <div class="tags"><span class="tag done">drafted</span></div>
+  </a>
+
+  <a class="card" href="docs/09-fx-audio.html">
+    <div class="n">09 · Feel</div>
+    <h3>Animation, VFX &amp; Sound</h3>
+    <p>Sword arcs, muzzle flash, missile launch and the blast. Blood that persists 12 seconds. The
+    death sounds. And the 35-second showcase flythrough.</p>
+    <div class="tags"><span class="tag done">drafted</span></div>
+  </a>
+
+  <a class="card" href="docs/10-tech.html">
+    <div class="n">10 · Engineering</div>
+    <h3>Unity Architecture</h3>
+    <p>MonoBehaviour or DOTS, the simulation/presentation split, determinism, save format, and the
+    build targets for Windows and Mac.</p>
+    <div class="tags"><span class="tag done">drafted</span></div>
+  </a>
+
+
+  <a class="card" href="docs/11-lighting.html">
+    <div class="n">11 · Lighting</div>
+    <h3>Sun, Shadows &amp; Lighting</h3>
+    <p>Realtime sun, Adaptive Probe Volumes, shadow distance tied to camera zoom, and the six era moods
+    driven by light rather than by baking. The best-sourced doc here.</p>
+    <div class="tags"><span class="tag done">verified</span><span class="tag new">researched</span></div>
+  </a>
+
+</div>
+
+<h2>How this folder is organised</h2>
+<pre><code>clash-of-clans/
+├── PROGRESS.md      ← LIVING STATE. done / in-flight / pending. Read first, update last.
+├── index.html       ← this hub
+├── style.css        ← shared stylesheet for every doc
+├── docs/            ← the ten design documents
+├── blender/         ← asset build scripts once the art agents start
+├── unity/           ← the Unity project once slice 1 begins
+└── art/             ← reference images, renders, mood boards</code></pre>
+
+<div class="note good">
+  <span class="lbl">The one discipline that matters</span>
+  Every document here is a <b>decision record</b>, not a wish list. If a number changes during play
+  testing, change it here too — and write <i>why</i> in the Decisions log at the bottom of
+  <code>PROGRESS.md</code>. A design doc nobody trusts is worse than no design doc, because people
+  still read it.
+</div>
+
+<footer>
+  <b>Clash of Ages</b> — working title, medieval to modern RTS.<br>
+  Assets from <code>~/blender</code> (procedural, 35 built). Engine at <code>clash-of-clans/unity</code>.<br>
+  Last structural change: 2026-09-19 · folder and ten design docs created.
+</footer>
+
+</div>
+</body>
+</html>

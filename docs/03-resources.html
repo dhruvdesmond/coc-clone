@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resources & Economy · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a class="here" href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">03 · Economy</div>
+  <h1>Resources &amp; Minerals</h1>
+  <p class="lede">Nine resources exist. <b>Never more than six are on screen at once.</b> Three are
+  age-gated and simply do not appear in the UI until their age arrives, which is how a nine-resource
+  economy stays readable.</p>
+</header>
+
+<h2>The nine</h2>
+<table>
+  <tr><th>Resource</th><th>Colour</th><th>Where it comes from</th><th>Available</th><th>Primarily buys</th></tr>
+  <tr><td>🌾 Food</td><td>green</td><td>Forage bushes, hunt, farms, fishing boats</td><td>Age I →</td><td>Citizens, infantry, population upkeep</td></tr>
+  <tr><td>🪵 Wood</td><td>olive</td><td>Trees (finite per tree, forests regrow slowly)</td><td>Age I →</td><td>Buildings, ships, arrows, early siege</td></tr>
+  <tr><td>🪨 Stone</td><td>grey</td><td>Surface rocks, then quarries</td><td>Age I →</td><td>Walls, towers, keeps, roads</td></tr>
+  <tr><td>⛏️ Metal</td><td>steel</td><td>Ore outcrops, then mines</td><td>Age I →</td><td>Weapons, armour, every later machine</td></tr>
+  <tr><td>📖 Knowledge</td><td>violet</td><td><b>Generated</b> by Library / University / Lab. Never gathered.</td><td>Age I →</td><td>Research, age advancement</td></tr>
+  <tr><td>🪙 Gold</td><td>gold</td><td>Markets, caravans, trade routes, ports</td><td>Age II →</td><td>Universal converter; mercenaries; upkeep</td></tr>
+  <tr><td>⚫ Coal</td><td>near-black</td><td>Coal seams (surface deposits on the map)</td><td>Age IV →</td><td>Factories, rail, steam ships, artillery</td></tr>
+  <tr><td>🛢️ Oil</td><td>dark brown</td><td>Oil patches — land derricks and offshore rigs</td><td>Age V →</td><td>Tanks, aircraft, trucks, modern navy</td></tr>
+  <tr><td>☢️ Uranium</td><td>acid green</td><td>Rare deposits, 2–3 on a map. Requires a Mine + Refinery.</td><td>Age VI →</td><td>Reactors, warheads. Nothing else.</td></tr>
+</table>
+
+<div class="note">
+  <span class="lbl">Why uranium is rare on purpose</span>
+  Two or three deposits on the whole map means the Atomic Age is <b>a place you have to go and
+  hold</b>, not a number you reach. It converts the endgame from an economy race into a territorial
+  fight over three points. That is a better endgame and it costs nothing to implement — it is one
+  line in the map generator.
+</div>
+
+<h2>Gather rates — the starting numbers</h2>
+<p>All rates are <b>per citizen, per second, at the resource node, with no upgrades</b>. Walking time
+to a drop-off is separate and is where most real-world efficiency is lost.</p>
+
+<table>
+  <tr><th>Source</th><th class="num">Rate /s</th><th class="num">Node capacity</th><th class="num">Carry</th><th>Notes</th></tr>
+  <tr><td>Forage bush</td><td class="num">0.50</td><td class="num">150</td><td class="num">10</td><td>Age I only. Depletes and does not regrow.</td></tr>
+  <tr><td>Hunt (deer)</td><td class="num">0.65</td><td class="num">220</td><td class="num">10</td><td>Moves; spoils after 90 s if not worked</td></tr>
+  <tr><td>Farm</td><td class="num">0.42</td><td class="num">∞</td><td class="num">10</td><td>Slower but infinite. The Age II pivot.</td></tr>
+  <tr><td>Fishing boat</td><td class="num">0.70</td><td class="num">400/shoal</td><td class="num">15</td><td>Needs a Harbour. Best early food on water maps.</td></tr>
+  <tr><td>Tree</td><td class="num">0.55</td><td class="num">120</td><td class="num">10</td><td>Forest regrows at 1 tree / 90 s inside its own footprint</td></tr>
+  <tr><td>Surface rock</td><td class="num">0.35</td><td class="num">250</td><td class="num">8</td><td>Age I. Slow on purpose — stone should feel earned.</td></tr>
+  <tr><td>Quarry</td><td class="num">0.55</td><td class="num">∞</td><td class="num">8</td><td>Age II building placed on a rock cluster</td></tr>
+  <tr><td>Ore outcrop</td><td class="num">0.30</td><td class="num">300</td><td class="num">8</td><td>Age I</td></tr>
+  <tr><td>Mine</td><td class="num">0.50</td><td class="num">∞</td><td class="num">8</td><td>Age II building on an ore vein; holds 4 citizens</td></tr>
+  <tr><td>Coal seam</td><td class="num">0.45</td><td class="num">∞</td><td class="num">10</td><td>Age IV. Needs a Colliery.</td></tr>
+  <tr><td>Oil derrick</td><td class="num">0.60</td><td class="num">∞</td><td class="num">—</td><td>Age V. <b>Autonomous</b> — no citizen required, but destructible.</td></tr>
+  <tr><td>Uranium mine</td><td class="num">0.08</td><td class="num">∞</td><td class="num">—</td><td>Age VI. Deliberately glacial. One warhead is ~14 minutes of output.</td></tr>
+</table>
+
+<h4>Knowledge output — generated, not gathered</h4>
+<table>
+  <tr><th>Building</th><th class="num">Base /s</th><th class="num">Scholar slots</th><th class="num">Per scholar</th><th>Age</th></tr>
+  <tr><td>Rune Hall / Library</td><td class="num">0.20</td><td class="num">2</td><td class="num">+0.15</td><td>I</td></tr>
+  <tr><td>University</td><td class="num">0.45</td><td class="num">4</td><td class="num">+0.20</td><td>III</td></tr>
+  <tr><td>Laboratory</td><td class="num">0.90</td><td class="num">4</td><td class="num">+0.35</td><td>V — requires power</td></tr>
+</table>
+<p>A single Age I Rune Hall with two scholars makes <code>0.20 + 2×0.15 = 0.50</code> Knowledge/s.
+The 120 Knowledge for Feudal therefore takes <b>240 seconds of a fully staffed hall</b> — four
+minutes in which two of your citizens are producing nothing edible. That is the intended pain.</p>
+
+<h2>The economy in one sanity check</h2>
+<p>A design is only real if the numbers close. Walking this through by hand once, now, is worth more
+than any amount of later tuning:</p>
+<pre><code>MINUTE 0    1 citizen. 200 food, 200 wood, 0 stone, 0 metal in the bank.
+MINUTE 1    Citizen forages. 0.50 food/s × ~70% uptime (walking) = 0.35 food/s.
+            Longhouse trains citizen #2: 50 food, 20 s.
+MINUTE 4    4 citizens. ~1.4 food/s, first hut up (pop cap 5 → 10).
+MINUTE 8    8 citizens. Split 4 food / 3 wood / 1 stone. Rune Hall goes up.
+MINUTE 10   2 scholars in. Knowledge starts at 0.50/s. Economy now 6 working citizens.
+MINUTE 14   120 Knowledge banked → FEUDAL AGE research begins, 60 s timer.
+MINUTE 15   AGE II. Buildings swap. Gold appears in the UI for the first time.</code></pre>
+<div class="note good">
+  <span class="lbl">This checks out</span>
+  Age II at ~15 minutes against a target of ~14. Close enough that the numbers above can be typed
+  straight into the first prototype and tuned from play, rather than guessed again.
+</div>
+
+<h2>Population</h2>
+<table>
+  <tr><th>Building</th><th class="num">Pop provided</th><th class="num">Cost</th><th>Age</th></tr>
+  <tr><td>Starting Town Centre</td><td class="num">5</td><td class="num">—</td><td>I</td></tr>
+  <tr><td>Hut / House / Tenement / Block</td><td class="num">+5</td><td class="num">40 wood</td><td>I → VI (4 model variants)</td></tr>
+  <tr><td>Hard cap</td><td class="num">200</td><td class="num">—</td><td>Raised by Civic techs: 75 → 110 → 150 → 200</td></tr>
+</table>
+<p>Units cost population: citizen 1, most infantry 1, cavalry 2, siege 3, tank 4, aircraft 5, ship
+4–8. A 200 cap is therefore roughly <b>60 citizens plus a 30-unit modern army</b>, which is the right
+scale for the map size in <a href="08-map.html">08 · Map</a>.</p>
+
+<h2>Rules that keep the economy honest</h2>
+<ul>
+  <li><b>Everything finite is visibly finite.</b> A tree that has been chopped looks chopped. A
+  depleted ore outcrop leaves a pit. The player should never have to read a tooltip to know a
+  resource is running out.</li>
+  <li><b>Drop-off distance is the real game.</b> Gather rates are close to each other on purpose;
+  the skill is in where you put the storehouse. This is the one piece of RTS economy that rewards
+  attention every single minute.</li>
+  <li><b>No resource is strictly dominant.</b> Gold converts at a deliberately bad rate (see below)
+  so it is a smoother, not a substitute.</li>
+  <li><b>Markets convert at 1.4 : 1 against you</b>, drifting worse the more you trade the same pair
+  in a short window. Prevents a solved-economy exploit.</li>
+  <li><b>Upkeep exists from Age IV.</b> Factories consume coal per second whether or not you are
+  using them; aircraft consume oil while airborne. This is what makes Age IV's &ldquo;supply
+  collapse&rdquo; loss condition real rather than flavour text.</li>
+</ul>
+
+<div class="note warn">
+  <span class="lbl">To tune first, in this order</span>
+  1. Age advance costs (sets the whole pace). 2. Citizen training cost and time (sets the opening).
+  3. Drop-off walk speed (sets how much micromanagement is rewarded). 4. Military costs (sets whether
+  rushing beats teching). Everything else can wait.
+</div>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

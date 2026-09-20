@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Six Ages · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a class="here" href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">02 · Progression</div>
+  <h1>The Six Ages</h1>
+  <p class="lede">Rise of Nations has eight. We have six, because each age is a complete art set and
+  six is what two people and a render farm can actually finish. Six is also enough for the arc to
+  land: you can still feel the distance from a wooden spear to a warhead.</p>
+</header>
+
+<div class="ages">
+  <div class="age a1"><div class="ix">Age I</div><div class="nm">Settlement</div><div class="yr">c. 800 — timber, turf, iron</div></div>
+  <div class="age a2"><div class="ix">Age II</div><div class="nm">Feudal</div><div class="yr">c. 1200 — stone, faith, the horse</div></div>
+  <div class="age a3"><div class="ix">Age III</div><div class="nm">Gunpowder</div><div class="yr">c. 1600 — powder, sail, the map</div></div>
+  <div class="age a4"><div class="ix">Age IV</div><div class="nm">Industrial</div><div class="yr">c. 1870 — coal, rail, the factory</div></div>
+  <div class="age a5"><div class="ix">Age V</div><div class="nm">Modern</div><div class="yr">c. 1945 — oil, armour, the aeroplane</div></div>
+  <div class="age a6"><div class="ix">Age VI</div><div class="nm">Atomic</div><div class="yr">c. 1965 — uranium, radar, the silo</div></div>
+</div>
+
+<h2>What each age actually changes</h2>
+<p>An age is not a stat bump. Each one introduces <b>one new resource</b>, <b>one new movement
+domain or range band</b>, and <b>one new way to lose</b>. If a proposed age cannot fill all three
+columns, it is not an age.</p>
+
+<table>
+  <tr><th>Age</th><th>New resource</th><th>New reach</th><th>New way to lose</th><th>Signature building</th></tr>
+  <tr><td>I · Settlement</td><td>Food, Wood, Stone, Metal, Knowledge</td><td>Foot and coast</td><td>Starvation — population outruns food</td><td>Longhouse</td></tr>
+  <tr><td>II · Feudal</td><td>Gold (markets, caravans)</td><td>Cavalry — the map gets small</td><td>Raided economy — your workers are now targets</td><td>Keep</td></tr>
+  <tr><td>III · Gunpowder</td><td>—</td><td>Ranged siege; open ocean</td><td>Walls stop working — stone is obsolete</td><td>Harbour</td></tr>
+  <tr><td>IV · Industrial</td><td>Coal</td><td>Rail — logistics beat geography</td><td>Supply collapse — factories starve without coal</td><td>Factory</td></tr>
+  <tr><td>V · Modern</td><td>Oil</td><td>Air — the third dimension</td><td>Air superiority lost; ground is indefensible</td><td>Airfield</td></tr>
+  <tr><td>VI · Atomic</td><td>Uranium</td><td>Map-wide — range stops mattering</td><td>The other player also has one</td><td>Missile Silo</td></tr>
+</table>
+
+<h2>How you advance</h2>
+<p>Three gates, all three required. This is the Rise of Nations structure, which correctly makes
+advancement a <i>plan</i> rather than an accumulation.</p>
+
+<table>
+  <tr><th>Gate</th><th>What it means</th><th>Design intent</th></tr>
+  <tr><td>1 · Knowledge cost</td><td>Pay a Knowledge lump sum at the Library / University / Lab</td><td>You must have invested in non-productive buildings much earlier</td></tr>
+  <tr><td>2 · Prerequisite techs</td><td>Research <i>n</i> techs across the four branches first</td><td>Forces breadth; stops a pure-military rush from teching</td></tr>
+  <tr><td>3 · Research timer</td><td>A real-time countdown while it researches</td><td>A visible window in which you are vulnerable — the opponent can see it and punish it</td></tr>
+</table>
+
+<h4>The four research branches</h4>
+<p>Every tech belongs to exactly one. Age advancement requires techs spread across them.</p>
+<ul>
+  <li><b>Civic</b> — population cap, citizen speed, build speed, territory radius</li>
+  <li><b>Commerce</b> — gather rates, caravan yield, storage, resource conversion</li>
+  <li><b>Military</b> — unit damage, armour, new unit unlocks, formations</li>
+  <li><b>Science</b> — Knowledge output, research speed, line of sight, and the age advance itself</li>
+</ul>
+
+<h2>Advancement costs</h2>
+<p>First-pass numbers. These are the single most important thing to tune in playtesting, because
+they set the pace of the entire game. See <a href="03-resources.html">03 · Economy</a> for income
+rates to check these against.</p>
+
+<table>
+  <tr><th>To reach</th><th class="num">Knowledge</th><th class="num">Food</th><th class="num">Wood</th><th class="num">Metal</th><th class="num">Prereq techs</th><th class="num">Timer</th><th class="num">Target clock</th></tr>
+  <tr><td>II · Feudal</td><td class="num">120</td><td class="num">300</td><td class="num">200</td><td class="num">0</td><td class="num">2</td><td class="num">60 s</td><td class="num">~14 min</td></tr>
+  <tr><td>III · Gunpowder</td><td class="num">280</td><td class="num">500</td><td class="num">400</td><td class="num">150</td><td class="num">4</td><td class="num">90 s</td><td class="num">~27 min</td></tr>
+  <tr><td>IV · Industrial</td><td class="num">520</td><td class="num">700</td><td class="num">600</td><td class="num">400</td><td class="num">6</td><td class="num">110 s</td><td class="num">~40 min</td></tr>
+  <tr><td>V · Modern</td><td class="num">850</td><td class="num">900</td><td class="num">800</td><td class="num">700</td><td class="num">8</td><td class="num">130 s</td><td class="num">~54 min</td></tr>
+  <tr><td>VI · Atomic</td><td class="num">1300</td><td class="num">1200</td><td class="num">1000</td><td class="num">1100</td><td class="num">10</td><td class="num">150 s</td><td class="num">~68 min</td></tr>
+</table>
+
+<div class="note good">
+  <span class="lbl">Catch-up, and why it is not charity</span>
+  If an opponent has already reached an age, the cost drops <b>20% on Knowledge and 10% on
+  everything else</b>. Two or more ages ahead doubles it to 40% / 20%. This is straight from Rise of
+  Nations and it is load-bearing: it keeps a losing player in the match without handing them free
+  units, and it means the leader's advantage is <i>time</i>, not permanent separation. Implement it
+  before the first balance pass, not after — it changes every other number.
+</div>
+
+<h2>The transition moment</h2>
+<p>Rule 4 in <a href="01-concept.html">01 · Concept</a> says ages are total. Here is what that means
+in production terms, because it is expensive and it must be planned, not discovered:</p>
+<table>
+  <tr><th>Layer</th><th>What happens on advance</th><th>Implementation</th></tr>
+  <tr><td>Buildings</td><td>Every existing building swaps to its next-age model in place</td><td>Prefab variant table keyed by (buildingId, age); cross-fade 0.8 s with a dust puff</td></tr>
+  <tr><td>Units</td><td>Existing units <b>do not</b> upgrade. New ones come out modern.</td><td>Deliberate: it makes the old army feel obsolete, which is the point</td></tr>
+  <tr><td>Terrain</td><td>Unchanged. The land is the constant.</td><td>Nothing to do — and that is the contrast that sells it</td></tr>
+  <tr><td>Music</td><td>Stem swap on the bar line</td><td>Six stems, one key, same tempo family. See <a href="09-fx-audio.html">09 · FX</a></td></tr>
+  <tr><td>UI</td><td>Frame trim, icon set and resource bar reshuffle</td><td>One theme asset per age</td></tr>
+</table>
+
+<div class="note warn">
+  <span class="lbl">Cost warning, stated honestly</span>
+  &ldquo;Every building swaps model&rdquo; means <b>6 variants × ~18 buildings = 108 building models</b>
+  if taken literally. We will not do that. <b>The real plan:</b> 4 core buildings get all 6 variants
+  (Town Centre, House, Barracks, Wall) = 24 models; everything else exists in 2–3 ages only and is
+  <i>replaced</i> rather than upgraded. That is ~70 building models total. Budgeted in
+  <a href="05-assets.html">05 · Assets</a>.
+</div>
+
+<h2>The story the ladder tells</h2>
+<p>There is no cutscene campaign at first. The progression itself carries the meaning, and it should
+be legible without a word of text:</p>
+<ul>
+  <li><b>I → II.</b> You stop living on the land and start defending it. The first wall is the first
+  admission that someone is coming.</li>
+  <li><b>II → III.</b> The wall stops working. Everything you built in stone becomes decoration.</li>
+  <li><b>III → IV.</b> Production leaves human hands. Your citizens stop making things and start
+  feeding machines that make things.</li>
+  <li><b>IV → V.</b> Distance dies. The front line is no longer a line.</li>
+  <li><b>V → VI.</b> You acquire the ability to end the match instantly, and discover that so did they.</li>
+</ul>
+<p>That last beat is the whole game's argument, and it is why the missile silo is worth the art. The
+player spends 70 minutes building a civilisation and is handed a button that makes all of it
+irrelevant.</p>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

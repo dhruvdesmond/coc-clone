@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unity Architecture · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a class="here" href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">10 · Engineering</div>
+  <h1>Unity Architecture</h1>
+  <p class="lede">How the game is actually built. The decisions here are the expensive-to-reverse ones,
+  so each states its reasoning and its escape hatch.</p>
+</header>
+
+<h2>Decision 1 — MonoBehaviour, not DOTS. For now.</h2>
+<p>The benchmarks are not in dispute: ECS delivers 5–20× over MonoBehaviour at thousands of entities,
+and one commonly cited comparison had MonoBehaviour at 7–8 FPS on 100,000 entities where DOTS held 60.
+DOTS is the right shape for RTS crowds.</p>
+<p><b>We are still not starting there</b>, for one reason: our unit cap is <b>200</b>, not 100,000. The
+honest assessment of DOTS in 2026 is that it is production-ready for experienced teams but still has a
+steep learning curve, a worse developer experience, and immature debugging — and this project's
+scarcest resource is not CPU, it is the time of two people learning Blender and Unity at once.</p>
+<table>
+  <tr><th>What</th><th>Count</th><th>MonoBehaviour verdict</th></tr>
+  <tr><td>Units</td><td class="num">200 cap</td><td>Trivial</td></tr>
+  <tr><td>Buildings</td><td class="num">~150</td><td>Trivial</td></tr>
+  <tr><td>Ground cover instances</td><td class="num">~18,000</td><td><b>Not GameObjects.</b> GPU-instanced, no components. See below.</td></tr>
+  <tr><td>Projectiles peak</td><td class="num">~300</td><td>Pooled, updated from one manager, no per-object Update()</td></tr>
+</table>
+<div class="note good">
+  <span class="lbl">The escape hatch, designed in from day one</span>
+  <b>Simulation and presentation are separated.</b> Simulation is plain C# classes in a
+  <code>Sim</code> assembly with <b>no <code>UnityEngine</code> dependency beyond math types</b> —
+  units are structs in arrays, ticked at a fixed 20 Hz. Presentation is MonoBehaviours that read the
+  sim and interpolate. If we ever need DOTS, we port one assembly and the rest of the game does not
+  notice. If we never need it, we have lost nothing and gained a simulation that is testable headless.
+</div>
+
+<h2>Decision 2 — Fixed-tick simulation at 20 Hz</h2>
+<pre><code>Sim.Tick()   every 50 ms, deterministic, integer/fixed-point where it matters
+Render       every frame, interpolating between the last two sim states</code></pre>
+<ul>
+  <li><b>Testable.</b> The sim runs headless with no Unity at all, so the economy can be swept by bots
+  the way the Merchants of War economy was — thousands of runs, before a single balance argument.</li>
+  <li><b>Cheap.</b> AI, pathfinding and combat run 20× a second, not 60–240.</li>
+  <li><b>Replay and save become trivial</b> — a seed plus the order log reproduces a whole match.</li>
+  <li><b>Multiplayer stays possible later</b> via lockstep, without a rewrite. Not a launch feature.</li>
+</ul>
+
+<h2>Project layout</h2>
+<pre><code>unity/ClashOfAges/Assets/
+├── Sim/                      ← NO UnityEngine dependency. Plain C#, headless-testable.
+│   ├── World.cs              entity arrays, the 20 Hz tick
+│   ├── Economy.cs            resources, gather, costs
+│   ├── Combat.cs             damage, counter table, hitstop timing
+│   ├── Ages.cs               advancement gates, tech tree
+│   ├── Nav/FlowField.cs      cost grid + integration + flow
+│   └── AI/                   Commander (utility) · Officer (BT) · Belief (fogged world model)
+├── Game/                     ← MonoBehaviours. Reads Sim, draws it.
+│   ├── CameraRig.cs          desktop camera — see 08 · Map
+│   ├── Selection.cs          left-click + drag box, control groups
+│   ├── UnitView.cs           one per unit, interpolates + drives the Animator
+│   ├── CoverRenderer.cs      DrawMeshInstancedIndirect for ground cover
+│   └── FX/                   decals, blood, the missile sequence
+├── UI/                       resource bar, build menu, minimap, age banner
+├── Editor/
+│   ├── Builder.cs            PerformWindowsBuild / PerformMacBuild
+│   ├── MapBuilder.cs         builds the scene from the map manifest
+│   └── AssetImportSettings.cs  AssetPostprocessor: palette, tone, platform formats
+├── Models/                   FBX from Blender — generated, never hand-edited
+├── Resources/palette.json    exported from lib/materials.py. One authority.
+└── Scenes/                   GENERATED by MapBuilder. Never hand-author.</code></pre>
+<div class="note warn">
+  <span class="lbl">Two rules that have already been broken once each</span>
+  <b>Anything importing <code>UnityEditor</code> lives in <code>Assets/Editor/</code></b> — mixing it
+  into runtime breaks player builds with an error that does not name the cause.<br>
+  <b>Scenes are generated.</b> The build always regenerates before building. A hand-edit to a generated
+  scene is destroyed on the next build, silently, and the symptom is &ldquo;my change did nothing&rdquo;.
+</div>
+
+<h2>Performance budget</h2>
+<table>
+  <tr><th>Metric</th><th class="num">Budget</th><th>Note</th></tr>
+  <tr><td>Frame time</td><td class="num">16.6 ms</td><td>60 FPS at 1440p on a mid-range 2022 GPU</td></tr>
+  <tr><td>Sim tick</td><td class="num">&lt; 3 ms</td><td>At 200 units + 150 buildings + full AI</td></tr>
+  <tr><td>Draw calls</td><td class="num">&lt; 1,500</td><td>Desktop has room, but batching still decides whether the map scales</td></tr>
+  <tr><td>Triangles on screen</td><td class="num">&lt; 6 M</td><td>Ground cover is most of it and that is expected</td></tr>
+  <tr><td>Unit model</td><td class="num">1.5–4 k tris</td><td>Seen at 18–90 m. Detail above this is invisible.</td></tr>
+  <tr><td>Building model</td><td class="num">3–15 k tris</td><td>Town Centres may go to 25 k</td></tr>
+  <tr><td>Ground cover mesh</td><td class="num">&lt; 400 tris</td><td>×18,000 instances — this multiplier is the whole budget</td></tr>
+</table>
+<div class="note">
+  <span class="lbl">The lesson from the mobile build, restated for desktop</span>
+  <b>Triangles were never the problem. Draw calls were.</b> A hall is 35 k triangles and that is fine;
+  it is <i>252 separate objects</i> and that is not. <b>Join each asset to one mesh per material at
+  export.</b> A building should arrive in Unity as 3–6 renderers, not 252.
+</div>
+
+<h2>Anti-aliasing and graphics settings</h2>
+<div class="note warn">
+  <span class="lbl">Verified — and it overturns the intuitive choice</span>
+  <b>MSAA is the most expensive AA option in URP on desktop GPUs.</b> It is only cheaper on tiled
+  mobile GPUs with no post-processing. It <b>cannot be combined with TAA</b>. And it antialiases
+  <b>geometric edges only</b> — so it will <i>not</i> fix shimmer on alpha-tested grass or fence cards
+  unless alpha-to-coverage is used.
+  <br><br>
+  This matters because a game full of thin geometry looks like the textbook case for MSAA, and it is
+  not. <b>Start from SMAA or TAA, not MSAA</b>, and if grass shimmers, reach for alpha-to-coverage
+  before reaching for MSAA.
+</div>
+<p>Two related beliefs <b>failed verification</b> and must not be built on: that MSAA and a
+post-process AA can be combined (refuted 0–3), and that MSAA is the right pick for thin geometry
+(refuted 1–2).</p>
+<div class="note">
+  <span class="lbl">Unknown — and it gates the art budget</span>
+  <b>Unity publishes no millisecond figures for URP quality settings</b>, and nothing external
+  validated the budget in the table above. The 16.6 ms / 1,500 draw call / 6 M triangle targets are
+  <i>our assumptions</i>, not measured facts.
+  <br><br>
+  <b>Build a synthetic stress scene before committing the art budget:</b> a dressed 420 m map,
+  18,000 instanced ground-cover meshes, 200 units, measured at 1440p on the target GPU, broken down by
+  AA mode (off / SMAA / TAA / 2× MSAA), shadow distance, and APV on/off.
+</div>
+
+<h2>Save format</h2>
+<p>A save is <b>the seed, the map archetype, and the order log</b> — not a memory dump. Small, diffable,
+version-tolerant, and it gives replays for free. A periodic full state snapshot every 2 minutes bounds
+the reload time.</p>
+
+<h2>Build targets</h2>
+<table>
+  <tr><th>Target</th><th>Unity target</th><th>Notes</th></tr>
+  <tr><td>Windows</td><td><code>StandaloneWindows64</code></td><td>Primary. IL2CPP, .NET Standard 2.1.</td></tr>
+  <tr><td>macOS</td><td><code>StandaloneOSX</code></td><td>Apple silicon or Universal. The dev machine — so it is tested every day by construction.</td></tr>
+</table>
+<p>Texture import needs a <b>Standalone platform override</b> — BC7/DXT5 at a higher max size. ASTC is a
+mobile format and has no business in a desktop build.</p>
+
+<h2>Packages</h2>
+<table>
+  <tr><th>Package</th><th>Why</th></tr>
+  <tr><td><code>com.unity.render-pipelines.universal</code></td><td>URP, 3D. Not the 2D variant used for the mobile Norse build.</td></tr>
+  <tr><td><code>com.unity.inputsystem</code></td><td>Mouse, keyboard, trackpad gestures, rebinding</td></tr>
+  <tr><td><code>com.unity.burst</code> + <code>com.unity.collections</code></td><td>Flow-field integration in a Burst job. The one place raw speed is genuinely needed.</td></tr>
+  <tr><td><code>com.unity.textmeshpro</code></td><td>UI</td></tr>
+</table>
+<p>The Unity CLI does <b>not</b> manage UPM packages — use the <code>unity-package-management</code>
+skill for headless installs.</p>
+
+<h2>Slice plan — the order things get built</h2>
+<table>
+  <tr><th>Slice</th><th>Proves</th><th>Done when</th></tr>
+  <tr><td><b>0 · Bridge</b></td><td>The pipeline works end to end</td><td>One Blender asset arrives in Unity correctly coloured and correctly scaled, via <code>palette.json</code></td></tr>
+  <tr><td><b>1 · One citizen</b></td><td>The core loop's first verb</td><td>A citizen walks to a tree on a real heightfield, chops, carries, drops off, and the wood counter moves</td></tr>
+  <tr><td><b>2 · Build and grow</b></td><td>The loop closes</td><td>Place a hut, pop cap rises, Town Centre trains citizen #2, Age I economy runs unattended for 10 minutes without breaking</td></tr>
+  <tr><td><b>3 · Fight</b></td><td>Combat and movement at scale</td><td>Two squads of 20 flow-field their way to each other, fight with the counter triangle, leave bodies and blood</td></tr>
+  <tr><td><b>4 · Advance</b></td><td>The pleasure spike</td><td>Knowledge accrues, Feudal researches, every building swaps model in place</td></tr>
+  <tr><td><b>5 · Opponent</b></td><td>There is a game</td><td>The utility commander plays a full Age I–II match without idling citizens or trickling attacks</td></tr>
+</table>
+<div class="note good">
+  <span class="lbl">Slice 0 is not a formality</span>
+  On both previous Unity projects the pipeline is where the days went — grey materials, 3 mm meshes,
+  silently empty FBX files. <b>Do slice 0 completely, with one asset, before building a second one.</b>
+  Every asset made before the bridge is proven is an asset that may have to be redone.
+</div>
+
+<h2>Sources</h2>
+<ul>
+  <li><a href="https://dev.to/linou518/unity-ecs-and-dots-a-practical-performance-architecture-guide-for-indie-developers-in-2026-4jm8">Unity ECS and DOTS: a practical performance architecture guide for indie developers in 2026</a></li>
+  <li><a href="https://darkounity.com/blog/what-is-unity-dots-in-2026">What is Unity DOTS in 2026? Do you actually need it?</a></li>
+  <li><a href="https://unityqueen.com/2026/06/05/unity-ecs-vs-gameobjects-a-real-performance-comparison/">Unity ECS vs GameObjects — a real performance comparison</a></li>
+  <li><a href="https://github.com/nathanrun1/NativeFlowField">NativeFlowField — GPU flow fields for Unity</a></li>
+</ul>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>

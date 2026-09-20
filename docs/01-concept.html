@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Game · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a class="here" href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">01 · Foundation</div>
+  <h1>The Game</h1>
+  <p class="lede">Everything else in this folder is downstream of this page. If a later document
+  contradicts it, this one wins until it is changed here on purpose.</p>
+</header>
+
+<h2>One paragraph</h2>
+<div class="note">
+  <span class="lbl">North star</span>
+  <b>You start with one citizen and a cooking fire. You finish with a missile silo.</b> Clash of Ages
+  is a real-time strategy game across six ages of technology, played on a continuous 3D map with no
+  grid. One citizen becomes twenty; a longhouse becomes a command centre; a thrown spear becomes a
+  warhead. The whole game is the feeling of <i>a single lifetime of progress, compressed</i> — and
+  the discovery that every age solves the previous age's problem by inventing a worse one.
+</div>
+
+<h2>The core loop</h2>
+<p>Four verbs, and they never change across the six ages. Only their nouns do.</p>
+<table>
+  <tr><th>Verb</th><th>Age 1 noun</th><th>Age 6 noun</th><th>What stays constant</th></tr>
+  <tr><td>Gather</td><td>Citizen chops a birch</td><td>Derrick pumps oil</td><td>A worker stands somewhere and a bar fills</td></tr>
+  <tr><td>Build</td><td>Citizen raises a hut</td><td>Crane erects a silo</td><td>Spend resources, wait, a thing appears on the ground</td></tr>
+  <tr><td>Grow</td><td>Longhouse trains a citizen</td><td>Command centre trains an engineer</td><td>Population is the real currency</td></tr>
+  <tr><td>Research</td><td>Carve runes at the hall</td><td>Lab simulation</td><td>Knowledge buys the future, not the present</td></tr>
+</table>
+
+<h3>The loop, stated as a cycle</h3>
+<pre><code>gather  →  build  →  more workers  →  gather faster
+                ↓                            ↓
+          military                      KNOWLEDGE
+                ↓                            ↓
+        take more map  ────────────→  ADVANCE AN AGE
+                                             ↓
+                              everything above gets replaced</code></pre>
+<p>The age advance is the pleasure spike. It is the moment where the player's whole board visibly
+upgrades. We should spend art and audio budget there before we spend it anywhere else.</p>
+
+<h2>Session shape</h2>
+<table>
+  <tr><th>Phase</th><th>Clock</th><th>What the player is doing</th><th>Danger</th></tr>
+  <tr><td>Opening</td><td>0–5 min</td><td>One citizen. Chop, forage, raise the first hut, train citizen two.</td><td>Boredom — must be fast and tactile</td></tr>
+  <tr><td>Establish</td><td>5–20 min</td><td>6–12 citizens, food and wood flowing, first barracks, first scouts out.</td><td>Analysis paralysis</td></tr>
+  <tr><td>First contact</td><td>15–25 min</td><td>Border touches the enemy. First real fight. First age advance.</td><td>Snowball — losing here should not be fatal</td></tr>
+  <tr><td>Middle</td><td>25–55 min</td><td>Three ages pass. Economy, walls, counters, tech choices.</td><td>Sag — this is where RTS games die</td></tr>
+  <tr><td>Endgame</td><td>55–80 min</td><td>Modern/Atomic. Air power, artillery, the silo.</td><td>Anticlimax</td></tr>
+</table>
+<p><b>Target session: 60–80 minutes for a full six-age game.</b> Also ship a three-age
+&ldquo;Skirmish&rdquo; at 25–30 minutes, because that is the length people actually replay.</p>
+
+<h2>The five rules</h2>
+<p>These are here to settle arguments quickly. Each one is a real choice with a real cost.</p>
+
+<h4>1. One citizen at the start. Always.</h4>
+<p>Not four, not twelve. The opening minute is <i>one person alone in a landscape</i>, and that is the
+emotional hook of the whole game — the distance between that image and the missile silo <i>is</i> the
+product. Cost: the first ninety seconds are slow, so they must be beautiful and loud. The first tree
+felled should be an event.</p>
+
+<h4>2. The map is continuous. No grid, no hexes.</h4>
+<p>Buildings place freely on a heightfield with a footprint and a slope test. Cost: placement, pathing
+and collision all get harder than a tile game. Benefit: the world reads as a <i>place</i>, and the
+existing Blender terrain pipeline already produces exactly this. See <a href="08-map.html">08 · Map</a>.</p>
+
+<h4>3. Knowledge is generated, never gathered.</h4>
+<p>No citizen walks to a knowledge pile. Libraries, universities and labs <i>emit</i> it per second,
+and only while staffed and powered. Advancing an age therefore means deciding, twenty minutes
+earlier, to build something that produces nothing you can eat or shoot. That decision is the strategic
+spine of the game. Lifted from Rise of Nations, which got it right.</p>
+
+<h4>4. Ages are irreversible and total.</h4>
+<p>When you advance, the whole civilisation changes — models, materials, unit silhouettes, music,
+UI trim. You cannot go back and you cannot mix. Cost: 6× the art. Mitigation: ages 1 and 5 are
+already built (Norse kit and modern kit); see <a href="05-assets.html">05 · Assets</a>.</p>
+
+<h4>5. No timers, no energy, no purchases.</h4>
+<p>It is named after Clash of Clans and it takes the base-building intimacy and the readable silhouette
+language. It takes <b>none</b> of the free-to-play scaffolding. This is a premium PC game that ends.</p>
+
+<h2>Win conditions</h2>
+<table>
+  <tr><th>Condition</th><th>How</th><th>Why it exists</th></tr>
+  <tr><td>Conquest</td><td>Destroy every enemy Town Centre</td><td>The default. Always available.</td></tr>
+  <tr><td>Ascendancy</td><td>Reach the Atomic Age and hold it 10 minutes</td><td>Rewards the economic player; gives the tech ladder a finish line</td></tr>
+  <tr><td>Wonder</td><td>Build and hold an age-appropriate Wonder for 8 minutes</td><td>Creates a timed crisis that forces the other player to attack</td></tr>
+  <tr><td>Territory</td><td>Hold 70% of map control points for 5 minutes</td><td>An out for stalemates</td></tr>
+</table>
+<div class="note warn">
+  <span class="lbl">Open question</span>
+  A sixth age with nuclear weapons and a &ldquo;hold it for 10 minutes&rdquo; win is a design that can
+  end in mutual annihilation. <b>Decide before building Age 6:</b> is using a nuke a win button, or is
+  it a loss condition disguised as one? The interesting answer is the second. Logged in PROGRESS.md.
+</div>
+
+<h2>What this game is not</h2>
+<ul>
+  <li><b>Not a 4X.</b> No diplomacy screens, no espionage tabs, no trade treaties. You see the map.</li>
+  <li><b>Not a city builder.</b> Buildings have jobs, not happiness meters.</li>
+  <li><b>Not multiplayer at launch.</b> Single player versus AI, skirmish and a campaign. Netcode is a
+  whole second project and would eat the art budget. See <a href="10-tech.html">10 · Tech</a>.</li>
+  <li><b>Not mobile.</b> Mouse, keyboard, right-click, scroll wheel, edge pan.</li>
+</ul>
+<footer>
+<b>Clash of Ages</b> — design document. Changes here must be mirrored in the Decisions log in
+<code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-19.
+</footer>
+</div>
+</body>
+</html>
