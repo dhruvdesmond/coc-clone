@@ -30,8 +30,8 @@ Material:
     m_Ints: []
     m_Floats:
     - _Bloom: 0
-    - _Fill: 0.07
-    - _Glow: 0.34
+    - _Fill: 0.018
+    - _Glow: 0.26
     - _Line: 0.92
     m_Colors:
     - _EnemyColor: {r: 1, g: 0.26999995, b: 0.19999996, a: 1}

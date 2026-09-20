@@ -21,8 +21,8 @@ HIERARCHY (Unity reads these names; FigureAnimator.cs depends on them)
 
 ORIENTATION
     Figures are authored facing +X. Measured axis mapping is Blender (x,y,z) -> Unity (-x,z,-y),
-    so the figure is turned to face Blender -Y, which lands as Unity +Z (forward). Exported with
-    bake_space_transform=True so limb objects carry identity rotation and "swing" is plain local X.
+    so the figure is turned to face Blender -Y, which lands as Unity +Z (forward).
+    The FBX is FLAT: ten root-level limb objects plus eight "_tip" empties. Unity builds the hierarchy.
 """
 import bpy, sys, os, json, math, pathlib, re
 from mathutils import Matrix, Vector
@@ -180,20 +180,17 @@ def main():
         limb_obj[l] = j
     bpy.context.view_layer.update()
 
-    root = bpy.data.objects.new(name, None)
-    coll.objects.link(root)
-    limb_obj["Body"].parent = root
-    for child, parent in PARENT.items():
-        w = limb_obj[child].matrix_world.copy()
-        limb_obj[child].parent = limb_obj[parent]
-        limb_obj[child].matrix_world = w
-    bpy.context.view_layer.update()
+    # NO PARENTING IN THE FBX. The first version exported a nested hierarchy with bake_space_transform=True
+    # (so limbs would carry identity rotations). Measured in Unity, it arrived broken at the BIND pose:
+    # children had a 90-degree rotation and positions in a different axis convention from their parent,
+    # and the citizen lay scattered on the ground. That flag is marked experimental for a reason.
+    # So: ten FLAT root-level objects -- the exact path slice 0 and AxisProbe already proved -- and
+    # FigureAnimator assembles the skeleton in Unity, where pivots are identity by construction.
 
     tip_objs = []
     for l, p in tips.items():
         e = bpy.data.objects.new(f"{l}_tip", None)
         coll.objects.link(e)
-        e.parent = limb_obj[l]
         e.matrix_world = Matrix.Translation(p)
         tip_objs.append(e)
     bpy.context.view_layer.update()
@@ -208,20 +205,29 @@ def main():
     dims = [round(max(p[i] for p in pts) - min(p[i] for p in pts), 4) for i in range(3)]
 
     bpy.ops.object.select_all(action="DESELECT")
-    root.select_set(True)
     for o in list(limb_obj.values()) + tip_objs:
         o.select_set(True)
-    bpy.context.view_layer.objects.active = root
+    bpy.context.view_layer.objects.active = limb_obj["Body"]
     fbx = os.path.join(out, f"{name}.fbx")
     bpy.ops.export_scene.fbx(
         filepath=fbx, use_selection=True, apply_unit_scale=True, global_scale=1.0,
         apply_scale_options="FBX_SCALE_ALL", axis_forward="-Z", axis_up="Y",
         object_types={"MESH", "EMPTY"}, use_mesh_modifiers=True, mesh_smooth_type="FACE",
-        bake_space_transform=True, bake_anim=False, add_leaf_bones=False, path_mode="STRIP")
+        bake_space_transform=False, bake_anim=False, add_leaf_bones=False, path_mode="STRIP")
 
     # --save-blend: keep the limb hierarchy WITH its procedural materials, for inspection renders
     keep = _opt(args, "--save-blend")
     if keep:
+        root = bpy.data.objects.new(name, None)
+        coll.objects.link(root)
+        limb_obj["Body"].parent = root
+        for child, parent in PARENT.items():
+            w = limb_obj[child].matrix_world.copy()
+            limb_obj[child].parent = limb_obj[parent]
+            limb_obj[child].matrix_world = w
+        for e in tip_objs:
+            w = e.matrix_world.copy(); e.parent = limb_obj[e.name[:-4]]; e.matrix_world = w
+        bpy.context.view_layer.update()
         bpy.data.libraries.write(keep, {root, *limb_obj.values(), *tip_objs}, fake_user=True)
 
     mats = sorted({s.name for o in limb_obj.values() for s in o.material_slots if s.name})

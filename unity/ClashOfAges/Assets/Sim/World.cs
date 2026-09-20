@@ -213,6 +213,15 @@ namespace COA.Sim
                     var p = players[u.owner];
                     float rate = Catalog.GatherRate(n.kind) * (u.carryRes == Res.Wood || u.carryRes == Res.Food ? p.gatherWoodFood : 1f);
                     float got = Math.Min(rate * Dt, Math.Min(n.amount, Catalog.CarryCapacity - u.carry));
+                    if (n.kind == NodeKind.Farm)
+                    {
+                        // Rise of Nations: a farmer does not carry. The farm IS the drop-off, so its food is banked
+                        // where it grows -- which is also what makes a farm worth its wood over a berry bush.
+                        p.stock[Res.Food] += got; p.gathered += got;
+                        u.workTimer += Dt;
+                        if (u.workTimer >= 1.6f) { u.workTimer = 0f; Emit(SimEventType.WorkImpact, u.id, (int)n.kind, n.pos); }
+                        break;
+                    }
                     u.carry += got; n.amount -= got;
                     u.workTimer += Dt;
                     if (u.workTimer >= 1.6f) { u.workTimer = 0f; Emit(SimEventType.WorkImpact, u.id, (int)n.kind, n.pos); }
@@ -276,6 +285,21 @@ namespace COA.Sim
                     break;
                 }
             }
+        }
+
+        public int BuildersOn(Building b)
+        {
+            int k = 0; foreach (var o in units) if (o.state == UnitState.Building && o.buildingId == b.id) k++;
+            return k;
+        }
+
+        /// <summary>The first builder counts fully, each extra one 60%: 1x, 1.6x, 2.2x, 2.8x ...</summary>
+        public static float BuildSpeed(int builders) => builders <= 0 ? 0f : 1f + 0.6f * (builders - 1);
+
+        public float SecondsLeft(Building b)
+        {
+            float s = BuildSpeed(BuildersOn(b)) * players[b.owner].buildMul;
+            return s <= 0f ? -1f : (1f - b.progress) * b.def.buildTime / s;
         }
 
         void AfterBuild(Unit u, Building done)
@@ -443,7 +467,8 @@ namespace COA.Sim
                 {
                     bd = 16f;
                     foreach (var b in buildings)
-                        if (!b.destroyed && b.owner != u.owner && b.owner != 0 && Vec2.Dist(b.pos, u.pos) - b.def.radius < bd)
+                        if (!b.destroyed && b.owner != u.owner && b.owner != 0 && Vec2.Dist(b.pos, u.pos) - b.def.radius < bd &&
+                            (b.type == BuildingType.Hall || b.type == BuildingType.Tower))
                         { bd = Vec2.Dist(b.pos, u.pos) - b.def.radius; tb = b; }
                 }
                 if (tu != null) u.targetUnit = tu.id; else if (tb != null) u.targetBuilding = tb.id;

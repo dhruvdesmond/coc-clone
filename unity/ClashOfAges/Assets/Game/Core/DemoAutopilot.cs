@@ -16,6 +16,7 @@ namespace COA.Game
     {
         const string Flag = "Temp/coa_autopilot.flag";
         readonly List<string> _report = new List<string>();
+        readonly Dictionary<UnitState, float> _stateSeconds = new Dictionary<UnitState, float>();
         int _fail;
 
         IEnumerator Start()
@@ -28,6 +29,8 @@ namespace COA.Game
             g.paused = false; g.timeScale = 6f; g.maxTicksPerFrame = 60;
             yield return null; yield return null;
             Log("autopilot script: " + script);
+            COA.UI.Hud.I.DismissTitle();
+            yield return Portrait(g, w);
 
             yield return Beat_FirstChop(g, w);
             if (script != "chop") yield return Beats_Full(g, w);
@@ -61,6 +64,19 @@ namespace COA.Game
             while (GameRoot.I.World.time < until && !GameRoot.I.World.over) yield return null;
         }
 
+        /// <summary>The citizen, close, in the open, from the front and then walking. "THIS is the citizen?" -- it must read.</summary>
+        IEnumerator Portrait(GameRoot g, World w)
+        {
+            var c = w.units.First(u => u.owner == World.Human);
+            yield return Shot("00_citizen_portrait", Ground.At(c.pos), 8f, 205f);
+            var open = c.pos + (c.pos - Ground.ToSim(g.HallWorldPos)).Normalized * 7f;
+            w.CmdMove(new[] { c.id }, open);
+            yield return WaitSim(1.4f);
+            var d = open - c.pos; float walkYaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
+            yield return Shot("00b_citizen_walking", Ground.At(c.pos), 8f, walkYaw + 110f);
+            yield return Shot("00c_citizen_game_zoom", Ground.At(c.pos), 24f, 30f);
+        }
+
         IEnumerator Beat_FirstChop(GameRoot g, World w)
         {
             var c = w.units.First(u => u.owner == World.Human);
@@ -71,10 +87,15 @@ namespace COA.Game
             while (c.state != UnitState.Gathering && w.time - t0 < 60f) yield return null;
             Check(c.state == UnitState.Gathering, "citizen reached the tree and is chopping (" + (w.time - t0).ToString("F1") + " s)");
             yield return WaitSim(1.0f);
-            yield return Shot("02_first_chop", Ground.At(c.pos), 11f, 200f);
+            var toTree = tree.pos - c.pos; float faceYaw = Mathf.Atan2(toTree.x, toTree.z) * Mathf.Rad2Deg;
+            yield return Shot("02_first_chop", Ground.At(c.pos), 8f, faceYaw + 35f);
             float wood0 = w.Me.stock[Res.Wood];
             yield return WaitSim(45f);
-            Check(w.Me.stock[Res.Wood] > wood0 + 9f, "wood was carried home and deposited: " + wood0.ToString("F0") + " -> " + w.Me.stock[Res.Wood].ToString("F0"));
+            float tc = w.time; while (c.carry < 1f && w.time - tc < 40f) yield return null;
+            while (c.state != UnitState.ToDropOff && w.time - tc < 60f) yield return null;
+            yield return WaitSim(1.2f);
+            yield return Shot("02b_citizen_carrying", Ground.At(c.pos), 8f, faceYaw + 200f);
+            Check(w.Me.stock[Res.Wood] > wood0 + 9f || c.carry > 1f, "wood was carried home and deposited: " + wood0.ToString("F0") + " -> " + w.Me.stock[Res.Wood].ToString("F0"));
         }
 
         /// <summary>A competent-but-plain bot plays the whole arc while the camera takes the named shots.</summary>
@@ -95,10 +116,10 @@ namespace COA.Game
                 if ((int)w.time % 60 == 0)
                     Log($"t={w.time / 60f:F0}m real={Time.realtimeSinceStartup:F0}s fps={1f / Time.unscaledDeltaTime:F0} cit={w.units.Count(u => u.owner == World.Human && u.IsCitizen)} sol={w.units.Count(u => u.owner == World.Human && !u.IsCitizen)} " +
                         $"F={me.stock[Res.Food]:F0} W={me.stock[Res.Wood]:F0} S={me.stock[Res.Stone]:F0} M={me.stock[Res.Metal]:F0} K={me.stock[Res.Knowledge]:F0} pop={me.popUsed}/{me.popCap} " +
-                        $"bld={string.Join(",", w.buildings.Where(b => b.owner == World.Human).Select(b => b.type + (b.complete ? "" : "*")))} idle={w.units.Count(u => u.owner == World.Human && u.IsCitizen && u.state == UnitState.Idle)} raids={w.raids.raidsSent}");
+                        $"bld={string.Join(",", w.buildings.Where(b => b.owner == World.Human).Select(b => b.type + (b.destroyed ? "x" : b.complete ? "" : "*")))} idle={w.units.Count(u => u.owner == World.Human && u.IsCitizen && u.state == UnitState.Idle)} raids={w.raids.raidsSent}");
                 var citizens = w.units.Where(u => u.owner == World.Human && u.IsCitizen && u.Alive).ToList();
                 var soldiers = w.units.Where(u => u.owner == World.Human && !u.IsCitizen && u.Alive).ToList();
-                bool building = w.buildings.Any(b => b.owner == World.Human && !b.complete && !b.destroyed);
+                bool building = w.buildings.Count(b => b.owner == World.Human && !b.complete && !b.destroyed) >= 2;   // two sites at once
                 Building Place(BuildingType t, float dist)
                 {
                     var d = Catalog.Buildings[t]; if (!me.stock.CanAfford(d.cost) || building) return null;
@@ -112,6 +133,7 @@ namespace COA.Game
                     return null;
                 }
 
+                foreach (var c in citizens) { _stateSeconds.TryGetValue(c.state, out var sec); _stateSeconds[c.state] = sec + 1f; }
                 if ((int)w.time % 60 == 0)
                 {
                     Log("   states: " + string.Join(" ", citizens.GroupBy(c => c.state).Select(gr => gr.Key + "x" + gr.Count())));
@@ -122,13 +144,36 @@ namespace COA.Game
                             (ag != null && ag.isOnNavMesh ? $"path={ag.pathStatus} remaining={ag.remainingDistance:F2} vel={ag.velocity.magnitude:F2} stopped={ag.isStopped} agentStop={ag.stoppingDistance:F2}" : "NO AGENT/OFF MESH"));
                     }
                 }
-                if (hall.queue.Count == 0 && citizens.Count < 12) w.CmdTrain(hall.id, UnitType.Citizen);
-                if (me.popCap - me.popUsed <= 1 && huts < 5 && Place(BuildingType.Hut, 15f) != null) huts++;
-                if (storehouses == 0 && citizens.Count >= 4 && Place(BuildingType.Storehouse, 22f) != null) storehouses++;
-                if (rune == null && citizens.Count >= 6) rune = Place(BuildingType.RuneHall, 17f);
-                if (farms == 0 && rune != null && rune.complete && Place(BuildingType.Farm, 19f) != null) farms++;
-                if (muster == null && rune != null && rune.complete) muster = Place(BuildingType.Muster, 20f);
-                if (tower == null && muster != null) tower = Place(BuildingType.Tower, 24f);
+                if (rune != null && rune.destroyed) rune = null;
+                if (muster != null && muster.destroyed) muster = null;
+                if (tower != null && tower.destroyed) tower = null;
+                int liveHuts = w.buildings.Count(b => b.owner == World.Human && b.type == BuildingType.Hut && !b.destroyed);
+                // once there is a Muster Hall, the army eats first until it is eight strong
+                bool armyFirst = muster != null && muster.complete && soldiers.Count < 8 && citizens.Count >= 9;
+                // saving up: with the army standing and two techs known, stop spending and bank the advance
+                bool saving = me.age < 2 && (soldiers.Count >= 5 || w.time > 780f) && me.techs.Count >= 2 && rune != null && rune.complete && rune.researching == null;
+                if (saving) armyFirst = true;
+                if (hall.queue.Count == 0 && citizens.Count < 16 && !armyFirst) w.CmdTrain(hall.id, UnitType.Citizen);
+                if (me.popCap - me.popUsed <= 2 && liveHuts < 7 && Place(BuildingType.Hut, 15f) != null) huts++;
+                // a storehouse belongs AT the treeline, not at a random bearing from the hall
+                if (storehouses < 2 && citizens.Count >= (storehouses == 0 ? 3 : 9) && me.stock.CanAfford(Catalog.Buildings[BuildingType.Storehouse].cost))
+                {
+                    var kind = storehouses == 0 ? NodeKind.Tree : NodeKind.Iron;
+                    var target = w.nodes.Where(n => n.kind == kind && !n.Depleted && Vec2.Dist(n.pos, hallPos) > 13f).OrderBy(n => Vec2.Dist(n.pos, hallPos)).FirstOrDefault();
+                    if (target != null)
+                        for (int i = 0; i < 16; i++)
+                        {
+                            float ang = i * 0.785f; var p = target.pos + new Vec2(Mathf.Cos(ang), Mathf.Sin(ang)) * (5.5f + (i / 8) * 2.5f);
+                            if (w.SiteProblem(World.Human, BuildingType.Storehouse, p) != null) continue;
+                            if (w.CmdPlace(World.Human, BuildingType.Storehouse, p, 0, citizens.OrderBy(c => Vec2.Dist(c.pos, p)).Take(1).Select(c => c.id).ToList(), out _) != null) { storehouses++; building = true; break; }
+                        }
+                }
+                if (farms < 1 && citizens.Count >= 4 && Place(BuildingType.Farm, 19f) != null) farms++;
+                if (farms == 1 && citizens.Count >= 8 && Place(BuildingType.Farm, 21f) != null) farms++;
+                if (rune == null && citizens.Count >= 7) rune = Place(BuildingType.RuneHall, 17f);
+                if (tower == null && rune != null) tower = Place(BuildingType.Tower, 16f);
+                if (muster == null && rune != null) muster = Place(BuildingType.Muster, 20f);
+                if (farms < 3 && muster != null && Place(BuildingType.Farm, 23f) != null) farms++;
 
                 if (rune != null && rune.complete)
                 {
@@ -138,12 +183,12 @@ namespace COA.Game
                     {
                         if (!me.techs.Contains("runelore")) w.CmdResearch(rune.id, "runelore");
                         else if (!me.techs.Contains("felling")) w.CmdResearch(rune.id, "felling");
-                        else if (me.age < 2 && soldiers.Count >= 8) w.CmdResearch(rune.id, "age");
+                        else if (me.age < 2 && (soldiers.Count >= 5 || w.time > 780f)) w.CmdResearch(rune.id, "age");
                         else if (!me.techs.Contains("shieldwall")) w.CmdResearch(rune.id, "shieldwall");
                         else if (!me.techs.Contains("allthing")) w.CmdResearch(rune.id, "allthing");
                     }
                 }
-                if (muster != null && muster.complete && muster.queue.Count == 0 && soldiers.Count < 14)
+                if (muster != null && muster.complete && muster.queue.Count == 0 && soldiers.Count < 14 && !saving)
                 {
                     w.CmdRally(muster.id, hallPos + new Vec2(6, -12));
                     var want = soldiers.Count % 3 == 0 ? UnitType.Spearman : soldiers.Count % 3 == 1 ? UnitType.Archer : UnitType.Swordsman;
@@ -155,10 +200,14 @@ namespace COA.Game
                 {
                     // a fixed split by citizen id: 4 food, 4 wood, 1 stone, 1 iron of every 10. ("Everyone to the
                     // berries while food is low" starved the wood economy forever, since food is ALWAYS low when spent.)
-                    // by POSITION in the roster, not by id: ids are shared with buildings and nodes, so "id % 10 == 9"
-                    // simply never occurred and nobody ever mined iron -- no metal, no Muster Hall, no army, defeat.
-                    int slot = citizens.IndexOf(c) % 10; k++;
-                    NodeKind want = slot < 4 ? NodeKind.Berry : slot < 8 ? NodeKind.Tree : slot == 8 ? NodeKind.Stone : NodeKind.Iron;
+                    // Send each idle citizen to whichever resource is furthest BELOW its target share of the workforce.
+                    // (Two earlier schemes both lost the game: "everyone to berries while food is low" starved wood, and
+                    // "id % 10" never produced a miner because ids are shared with buildings and nodes.)
+                    k++;
+                    var share = new Dictionary<Res, float> { { Res.Food, 0.46f }, { Res.Wood, 0.28f }, { Res.Stone, 0.11f }, { Res.Metal, 0.15f } };
+                    var busy = citizens.Where(o => o.state == UnitState.Gathering || o.state == UnitState.ToNode || o.state == UnitState.ToDropOff).ToList();
+                    Res need = share.Keys.OrderBy(r => busy.Count(o => Catalog.ResourceOf(o.lastKind) == r) / (float)Mathf.Max(1, busy.Count) - share[r]).First();
+                    NodeKind want = need == Res.Food ? NodeKind.Berry : need == Res.Wood ? NodeKind.Tree : need == Res.Stone ? NodeKind.Stone : NodeKind.Iron;
                     var n = w.nodes.Where(x => (x.kind == want || (want == NodeKind.Berry && x.kind == NodeKind.Farm)) && !x.Depleted && w.Claimed(x) < Catalog.NodeWorkerCap(x.kind))
                                    .OrderBy(x => Vec2.Dist(x.pos, c.pos)).FirstOrDefault()
                          ?? w.nodes.Where(x => x.kind == NodeKind.Tree && !x.Depleted).OrderBy(x => Vec2.Dist(x.pos, c.pos)).FirstOrDefault();
@@ -172,13 +221,15 @@ namespace COA.Game
                 if (!shotBorder && tower != null && tower.complete) { shotBorder = true; yield return WaitSim(2f); yield return Shot("05_border", g.HallWorldPos, 62f, 20f); }
                 if (!shotAge && me.age >= 2) { shotAge = true; yield return WaitSim(3f); yield return Shot("06_feudal_age", g.HallWorldPos, 40f, 110f); }
                 var raider = w.units.FirstOrDefault(u => u.owner == World.Enemy && Vec2.Dist(u.pos, hallPos) < 22f);
-                if (!shotRaid && raider != null && soldiers.Count > 0) { shotRaid = true; yield return WaitSim(2.5f); var r2 = w.units.FirstOrDefault(u => u.owner == World.Enemy) ?? raider; yield return Shot("07_raid", Ground.At(r2.pos), 17f, 150f); }
+                if (!shotRaid && raider != null && soldiers.Count > 0) { shotRaid = true; yield return WaitSim(2.5f); var r2 = w.units.FirstOrDefault(u => u.owner == World.Enemy) ?? raider; yield return Shot("07_raid", Ground.At(r2.pos), 13f, 150f); }
             }
 
             yield return new WaitForSecondsRealtime(1.5f);
             yield return Shot("08_end", g.HallWorldPos, 34f, 30f);
             var m = w.Me;
             Log($"end: time {w.time / 60f:F1} min  over={w.over} won={w.won}  age={m.age}  techs={m.techs.Count}  gathered={m.gathered:F0}  killed={m.unitsKilled}  lost={m.unitsLost}  raids={w.raids.raidsSent}");
+            float total = Mathf.Max(1f, _stateSeconds.Values.Sum());
+            Log("citizen time: " + string.Join("  ", _stateSeconds.OrderByDescending(kv => kv.Value).Select(kv => kv.Key + " " + (100f * kv.Value / total).ToString("F0") + "%")));
             Check(shotHut, "a hut was built");
             Check(shotRune, "the rune hall was built and staffed");
             Check(m.age >= 2, "the Feudal Age was reached");

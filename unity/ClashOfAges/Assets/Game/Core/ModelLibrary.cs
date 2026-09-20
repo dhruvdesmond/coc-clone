@@ -8,7 +8,7 @@ namespace COA.Game
     {
         public List<string> names = new List<string>();
         public List<GameObject> prefabs = new List<GameObject>();
-        public Material ghostOk, ghostBad, ring, ringEnemy, marker, blood, stump, border, particle, arrow, hpBack, hpFill;
+        public Material teamDisc, ghostOk, ghostBad, ring, ringEnemy, marker, blood, stump, border, particle, arrow, hpBack, hpFill;
 
         Dictionary<string, GameObject> _map;
         public GameObject Get(string name)

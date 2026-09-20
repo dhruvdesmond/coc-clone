@@ -23,15 +23,22 @@ See `docs/12-territory.html`.
 clash-of-clans/                     ← this repo
 ├── CLAUDE.md                       ← you are here
 ├── PROGRESS.md                     ← LIVING STATE. read first, update last.
-├── index.html                      ← design hub, opens the 11 docs
+├── index.html                      ← design hub, opens the 13 docs
 ├── style.css
-├── docs/01-concept … 12-territory.html
-├── blender/scripts/                ← pipeline scripts (synced copies, see §5)
+├── docs/01-concept … 13-demo.html
+├── tools/                          ← u.sh (guarded Unity runner) · test.sh · export_all.sh
+├── art/unit_sheet.png              ← the units, their pivots and their poses, rendered in Blender
+├── blender/scripts/                ← AUTHORITATIVE pipeline scripts: export_palette · export_assets ·
+│                                      export_figure · export_nature · figure_sheet
+├── blender/base/age1_demo/         ← models authored HERE (Rune Hall, Muster Hall, Farm)
 └── unity/ClashOfAges/              ← the game
     └── Assets/
-        ├── Editor/    PaletteImporter · SliceZero · ConfigureQuality · Builder
-        ├── Game/      RTSCamera · ScrollProbe
-        ├── Sim/       (empty — plain C#, NO UnityEngine dependency)
+        ├── Sim/       THE GAME. Pure C#, noEngineReferences, 20 Hz. World · Commands · Catalog · Territory · RaidDirector
+        ├── Game/      Core (GameRoot, PlayerInput, DemoAutopilot) · Views · World (instancing) · Fx · Shaders
+        ├── UI/        Hud · Minimap · UiKit — uGUI built in code
+        ├── Editor/    DemoSceneBuilder · DemoVerify · SceneKit · PaletteImporter · UnitSilhouette · Builder …
+        ├── Tests/     EditMode sim tests
+        ├── World/     terrain + world_meshes.fbx + world.bytes (generated)
         ├── Models/    FBX from Blender, generated
         └── Resources/palette.json  generated from lib/materials.py
 
@@ -97,6 +104,12 @@ Vale port. **Do not re-derive their contents from the code — load them.**
 4. **Visual checks run the Editor in GUI mode, never `-batchmode`.** Under batchmode every draw uses
    one material. Asset-level assertions are still valid there; the image is not.
 
+### This repo and `~/blender`
+**Never write inside `~/blender`.** It is not under version control, a live mobile session edits it, and its
+rules make `lib/` and `scripts/` integrator-owned. Pipeline scripts live in **this repo's** `blender/scripts/` and
+are authoritative; new models are authored in `blender/base/<name>/build.py` here, importing `~/blender/lib`
+read-only by absolute path.
+
 ### Both
 - **The reference is Rise of Nations.** If a proposed feature would work equally well in a
   base-builder, it is probably the wrong feature. The game is fought over territory drawn as colour.
@@ -118,16 +131,23 @@ BL=/Applications/Blender.app/Contents/MacOS/Blender
 UE=/Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app/Contents/MacOS/Unity
 P=/Users/dhruv/clash-of-clans/unity/ClashOfAges
 
-# 1. palette  -> 79 materials into Assets/Resources/palette.json
-$BL -b --factory-startup --python ~/blender/scripts/export_palette.py -- \
-    --out $P/Assets/Resources
+# THE THREE YOU WILL ACTUALLY USE
+tools/test.sh                        # 10 headless sim tests. Batchmode is safe: no pixels.
+tools/u.sh play DemoVerify.Full      # a bot plays the whole demo in the Editor: 8 screenshots, asserts, exits
+tools/u.sh compile                   # ALWAYS before a GUI run -- a compile error in GUI mode hangs on a dialog
 
-# 2. one asset -> FBX + the assertion sidecar
-$BL -b --factory-startup ~/blender/base/huts/models/hut_a.blend \
-    --python ~/blender/scripts/export_assets.py -- --name hut_a --out $P/Assets/Models
+tools/export_all.sh [figures|buildings|new|nodes|all]   # re-export every Blender asset the demo uses
 
-# 3. verify the bridge  (NOT -batchmode, or the PNG is a single-material grey)
-$UE -projectPath $P -executeMethod SliceZero.Verify -logFile /tmp/slice0.log -quit
+# palette -> 82 materials. --scan reads materials that live only inside an asset .blend
+$BL -b --factory-startup --python blender/scripts/export_palette.py -- --out $P/Assets/Resources \
+    --scan ~/blender/base/starter/models/node_food.blend ~/blender/base/starter/models/node_iron.blend
+
+# the land: unique meshes + instance matrices (axes MEASURED: Blender (x,y,z) -> Unity (-x,z,-y))
+$BL -b --factory-startup ~/blender/base/map_village/map_village.blend \
+    --python blender/scripts/export_nature.py -- --out $P/Assets/World
+
+# verify the bridge  (NOT -batchmode, or the PNG is a single-material grey)
+tools/u.sh gui SliceZero.Verify
 
 # 4. quality settings for discrete GPUs
 $UE -projectPath $P -executeMethod ConfigureQuality.Apply -logFile /tmp/q.log -quit
@@ -153,26 +173,23 @@ replacements applied. The same licence gate blocks macOS player builds until som
 sudo xcodebuild -license accept
 ```
 
-**`blender/scripts/` in this repo is a synced copy.** The live scripts the commands above call are in
-`~/blender/scripts/`, next to the `lib/` they import. If you change one, copy it to the other — or
-better, fix this properly by making the repo the authority and pointing `~/blender` at it.
+**Never edit `Assets/` while an Editor run is live** — Unity can recompile mid-play and the run dies oddly. And
+delete the log before launching a run you intend to wait on: a wait-loop will happily match the *previous* run's
+log and hand you stale numbers.
 
 ---
 
 ## 6. State of play
+
+**There is a playable demo** — one citizen to the Feudal Age, borders drawn as colour, raids, a win screen. A bot
+plays it start to finish and wins (`tools/u.sh play DemoVerify.Full`). Read `docs/13-demo.html` for what is real,
+what is scripted and what is faked. **No human has played it yet** — that is the next thing (PROGRESS N8).
 
 **Slice 0 is done.** The Blender→Unity bridge is built and verified end to end on one asset:
 9/9 assertions pass, reproducibly. Scale exact to the millimetre, 108 objects joined to 1 renderer
 with 6 submeshes, 22,548 triangles exact, all 6 materials mapped from the 79-entry palette, tone
 correction confirmed applied once.
 
-**The territory system is designed but not built** — borders, attrition, cities, rares, six nations
-and the Armageddon counter, all in `docs/12-territory.html`. The territory grid is the thing
-everything else hangs off and it is cheap (one byte per 1 m cell, 410 KB at the largest map,
-recomputed only when a city changes). Build it before combat exists, not after.
-
-**Next is slice 1 — one citizen.** A citizen walks to a tree on a heightfield, chops, carries, drops
-off, and the wood counter moves. The `citizen` model does not exist yet and is the first thing to
-build. See `PROGRESS.md` §5.
-
-**Nothing else is built.** No simulation, no AI, no map generator, no UI.
+**Borders, build-inside-only, attrition and regen are built.** Cities, rare resources, nations and the Armageddon
+counter (the rest of `docs/12-territory.html`) are not. The opponent is a scripted `RaidDirector`, not doc 06's AI.
+**The units have no skeleton** — limb hierarchies posed in code (DL36). See `PROGRESS.md` §5 for what is next.

@@ -46,8 +46,8 @@ Shader "COA/Border"
                 float band = saturate(1.0 - abs(a - 0.5) / 0.055);
                 float shimmer = 0.78 + 0.22 * sin(_Time.y * 1.7 + (wpos.x + wpos.z) * 0.55);
                 float glow = inside * saturate(1.0 - (a - 0.5) / 0.34) * _Glow;
-                float alpha = saturate(band * _Line * shimmer + glow + inside * (_Fill + _Bloom * 0.30));
-                return float4(col + band * 0.35 + _Bloom * 0.4, alpha);
+                float alpha = saturate(band * _Line * shimmer + glow + inside * (_Fill + _Bloom * 0.10));
+                return float4(col + band * 0.35 + _Bloom * 0.25, alpha);
             }
 
             half4 frag(V i) : SV_Target

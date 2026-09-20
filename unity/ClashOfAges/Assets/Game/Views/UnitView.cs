@@ -7,8 +7,9 @@ namespace COA.Game
     /// <summary>One per sim unit. Walks it on the NavMesh, poses it, and reports where it really is.</summary>
     public sealed class UnitView : MonoBehaviour
     {
+        public const float UnitScale = 1.38f;
         public int unitId; public bool selected;
-        GameRoot _root; Unit _u; NavMeshAgent _agent; FigureAnimator _anim; GameObject _ring, _load; HealthBar _hp;
+        GameObject _disc; GameRoot _root; Unit _u; NavMeshAgent _agent; FigureAnimator _anim; GameObject _ring, _load; HealthBar _hp;
         Vector3 _lastDest = new Vector3(9999, 0, 9999); float _stuck; bool _dead; float _deadT; Renderer[] _rends;
         Vector3 _vel; Vector3 _prev;
 
@@ -19,9 +20,14 @@ namespace COA.Game
             var prefab = root.models.Get(u.def.model);
             var go = prefab != null ? Instantiate(prefab) : GameObject.CreatePrimitive(PrimitiveType.Capsule);
             go.name = u.def.name + "_" + u.id;
+            int unitsLayer = LayerMask.NameToLayer("Units");             // the occluded-silhouette pass draws this layer
+            if (unitsLayer >= 0) foreach (var t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = unitsLayer;
             var v = go.AddComponent<UnitView>();
             v._root = root; v._u = u; v.unitId = u.id;
             go.transform.position = Ground.At(u.pos);
+            // RTS convention: figures are drawn larger than life. A true-scale 1.75 m citizen seen from 30 m is a
+            // dark speck (Dhruv: "THIS is the citizen?"). Buildings stay true scale; the sim is unaffected.
+            go.transform.localScale = Vector3.one * UnitScale;
 
             v._agent = go.AddComponent<NavMeshAgent>();
             v._agent.radius = 0.34f; v._agent.height = 1.8f; v._agent.speed = u.def.speed;
@@ -35,6 +41,12 @@ namespace COA.Game
             v._ring.transform.localPosition = new Vector3(0f, 0.06f, 0f);
             v._ring.transform.localScale = Vector3.one * 0.62f;
             v._ring.SetActive(u.owner != World.Human);           // enemies always wear their colour
+            if (u.owner == World.Human)
+            {   // your own people stand on a soft disc of your border colour: findable at a glance, not loud
+                var disc = MeshKit.Make("TeamDisc", MeshKit.Disc, root.models.teamDisc, go.transform);
+                disc.transform.localPosition = new Vector3(0f, 0.04f, 0f); disc.transform.localScale = Vector3.one * 0.50f;
+                v._disc = disc;
+            }
             v._hp = HealthBar.Create(go.transform, 2.15f, 0.9f, root.models);
             v._rends = go.GetComponentsInChildren<Renderer>();
             v._prev = go.transform.position;
@@ -49,7 +61,9 @@ namespace COA.Game
             // a partial path that has gone still is "as close as it gets": let the sim accept a looser arrival
             bool still = _agent.velocity.sqrMagnitude < 0.02f && !_agent.pathPending;
             _stuck = _u.hasMoveTarget && still ? _stuck + World.Dt : 0f;
-            _u.blocked = _stuck > 0.8f;
+            // standing on the perimeter point we asked for IS arrival: do not make every delivery wait out the stuck timer
+            bool atGoal = _u.hasMoveTarget && !_agent.pathPending && _agent.hasPath && _agent.remainingDistance <= _agent.stoppingDistance + 0.2f;
+            _u.blocked = _stuck > 0.8f || (atGoal && _u.stopDistance > 2.5f);
         }
 
         public void SetSelected(bool on)
@@ -156,6 +170,9 @@ namespace COA.Game
         void BeginDeath()
         {
             _dead = true; _deadT = 0f;
+            if (_disc != null) _disc.SetActive(false);
+            // a corpse leaves the Units layer: it sinks into the ground, and the ground would "occlude" it forever
+            foreach (var t in GetComponentsInChildren<Transform>(true)) t.gameObject.layer = 0;
             if (_agent != null) _agent.enabled = false;
             if (_ring != null) _ring.SetActive(false);
             _hp.Set(0, false);

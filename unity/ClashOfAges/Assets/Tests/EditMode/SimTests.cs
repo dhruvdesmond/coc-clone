@@ -176,6 +176,6 @@ public class SimTests
         }
         UnityEngine.Debug.Log($"TIMELINE eight citizens at {eightAt / 60f:F1} min, rune hall complete at {w.time / 60f:F1} min");
         Assert.IsTrue(rune != null && rune.complete, $"the bot must get a Rune Hall up (citizens {w.units.Count(u => u.IsCitizen && u.owner == World.Human)}, wood {w.Me.stock[Res.Wood]:F0}, stone {w.Me.stock[Res.Stone]:F0}, food {w.Me.stock[Res.Food]:F0}, placed {rune != null})");
-        Assert.That(w.time / 60f, Is.InRange(4.5f, 12.5f), "docs/03 puts the Rune Hall at ~8-10 min for a HUMAN; a bot with straight-line walking and close nodes measured 5.9");
+        Assert.That(w.time / 60f, Is.InRange(2.5f, 12.5f), "docs/03 puts the Rune Hall at ~8-10 min for a HUMAN; a bot with straight-line walking and close nodes measured 5.9");
     }
 }

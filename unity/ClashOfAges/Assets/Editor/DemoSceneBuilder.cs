@@ -19,6 +19,7 @@ public static class DemoSceneBuilder
     [MenuItem("Clash of Ages/Demo - Build scene")]
     public static void Build()
     {
+        UnitSilhouette.EnsureLayer();
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         SceneKit.MakeSun();
@@ -74,7 +75,7 @@ public static class DemoSceneBuilder
         camGo.AddComponent<AudioListener>();
         var rig = camGo.AddComponent<RTSCamera>();
         rig.mapSize = new Vector2(tb.size.x, tb.size.z);
-        rig.minHeight = 9f; rig.maxHeight = 70f; rig.height = 32f;
+        rig.minHeight = 8f; rig.maxHeight = 70f; rig.height = 24f;
         var rot = Quaternion.Euler(rig.pitch, rig.yaw, 0f);
         camGo.transform.SetPositionAndRotation(-(rot * Vector3.forward) * (rig.height / Mathf.Sin(rig.pitch * Mathf.Deg2Rad)), rot);
 
@@ -85,8 +86,8 @@ public static class DemoSceneBuilder
         surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
         var wet = new GameObject("NotWalkable_Underwater").AddComponent<NavMeshModifierVolume>();
         wet.transform.SetParent(nav.transform);
-        wet.center = new Vector3(0f, -10.12f, 0f);
-        wet.size = new Vector3(400f, 20f, 400f);            // top face at y = -0.12
+        wet.center = new Vector3(0f, -9.98f, 0f);
+        wet.size = new Vector3(400f, 20f, 400f);            // top face at y = +0.02: raiders were wading the lake shallows
         wet.area = 1;                                        // Not Walkable
         surface.BuildNavMesh();
         AssetDatabase.DeleteAsset(World + "NavMesh.asset");
@@ -105,6 +106,7 @@ public static class DemoSceneBuilder
         const string U = "Assets/Materials/UI/";
         lib.ring      = SceneKit.SavedUnlit(U + "Ring.mat",      new Color(0.35f, 0.95f, 0.45f, 0.95f));
         lib.ringEnemy = SceneKit.SavedUnlit(U + "RingEnemy.mat", new Color(1.00f, 0.25f, 0.20f, 0.85f));
+        lib.teamDisc  = SceneKit.SavedUnlit(U + "TeamDisc.mat",  new Color(0.30f, 0.62f, 1.00f, 0.42f));
         lib.marker    = SceneKit.SavedUnlit(U + "Marker.mat",    new Color(1.00f, 0.85f, 0.30f, 0.95f));
         lib.ghostOk   = SceneKit.SavedUnlit(U + "GhostOk.mat",   new Color(0.35f, 1.00f, 0.50f, 0.45f));
         lib.ghostBad  = SceneKit.SavedUnlit(U + "GhostBad.mat",  new Color(1.00f, 0.25f, 0.20f, 0.45f));

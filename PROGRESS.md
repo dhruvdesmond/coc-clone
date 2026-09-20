@@ -18,7 +18,8 @@
 > - Every trap discovered goes in **Gotchas**, immediately, while it still hurts.
 > - Update before you finish, not when you remember.
 
-**Last updated:** 2026-09-20 · **Corrected to a Rise of Nations clone** (doc 12 added, Q1 closed).
+**Last updated:** 2026-09-20 · **THERE IS A PLAYABLE DEMO.** One citizen to the Feudal Age, with borders, raids and a
+win screen; a bot plays it start to finish and wins. 10 headless sim tests. See `docs/13-demo.html`.
 **SLICE 0 IS DONE.** Unity project created, the Blender to Unity
 bridge built and verified end to end on one asset. 11 design documents.
 ---
@@ -39,16 +40,16 @@ Working title only — the name does not matter yet.
 | Area | State | Where |
 |---|---|---|
 | 📐 Design docs | ✅ **DONE** — 12 documents | `index.html` + `docs/` |
-| 🗺️ Territory system | ⬜ **DESIGNED, NOT BUILT** — borders, attrition, cities, rares, nations, Armageddon | `docs/12-territory.html` |
+| 🗺️ Territory system | 🟡 **Borders, build-inside-only, attrition, regen BUILT.** Cities, rares, nations, Armageddon not yet. | `docs/12-territory.html` |
 | 💡 Lighting | ✅ **DECIDED** — realtime sun + APV, verified against Unity 6 docs | `docs/11-lighting.html` |
-| 🎨 Asset library | 🟡 **35 of ~192 built** (inherited from the Norse/Vale work) | `~/blender/base/` |
+| 🎨 Asset library | 🟡 **38 of ~192** — +Rune Hall, Muster Hall, Farm (authored in this repo) | `~/blender/base/`, `blender/base/age1_demo/` |
 | 🔧 Blender→Unity bridge | ✅ **DONE and VERIFIED** — 9/9 assertions pass on `hut_a` | `docs/07-pipeline.html` |
-| 🎮 Unity project | 🟡 **CREATED** — URP 3D, Unity 6000.0.83f1, quality configured for discrete GPUs | `unity/ClashOfAges` |
-| 🧠 Simulation | ⬜ **NOT STARTED** | `docs/10-tech.html` |
+| 🎮 Unity project | ✅ **PLAYABLE DEMO** — Age I → Feudal, generated scene, HUD, minimap, FX, synthesised audio | `unity/ClashOfAges`, `docs/13-demo.html` |
+| 🧠 Simulation | ✅ **BUILT + TESTED** — `Assets/Sim`, no engine refs, 20 Hz, 10/10 EditMode tests | `docs/10-tech.html` |
 | 🗺️ Map generator | 🟡 **Exists for Norse village**, needs the archetype system | `~/blender/lib/mapgen.py` |
-| 🤖 Opponent AI | ⬜ **DESIGNED, NOT BUILT** | `docs/06-ai.html` |
-| 🎥 Camera | 🟡 **WRITTEN, UNTUNED** — `RTSCamera.cs`; scroll scale still unmeasured (Q5) | `unity/ClashOfAges/Assets/Game` |
-| 🔊 Audio | ⬜ **NOT STARTED** | `docs/09-fx-audio.html` |
+| 🤖 Opponent AI | 🟡 **SCRIPTED `RaidDirector` only.** The three-layer utility AI of doc 06 is still unbuilt. | `docs/06-ai.html` |
+| 🎥 Camera | 🟡 **WORKS; zoom feel untested by a human hand** — scroll is self-calibrating (Q5) | `Assets/Game/RTSCamera.cs` |
+| 🔊 Audio | 🟡 **SYNTHESISED PLACEHOLDER** — every sound generated at startup; no audio files exist | `Assets/Game/Fx/Sfx.cs` |
 
 ---
 
@@ -71,6 +72,15 @@ Working title only — the name does not matter yet.
 | D13 | **`ConfigureQuality.cs`** — 4096 shadows, 4 cascades, MSAA off, HDR, SRP Batcher | 2026-09-20 | Targets discrete NVIDIA + Apple silicon MacBook Pro |
 | D14 | **`RTSCamera.cs` + `ScrollProbe.cs` + `Builder.cs`** | 2026-09-20 | Camera written; ScrollProbe is the Q5 measurement harness |
 | D15 | **`docs/12-territory.html`** — borders, attrition, cities, rares, 6 nations, Armageddon | 2026-09-20 | The correction to a Rise of Nations clone. Closes Q1. |
+| D16 | **The land in Unity** — terrain + baked 4K albedo, water, **19,727 GPU-instanced objects in 128 draw calls**, NavMesh | 2026-09-20 | `export_nature.py`, `InstancedWorld.cs`. Axis mapping MEASURED: Blender (x,y,z) → Unity (−x,z,−y) |
+| D17 | **The simulation** — economy, construction, training, scholars, 4 techs, age advance, territory, attrition, combat, raids | 2026-09-20 | Pure C#. **10 EditMode tests.** One `Catalog.cs` table |
+| D18 | **Figures as limb hierarchies** — `export_figure.py`; villager, swordsman, spearman, archer | 2026-09-20 | **No skeleton exists.** 10 limbs pivoting on the joint spheres + `_tip` markers; posed in code. `art/unit_sheet.png` |
+| D19 | **Three new Norse models** — Rune Hall, Muster Hall, Farm | 2026-09-20 | `blender/base/age1_demo/build.py`, reads `~/blender/lib`, writes nothing there |
+| D20 | **Play layer** — NavMesh movers, selection, orders, placement ghost, construction | 2026-09-20 | Left-click is selection only |
+| D21 | **HUD** — resources, command panel + tooltips + hotkeys, objectives, toasts, banners, minimap, title/end cards | 2026-09-20 | uGUI built in code |
+| D22 | **Borders drawn as colour** — custom shader on a 0.5 m terrain drape; eased so a border blooms | 2026-09-20 | The RoN signature. Line + faintest tint |
+| D23 | **FX + synthesised audio + AgeDirector + occluded-unit silhouette** | 2026-09-20 | |
+| D24 | **`DemoAutopilot`** — a bot plays the whole arc in the Editor, 8 screenshots, asserts, exits | 2026-09-20 | **Wins**: Feudal reached, final raid survived. The visual regression check |
 | — | **Inherited: 35 procedural Blender assets** | pre-existing | Norse kit, modern kit, 6 terrain tiles, 10 troops |
 | — | **Inherited: `lib/mapgen.py` map assembly + asserting `review()`** | pre-existing | Biome-as-vertex-attribute, paths in wear channel |
 | — | **Inherited: a proven Blender→Unity port** (Vale) | pre-existing | Terrain FBX + 4K baked biome + 17,834 instanced cover |
@@ -91,10 +101,12 @@ half-authored assets exist. A new session starts from a clean state.
 | ~~N1~~ | ~~Slice 0 — the bridge~~ | ✅ **DONE 2026-09-20.** 9/9 assertions pass on `hut_a`. | — |
 | ~~N2~~ | ~~`export_palette.py`~~ | ✅ **DONE.** 79 materials. | — |
 | ~~N3~~ | ~~`export_assets.py`~~ | ✅ **DONE.** Object-count assertion + join-per-material. | — |
-| **N3b** | **Territory grid + border rendering.** One byte per 1 m cell, recomputed on city change; one fullscreen pass to draw it. | The system everything else in doc 12 hangs off, and it is cheap — 410 KB at the largest map, a handful of recomputes per match. Do it before combat exists, not after. | — |
-| **N4** | **Slice 1 — one citizen.** Heightfield terrain, a citizen walks to a tree, chops, carries, drops off, the wood counter moves. | The first verb of the core loop, and the first thing that is fun to look at. | N5 |
-| N5 | Build the `citizen` model in Blender | Slice 1 needs it, and it does not exist yet | — (can run parallel to N1) |
-| N6 | **Slice 2 — build and grow.** Hut placement, pop cap, train citizen #2, Age I economy runs unattended 10 min. | The loop closes | N4 |
+| ~~N3b~~ | ~~Territory grid + border rendering~~ ✅ DONE |  |  |
+| ~~N4–N6~~ | ~~Slices 1 and 2, the citizen model~~ ✅ DONE — superseded by the demo |  |  |
+| **N8** | **A human plays the demo.** Zoom feel on a real wheel and a real trackpad; is the first raid fair; is 15 minutes the right length. | Everything so far was verified by a bot and by screenshots. None of it has been *felt*. | — |
+| **N9** | **The real opponent** — doc 06's utility Commander replacing `RaidDirector`. | The demo's enemy does not gather, build or decide. | N8 |
+| **N10** | **Cities, rare resources, nations** — the rest of doc 12. | Borders exist; the things that make territory a *choice* do not. | — |
+| **N11** | **A real rig** — armature + rigid bind in the figure exporter, authored clips. | Procedural limb posing reads at RTS distance and nowhere else. | — |
 | N7 | Age I remaining assets: `runehall`, `farm`, `palisade`, `longship`, `fishingboat`, 6 resource nodes | Makes Age I complete and playable | N1 |
 
 ---
@@ -144,6 +156,15 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 | **DL29** | **Cities are the territory instrument, capped 2/3/5/7/9/12 by age, 60 m apart.** | Caps and spacing stop border-stacking and make each city a real decision. Capturing flips territory instantly; razing returns it to neutral. |
 | **DL30** | **Six nations, not RoN's eighteen — chosen around the art we already have.** | Norse, Franks, Rus, Britons, Turks, Maurya. Four of the six unique units (berserker, lancer, horsearcher, war elephant) are already modelled, so six nations costs two new models. |
 | **DL31** | **The Armageddon counter answers Q1.** Five detonations by anyone ends the world; every nation that ever launched loses, a non-nuclear survivor wins. | Better than anything I proposed. The warhead becomes a button that spends a shared, finite, irreversible resource — and the fifth press kills you too. Also makes the ABM site matter, since interception does not increment the counter. |
+| **DL32** | **Demo movement is Unity NavMesh; the sim says where, the agent walks, the sim is told where the unit really is.** | 200-unit flow fields (DL18) are not needed for a 40-unit demo. `Assets/Sim` stays engine-free and headless-testable; pathfinding is replaceable without touching it. |
+| **DL33** | **`Catalog.DemoEconomyScale = 1.4`, carry 20, citizens 4.2 m/s.** | docs/03's rates assume perfect play and no walking. MEASURED in the running game they gave about half the documented pace: citizens spent 29% of their time gathering and 45% walking. The design numbers are left alone and the gap is kept visible in one constant. |
+| **DL34** | **Farms bank food where it grows — farmers do not carry.** | Rise of Nations does it this way, and it is what makes a farm worth its wood over a berry bush. See Q10 for whether *all* gathering should. |
+| **DL35** | **Raiders target the army, towers, muster halls and the longhouse — not huts, farms or storehouses.** | They burned huts faster than they could be rebuilt, the population cap thrashed, and every run ended in a slow defeat that taught nothing. |
+| **DL36** | **Figures are limb hierarchies posed in code, with ABSOLUTE poses.** | No armature exists anywhere in the library. Every part is rigid and the joints are literal spheres, so ten pivots reproduce what a rigid-bind rig would. Poses must be absolute because the figures are not authored neutral: additive angles sent the archer's bow arm straight up. |
+| **DL39** | **Figures ship as FLAT limb meshes; the skeleton is assembled in Unity (`FigureAnimator.Awake`).** | FBX could not carry the hierarchy intact (see Gotchas). Flat root-level objects are the path slice 0 and `AxisProbe` already proved. |
+| **DL40** | **Units are drawn 1.38× life size, their palette lifted ~45% in value, on a team-colour disc.** | At true scale a citizen is a dark speck from 30 m. Every RTS exaggerates its figures; buildings stay true scale and the sim is unaffected. |
+| **DL37** | **This repo never writes inside `~/blender`.** The repo's `blender/scripts/` is authoritative. | `~/blender` is not under version control and a live mobile session edits it; that session's rules make `lib/` and `scripts/` integrator-owned. New models live in `blender/base/` here and only READ `~/blender/lib`. |
+| **DL38** | **Generated materials are synced from the palette in a separate pass; stray materials are scanned out of asset `.blend`s.** | Unity resolves an existing external material by name without calling `OnAssignMaterialModel`, so a material created magenta stays magenta forever. And `Berry`/`OreIron` lived only inside another scene's script. |
 
 ---
 
@@ -155,10 +176,11 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 | **Q2** | Does the existing **Norse RTS** sprite project (`game-ideas/unity/NorseRTS`) get retired, or continue as a separate mobile track? | It shares the Blender asset library. If both live, asset changes must serve two pipelines. | ⬜ Open |
 | **Q3** | Campaign, or skirmish-only at first? | A campaign is a large content commitment; skirmish + a good AI may be the better first release. | ⬜ Open |
 | **Q4** | Target: Steam release, or a portfolio/learning project? | Changes how much polish, localisation and storefront work is scoped. | ⬜ Open |
-| **Q5** | **What do `Mouse.current.scroll` deltas actually read on Windows vs a macOS trackpad in Unity 6?** | The "±120 on Windows" explanation was **refuted 0-3, twice**. Normalisation strategy is now unknown. **Blocks zoom-at-cursor.** Half-day measurement harness. | 🔴 Blocking N4 |
+| ~~Q5~~ | ~~Scroll deltas on Windows vs macOS trackpad~~ | 🟡 **Side-stepped, not answered.** `RTSCamera` is self-calibrating: the smallest non-zero \|Δ\| seen is one notch. No constant assumed. **Still needs a human hand on both devices** (N8). | 🟡 Mitigated |
 | **Q6** | Cascade count and split ratios for a fixed-50° camera at 18–90 m zoom? | Nothing published survived verification; Unity's worked example is at Cascade Count 1. Needs an in-editor pass at both zoom extremes. | ⬜ Open |
 | **Q7** | Do era building swaps break APV probe subdivision? | Try baking subdivision against terrain and props only, excluding era buildings from the probe-influencing set. Fallback: one Baking Set per era, no blending. | ⬜ Open |
 | **Q8** | What does a dressed 420 m map + 18,000 cover instances + 200 units actually cost at 1440p? | The 16.6 ms / 1,500 draw call / 6 M triangle budget is **our assumption, externally unvalidated**. Needs a synthetic stress scene **before** the art budget is committed. | ⬜ Open |
+| **Q10** | **Should citizens carry at all?** Rise of Nations citizens gather in place; the resource simply ticks in. | The demo carries (readable, charming) except at farms (DL34). Carrying cost 45% of citizen time before tuning. RoN-faithful in-place gathering would remove walking from the economy entirely and make Storehouses pointless. | ⬜ Open |
 | **Q9** | Is there any published asset-count breakdown for a comparable indie RTS? | Research found **nothing**. The ~192-model plan and the four-buildings-get-six-variants compromise are untested assumptions about the single largest cost in the project. | ⬜ Open |
 
 ---
@@ -227,6 +249,36 @@ Every one of these cost real time on a previous project.
 - **A material made with `new Material()` and never saved as an asset leaks across renderers.**
   The red control material coloured the whole scene.
 
+### Building the demo (2026-09-20) — each of these looked like something else
+- **NEVER ship a nested hierarchy through FBX with `bake_space_transform=True`.** It arrived broken at the BIND
+  pose: children rotated 90°, positions in a different axis convention from their parent. The citizen lay in
+  pieces on the ground and I did not notice for hours, because every shot was from 30 m and my Blender sheet
+  looked perfect (in Blender the limbs *are* identity). Dhruv noticed from a 170-pixel crop. **Export flat,
+  root-level limbs and build the skeleton in Unity**, where pivots are identity by construction.
+- **Look at the thing at the distance it fails.** A unit that is a dark speck from 30 m hides every rigging bug.
+  The autopilot now opens with a close portrait of the citizen, standing and walking.
+- **A depth-Greater silhouette pass needs a stencil mask**, or a unit's own arm (behind its own torso) outlines
+  itself and every figure is covered in pale shards. Corpses must leave the layer or the ground outlines them.
+- **The camera rig must pivot on real terrain height**, not y = 0. On 2–4 m terrain, close shots aimed below the
+  surface and the subject slid to the top of the frame.
+- **Path to a building's PERIMETER, never its centre.** The centre is inside the carved NavMesh obstacle; the
+  destination snaps to the near edge, the agent measures "remaining" to *that* and stops, while the sim still
+  sees it metres from the centre. Every citizen froze outside the longhouse. It looked like a slow economy.
+- **Count workers EN ROUTE to a node, not just AT it.** Nine of twelve citizens walked to work forever, arriving
+  at a full bush and retargeting to another full bush. It looked like bad balance.
+- **Poses on these figures must be absolute.** They are not authored neutral. It looked like a wrong axis.
+- **Ids are shared between units, buildings and nodes.** `id % 10 == 9` never happened, so the bot never
+  assigned a miner: no metal, no army, defeat. It looked like raids being too strong.
+- **MEASURE where time goes before tuning numbers.** Four bot/balance guesses failed; a per-state time histogram
+  (`citizen time: Gathering 29% ToNode 26% ToDropOff 19%`) found the cause in one run.
+- **A wait-loop that greps a log can match the PREVIOUS run's log.** Delete the log before launching.
+- **In GUI mode a compile error opens a Safe Mode dialog and Unity never exits.** `tools/u.sh` compile-checks
+  in batchmode first and puts a watchdog on every GUI run.
+- **Never edit `Assets/` while an Editor run is live** — it can recompile mid-play.
+- **Vale's `cover.json` is X-mirrored against its own terrain.** It used (x, z, −y); the measured mapping is
+  (−x, z, −y). Tufts are symmetric so nobody saw it. Re-exported here with full matrices.
+- **`RenderMeshInstanced` throws a bare NullReferenceException on a null material.** Guard and report at build.
+
 ### This machine
 - **`python3` is the Xcode Command Line Tools stub and is license-blocked** (exit 69,
   "You have not agreed to the Xcode license agreements"). Use `perl` for scripted edits. It also
@@ -281,6 +333,36 @@ Every one of these cost real time on a previous project.
 ## 11. Session log
 
 Append one block per session. Newest at the top.
+
+### 2026-09-20 — Session 5: a playable demo, and a bot that wins it
+Six phases, each committed: the land, the citizen, build-and-grow, borders and the age advance, something to
+defend against, polish. **`tools/u.sh play DemoVerify.Full` now plays one citizen to the Feudal Age, survives the
+final raid, wins, and leaves eight screenshots in `Verification/`.**
+
+The sim was written first and tested headless, which paid immediately: the tests caught that trained units never
+spawned (the cap check counted the reservation against itself) and that the counter triangle did not hold at ×1.5
+(a swordsman beat a spearman 10.0 s to 10.4 s) before a single pixel existed.
+
+Then the bot lost. Five times. Each loss looked like a balance problem and none of them were — see Gotchas. What
+finally worked was not another guess but **instrumenting the autopilot**: a status line per sim-minute, per-unit
+NavMesh diagnostics, and a histogram of where citizen time goes. *The rule from slice 0 held again: when a
+measurement disagrees with the thing it measures, add a control before changing the thing.*
+
+**Dhruv asked to see the units in Blender, and whether they have skeletons.** They do not, and the sheet
+(`art/unit_sheet.png`) showed a real flaw while answering: additive poses on non-neutral figures. Fixed with
+absolute poses and exported `_tip` markers. He also asked how construction time and multiple builders work — it
+already worked (1×, 1.6×, 2.2×, 2.8×) and was invisible; it is in the tooltip and on the site readout now.
+
+**Then Dhruv sent a 170-pixel crop: "THIS is the citizen?"** It was a dark blob in pale shards. Up close it was
+worse — the figure lay scattered on the ground. Two bugs stacked: a silhouette pass with no stencil mask, and an
+FBX hierarchy that arrived broken at the bind pose (`bake_space_transform`). I had verified the rig in *Blender*,
+where it is fine, and the game from 30 m, where nothing shows. The fix — flat limbs, skeleton built in Unity,
+1.38× scale, lifted palette, team disc, a camera that pivots on real terrain — is DL39/DL40, and the autopilot
+now begins with the citizen's portrait. **Three consecutive bot wins since (17.8, 18.3, 20.6 min); citizens
+now spend 50% of their time gathering, up from 29%.**
+
+**What is faked is written down** in `docs/13-demo.html`: no skeleton, no Age II models, all audio synthesised,
+the opponent scripted. **What has never been done: a human playing it.**
 
 ### 2026-09-20 — Session 4: it is a RISE OF NATIONS clone, not Clash of Clans
 Dhruv corrected the brief. His original words, at the very start, were "a game like rise of nations

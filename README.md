@@ -36,6 +36,16 @@ Unity architecture · lighting.
 
 ## State
 
+**There is a playable Age I demo.** One citizen, a longhouse and a border — gather, build inside your border,
+staff a Rune Hall, reach the Feudal Age, and survive the raid it provokes. A bot plays it end to end and wins;
+10 headless tests cover the simulation. **[`docs/13-demo.html`](docs/13-demo.html)** says what is real, what is
+scripted, and what is faked (no skeletons, no Age II models, synthesised audio, a scripted opponent).
+
+```bash
+tools/test.sh                      # the simulation, headless
+tools/u.sh play DemoVerify.Full    # a bot plays the demo in the Editor and takes 8 screenshots
+```
+
 **Slice 0 is done.** The Blender→Unity bridge is built and verified end to end on one asset —
 9/9 assertions, reproducible:
 
@@ -46,8 +56,7 @@ triangles   22,548 exact
 materials   6/6 mapped from a 79-entry palette, 0 magenta, tone correction applied once
 ```
 
-**Next: slice 1 — one citizen.** A citizen walks to a tree on a heightfield, chops, carries, drops
-off, and the wood counter moves.
+**Next: a human plays it.** Everything so far was verified by a bot and by screenshots; none of it has been felt.
 
 ## Why the pipeline is the interesting part
 

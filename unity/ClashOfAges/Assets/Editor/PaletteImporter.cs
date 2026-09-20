@@ -87,6 +87,7 @@ public class PaletteImporter : AssetPostprocessor
                     rough    = ReadFloat(body, "\"rough\"", 0.75f),
                     metal    = ReadFloat(body, "\"metal\"", 0f),
                     emissive = ReadFloat(body, "\"emissive\"", 0f),
+                    kit      = body.Contains("\"kit\": \"troop\"") ? "troop" : "",
                 };
                 if (e.albedo != null && e.albedo.Length >= 3) _palette[name] = e;
             }
@@ -190,6 +191,13 @@ public class PaletteImporter : AssetPostprocessor
                 Mathf.Pow(e.albedo[1], _toneExponent),
                 Mathf.Pow(e.albedo[2], _toneExponent), 1f);
 
+            // Units must separate from the ground they stand on. The troop palette is authored for close Cycles
+            // renders and is dark (leather 0.03); at game distance a figure in it is a silhouette. Lift value, keep hue.
+            if (e.kit == "troop")
+            {
+                Color.RGBToHSV(c, out float hh, out float ss, out float vv);
+                c = Color.HSVToRGB(hh, Mathf.Clamp01(ss * 1.08f), Mathf.Clamp01(vv * 1.45f + 0.06f)); c.a = 1f;
+            }
             mat.SetColor("_BaseColor", c);
             mat.SetFloat("_Smoothness", Mathf.Clamp01(1f - e.rough));   // URP uses smoothness
             mat.SetFloat("_Metallic",   Mathf.Clamp01(e.metal));

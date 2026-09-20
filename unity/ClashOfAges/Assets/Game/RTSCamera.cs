@@ -56,7 +56,7 @@ public class RTSCamera : MonoBehaviour
     float   _yawTarget;
     Vector2 _lastMouse;
     bool    _dragging;
-    Vector2 _pressPos; bool _panArmed;
+    Vector2 _pressPos; bool _panArmed; float _groundY;
     float   _notch = float.MaxValue;
     bool    _sawSmall;
 
@@ -76,6 +76,7 @@ public class RTSCamera : MonoBehaviour
         _focus = _focusTarget = new Vector3(focus.x, 0f, focus.z);
         if (newHeight > 0f) height = _heightTarget = Mathf.Clamp(newHeight, minHeight, maxHeight);
         if (!float.IsNaN(newYaw)) yaw = _yawTarget = newYaw;
+        _groundY = COA.Game.Ground.Height(focus.x, focus.z);
     }
     public Vector3 Focus => _focus;
 
@@ -166,7 +167,7 @@ public class RTSCamera : MonoBehaviour
 
                 // keep the ground point under the cursor fixed
                 Ray ray = _cam.ScreenPointToRay(pos);
-                var plane = new Plane(Vector3.up, Vector3.zero);
+                var plane = new Plane(Vector3.up, new Vector3(0f, _groundY, 0f));
                 if (Mathf.Abs(factor) > 0.0001f && plane.Raycast(ray, out float enter))
                 {
                     Vector3 under = ray.GetPoint(enter);
@@ -194,9 +195,12 @@ public class RTSCamera : MonoBehaviour
         height  = Mathf.Lerp(height, _heightTarget, k);
         yaw     = Mathf.LerpAngle(yaw, _yawTarget, k);
 
+        // The rig used to assume the ground is at y = 0. This terrain sits 2-4 m up, so at close zoom the camera
+        // aimed below the surface and the subject slid to the top of the frame. Pivot on the real ground height.
+        _groundY = Mathf.Lerp(_groundY, COA.Game.Ground.Height(_focus.x, _focus.z), 1f - Mathf.Exp(-6f * dt));
         var rot = Quaternion.Euler(pitch, yaw, 0f);
         float dist = height / Mathf.Max(0.01f, Mathf.Sin(pitch * Mathf.Deg2Rad));
-        transform.SetPositionAndRotation(_focus - rot * Vector3.forward * dist, rot);
+        transform.SetPositionAndRotation(new Vector3(_focus.x, _groundY, _focus.z) - rot * Vector3.forward * dist, rot);
     }
 #else
     void Update() { }   // Input System backend not enabled

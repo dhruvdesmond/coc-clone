@@ -32,7 +32,9 @@ namespace COA.Sim
     /// </summary>
     public static class Catalog
     {
-        public const float CarryCapacity = 10f;
+        /// <summary>docs/03 says 10. Measured: with 10, only 2-3 of 10 citizens were ever AT a node -- the rest were
+        /// walking. 20 halves the trips. (Open question Q10: Rise of Nations citizens do not carry at all.)</summary>
+        public const float CarryCapacity = 20f;
         public const int HardPopCap = 75;
         public const float AttritionPerSecond = 1.8f, RegenPerSecond = 1.0f, RegenDelay = 5f;
         public const float AgeAdvanceTime = 60f;
@@ -42,7 +44,7 @@ namespace COA.Sim
 
         public static readonly Dictionary<UnitType, UnitDef> Units = new Dictionary<UnitType, UnitDef>
         {
-            [UnitType.Citizen]   = new UnitDef { type = UnitType.Citizen,   name = "Citizen",   cls = UnitClass.Worker, cost = Cost.Of(food: 50),            trainTime = 20, hp = 60,  dps = 3,  range = 1.2f, speed = 3.2f, cooldown = 1.0f, pop = 1, model = "villager",  hotkey = "C" },
+            [UnitType.Citizen]   = new UnitDef { type = UnitType.Citizen,   name = "Citizen",   cls = UnitClass.Worker, cost = Cost.Of(food: 50),            trainTime = 20, hp = 60,  dps = 3,  range = 1.2f, speed = 4.2f, cooldown = 1.0f, pop = 1, model = "villager",  hotkey = "C" },
             [UnitType.Swordsman] = new UnitDef { type = UnitType.Swordsman, name = "Swordsman", cls = UnitClass.Light,  cost = Cost.Of(food: 60, metal: 20), trainTime = 18, hp = 140, dps = 12, range = 1.4f, speed = 3.4f, cooldown = 0.9f, pop = 1, model = "swordsman", hotkey = "S" },
             [UnitType.Spearman]  = new UnitDef { type = UnitType.Spearman,  name = "Spearman",  cls = UnitClass.Heavy,  cost = Cost.Of(food: 50, wood: 15),  trainTime = 16, hp = 120, dps = 9,  range = 2.0f, speed = 3.2f, cooldown = 1.0f, pop = 1, model = "spearman",  hotkey = "P" },
             [UnitType.Archer]    = new UnitDef { type = UnitType.Archer,    name = "Archer",    cls = UnitClass.Ranged, cost = Cost.Of(food: 50, wood: 25),  trainTime = 20, hp = 80,  dps = 10, range = 14f,  speed = 3.0f, cooldown = 1.2f, pop = 1, model = "archer",    hotkey = "A" },
@@ -85,10 +87,18 @@ namespace COA.Sim
             new TechDef { id = "runelore",  name = "Rune Lore",     branch = Branch.Science,  cost = Cost.Of(stone: 30, knowledge: 20), time = 25, blurb = "Knowledge +35%." },
         };
 
-        /// <summary>Per citizen, per second, at the node. docs/03-resources.html.</summary>
-        public static float GatherRate(NodeKind k) =>
-            k == NodeKind.Tree ? 0.55f : k == NodeKind.Berry ? 0.50f : k == NodeKind.Stone ? 0.35f
-          : k == NodeKind.Iron ? 0.30f : 0.42f;
+        /// <summary>
+        /// DL33. docs/03's rates assume perfect play and no walking. Measured in the running game -- real
+        /// NavMesh paths, 10 carried per trip, raids -- they gave about HALF the documented pace: a plain bot
+        /// had 8 citizens at minute 12, not minute 8, and lost every time with food and wood pinned at zero.
+        /// The demo scales gathering rather than quietly editing the design numbers, so the gap stays visible.
+        /// </summary>
+        public const float DemoEconomyScale = 1.4f;
+
+        /// <summary>Per citizen, per second, at the node. Base numbers are docs/03-resources.html.</summary>
+        public static float GatherRate(NodeKind k) => DemoEconomyScale *
+            (k == NodeKind.Tree ? 0.55f : k == NodeKind.Berry ? 0.50f : k == NodeKind.Stone ? 0.35f
+           : k == NodeKind.Iron ? 0.30f : 0.42f);
 
         public static Res ResourceOf(NodeKind k) =>
             k == NodeKind.Tree ? Res.Wood : k == NodeKind.Stone ? Res.Stone : k == NodeKind.Iron ? Res.Metal : Res.Food;

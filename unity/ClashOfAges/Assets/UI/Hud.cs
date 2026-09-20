@@ -152,7 +152,7 @@ namespace COA.UI
                     foreach (var t in new[] { BuildingType.Hut, BuildingType.Storehouse, BuildingType.Farm, BuildingType.RuneHall, BuildingType.Muster, BuildingType.Tower })
                     {
                         var d = Catalog.Buildings[t]; var type = t;
-                        list.Add(new Cmd { label = d.name + "\n<size=11>[" + d.hotkey + "]</size>", tipTitle = "Build " + d.name + "   [" + d.hotkey + "]", tipBody = d.cost + "\n" + d.blurb,
+                        list.Add(new Cmd { label = d.name + "\n<size=11>[" + d.hotkey + "]</size>", tipTitle = "Build " + d.name + "   [" + d.hotkey + "]", tipBody = d.cost + "   " + d.buildTime + " s with one builder\n" + d.blurb + "\nMore builders = faster: 2 is 1.6x, 3 is 2.2x, 4 is 2.8x.",
                                            problem = me.stock.CanAfford(d.cost) ? null : "Not enough resources", run = () => _in.BeginPlacement(type) });
                     }
                 else list.Add(new Cmd { label = "Stop\n<size=11>[X]</size>", tipTitle = "Stop  [X]", tipBody = "Hold A while right-clicking to attack-move.", run = () => W.CmdStop(_in.units) });
@@ -238,7 +238,7 @@ namespace COA.UI
         void BuildTooltip()
         {
             var t = UiKit.Box("Tooltip", _canvas.transform, new Vector2(0, 0), new Vector2(0, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(430, 112), new Color(0.03f, 0.025f, 0.05f, 0.97f));
-            t.raycastTarget = false; _tooltip = t.rectTransform;
+            t.raycastTarget = false; _tooltip = t.rectTransform; t.rectTransform.sizeDelta = new Vector2(470, 132);
             _tipTitle = UiKit.LabelAt("t", t.transform, "", 16, UiKit.Gold, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(12, -8), new Vector2(-20, 22), TextAnchor.MiddleLeft, FontStyle.Bold);
             _tipBody = UiKit.LabelAt("b", t.transform, "", 13, UiKit.Ink, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 1), new Vector2(12, -34), new Vector2(-20, 72), TextAnchor.UpperLeft);
             _tipBody.supportRichText = true;
@@ -272,7 +272,16 @@ namespace COA.UI
             {
                 var b = W.B(_in.building);
                 _selTitle.text = b.def.name + (b.owner == World.Human ? "" : "  (enemy)"); hp = b.hp / b.def.hp;
-                string s = b.complete ? b.def.blurb : "Under construction  " + (int)(b.progress * 100) + "%";
+                string s = b.def.blurb;
+                if (!b.complete)
+                {
+                    int nb = W.BuildersOn(b); float left = W.SecondsLeft(b);
+                    s = "Under construction  " + (int)(b.progress * 100) + "%\n" +
+                        (nb == 0 ? "<color=#FF6152>No builders - right-click here with citizens</color>"
+                                 : nb + (nb == 1 ? " builder" : " builders") + "  (" + World.BuildSpeed(nb).ToString("0.0") + "x)   " + Mathf.CeilToInt(left) + " s left") +
+                        "\nRight-click with MORE citizens to build faster.";
+                    _selSub.supportRichText = true;
+                }
                 if (b.complete && b.def.scholarSlots > 0)
                     s = "Scholars " + b.scholars + " / " + b.def.scholarSlots + "     +" + ((b.def.knowledgeBase + b.def.knowledgePerScholar * b.scholars) * W.Me.knowledgeMul).ToString("F2") + " Knowledge/s\nRight-click here with citizens to staff it.";
                 if (b.queue.Count > 0) s += "\nTraining " + Catalog.Units[b.queue[0]].name + "  " + (int)(100 * b.trainTimer / Catalog.Units[b.queue[0]].trainTime) + "%   (+" + (b.queue.Count - 1) + " queued)";
@@ -402,7 +411,7 @@ namespace COA.UI
             _clock.text = Clock(W.time);
             float next = W.raids.SecondsToNextRaid;
             _raid.text = W.raids.LiveRaiders > 0 ? "RAID IN PROGRESS  (" + W.raids.LiveRaiders + ")" : next > 0 && next < 90 ? "Raid in " + Clock(next) : "";
-            _speed.text = _g.paused ? "PAUSED" : _g.timeScale.ToString("0") + "x speed";
+            _speed.text = _g.paused || _g.timeScale < 0.01f ? "PAUSED" : _g.timeScale.ToString("0") + "x speed";
 
             for (int i = 0; i < _objectives.Count; i++)
             {

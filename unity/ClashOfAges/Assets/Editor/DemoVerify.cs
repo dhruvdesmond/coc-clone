@@ -14,6 +14,8 @@ public static class DemoVerify
 
     static void Run(string script)
     {
+        PaletteImporter.SyncMaterials();
+        UnitSilhouette.Apply();
         DemoSceneBuilder.Build();
         EditorSceneManager.OpenScene(DemoSceneBuilder.ScenePath);
         Directory.CreateDirectory("Temp");

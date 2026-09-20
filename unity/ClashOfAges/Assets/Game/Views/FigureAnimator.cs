@@ -28,35 +28,67 @@ namespace COA.Game
         Quaternion[] _corr; static readonly int[] ParentOf = { -1, -1, -1, 2, -1, 4, -1, 6, -1, 8 };
         float _phase, _t, _deadT; float _deadYaw;
 
+        static readonly string[] LimbNames = { "Body", "Head", "ArmL", "ForeL", "ArmR", "ForeR", "LegL", "ShinL", "LegR", "ShinR" };
+        // skeleton parent of each limb: -1 = the figure root. (ParentOf, above, is a different thing: the limb whose
+        // CORRECTION a child inherits. Arms and legs hang from the Body but are corrected independently of it.)
+        static readonly int[] BoneParent = { -1, 0, 0, 2, 0, 4, 0, 6, 0, 8 };
+
+        /// <summary>
+        /// BUILD THE SKELETON HERE, not in the FBX. The exporter ships ten flat limb meshes whose origins are the
+        /// joints, plus "_tip" empties. A first attempt shipped a nested FBX hierarchy and it arrived broken at the
+        /// bind pose (children rotated 90 degrees, positions in another axis convention -- the citizen lay in
+        /// pieces on the ground). Here each joint becomes a pivot with IDENTITY local rotation in the figure's own
+        /// space, by construction; the imported mesh hangs under it keeping whatever rotation the importer gave it.
+        /// </summary>
         void Awake()
         {
-            _body = Find("Body"); _head = Find("Head");
-            _armL = Find("ArmL"); _foreL = Find("ForeL"); _armR = Find("ArmR"); _foreR = Find("ForeR");
-            _legL = Find("LegL"); _shinL = Find("ShinL"); _legR = Find("LegR"); _shinR = Find("ShinR");
-            _all = new[] { _body, _head, _armL, _foreL, _armR, _foreR, _legL, _shinL, _legR, _shinR };
+            var root = transform;
+            var mesh = new Transform[LimbNames.Length];
+            foreach (Transform c in root) for (int i = 0; i < LimbNames.Length; i++) if (c.name == LimbNames[i]) mesh[i] = c;
+
+            _all = new Transform[LimbNames.Length];
+            for (int i = 0; i < LimbNames.Length; i++)
+            {
+                if (mesh[i] == null) continue;
+                var pivot = new GameObject(LimbNames[i] + "_pivot").transform;
+                pivot.gameObject.layer = mesh[i].gameObject.layer;
+                pivot.SetParent(root, false);
+                pivot.position = mesh[i].position; pivot.rotation = root.rotation; pivot.localScale = Vector3.one;
+                _all[i] = pivot;
+            }
+            // bind directions, measured in the figure's own space BEFORE anything is re-parented
+            var dir = new Vector3[LimbNames.Length];
+            for (int i = 2; i < LimbNames.Length; i++)
+            {
+                var tip = root.Find(LimbNames[i] + "_tip");
+                if (tip == null || _all[i] == null) { dir[i] = Vector3.down; continue; }
+                dir[i] = root.InverseTransformDirection(tip.position - _all[i].position).normalized;
+            }
+            for (int i = 0; i < LimbNames.Length; i++)
+            {
+                if (_all[i] == null) continue;
+                mesh[i].SetParent(_all[i], true);                                               // mesh keeps its world pose
+                if (BoneParent[i] >= 0 && _all[BoneParent[i]] != null) _all[i].SetParent(_all[BoneParent[i]], true);
+            }
+            foreach (var n in LimbNames) { var tip = root.Find(n + "_tip"); if (tip != null) Destroy(tip.gameObject); }
+
+            _body = _all[0]; _head = _all[1]; _armL = _all[2]; _foreL = _all[3]; _armR = _all[4]; _foreR = _all[5];
+            _legL = _all[6]; _shinL = _all[7]; _legR = _all[8]; _shinR = _all[9];
             _bind = new Quaternion[_all.Length];
-            for (int i = 0; i < _all.Length; i++) _bind[i] = _all[i] != null ? _all[i].localRotation : Quaternion.identity;
+            for (int i = 0; i < _all.Length; i++) _bind[i] = Quaternion.identity;
             if (_body != null) _bodyPos = _body.localPosition;
+
             _corr = new Quaternion[_all.Length];
             for (int i = 0; i < _all.Length; i++)
             {
                 _corr[i] = Quaternion.identity;
                 if (i < 2 || _all[i] == null) continue;                          // Body and Head keep their authored posture
-                var tip = _all[i].Find(_all[i].name + "_tip");
-                if (tip == null) continue;
-                var d = tip.localPosition.normalized;                            // bind direction, in the limb's own frame
                 int p = ParentOf[i];
-                _corr[i] = p < 0 ? Quaternion.FromToRotation(d, Vector3.down)
-                                 : Quaternion.FromToRotation(_corr[p] * d, Vector3.down);
+                _corr[i] = p < 0 ? Quaternion.FromToRotation(dir[i], Vector3.down)
+                                 : Quaternion.FromToRotation(_corr[p] * dir[i], Vector3.down);
             }
             _phase = Random.value * 10f;            // so a group never marches in unison
             strike = 9f;
-        }
-
-        Transform Find(string n)
-        {
-            foreach (var t in GetComponentsInChildren<Transform>(true)) if (t.name == n) return t;
-            return null;
         }
 
         void Set(int i, float x, float y = 0f, float z = 0f)
@@ -96,13 +128,13 @@ namespace COA.Game
                     // cadence follows ground speed, so feet do not skate
                     _phase += dt * Mathf.Max(speed, 0.6f) * 2.35f;
                     float s = Mathf.Sin(_phase), c = Mathf.Cos(_phase);
-                    float stride = Mathf.Lerp(16f, 34f, Mathf.InverseLerp(1f, 4f, speed));
+                    float stride = Mathf.Lerp(14f, 27f, Mathf.InverseLerp(1f, 4.5f, speed));
                     Set(6, s * stride); Set(8, -s * stride);
                     Set(7, Mathf.Max(0f, -c) * stride * 1.25f); Set(9, Mathf.Max(0f, c) * stride * 1.25f);
                     bob = Mathf.Abs(c) * 0.035f;
                     Set(0, 5f, s * 3.5f); Set(1, -3f);
                     if (clip == Clip.Carry) { Set(2, -58f); Set(3, -48f); Set(4, -58f); Set(5, -48f); }   // arms forward, holding the load
-                    else { Set(2, -s * stride * 0.8f, 0f, -6f); Set(3, -20f); Set(4, s * stride * 0.8f, 0f, 6f); Set(5, -20f); }
+                    else { Set(2, -s * stride * 0.8f, 0f, -6f); Set(3, -20f); Set(4, s * stride * 0.45f, 0f, 6f); Set(5, -32f); }   // the tool arm swings less: it is carrying something
                     break;
                 }
                 case Clip.Chop:

@@ -13,7 +13,7 @@ namespace COA.Sim
         readonly World _w;
         public bool enabled = true;
         public Vec2 campPos, targetPos;
-        public float firstRaidAt = 420f, interval = 180f;
+        public float firstRaidAt = 480f, interval = 200f;      // 8 minutes of peace: long enough to have a Rune Hall up
         public int raidsSent; public float nextRaidAt; public bool finalSent; public float finalAt = -1f;
         readonly List<int> _live = new List<int>();
 
@@ -36,11 +36,11 @@ namespace COA.Sim
             // reaching Feudal summons the last, largest raid a minute later
             if (finalAt < 0f && _w.players[World.Human].age >= 2) finalAt = _w.time + 60f;
 
-            if (!finalSent && finalAt > 0f && _w.time >= finalAt) { Send(5, 4, 3, true); return; }
+            if (!finalSent && finalAt > 0f && _w.time >= finalAt) { Send(4, 3, 3, true); return; }
             if (!finalSent && _w.time >= nextRaidAt)
             {
                 int k = raidsSent;
-                Send(2 + k, k >= 1 ? 1 + k / 2 : 0, k >= 2 ? k - 1 : 0, false);
+                Send(2 + k, k >= 2 ? k - 1 : 0, k >= 3 ? k - 2 : 0, false);     // 2 · 3 · 4+1 · 5+2+1 ...
                 nextRaidAt = _w.time + interval;
             }
         }
