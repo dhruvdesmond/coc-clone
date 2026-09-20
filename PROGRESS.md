@@ -49,6 +49,7 @@ Working title only — the name does not matter yet.
 | 🗺️ Map generator | 🟡 **Exists for Norse village**, needs the archetype system | `~/blender/lib/mapgen.py` |
 | 🤖 Opponent AI | 🟡 **SCRIPTED `RaidDirector` only.** The three-layer utility AI of doc 06 is still unbuilt. | `docs/06-ai.html` |
 | 🎥 Camera | 🟡 **WORKS; zoom feel untested by a human hand** — scroll is self-calibrating (Q5) | `Assets/Game/RTSCamera.cs` |
+| 🏃 Animation | 🟡 **8 of ~79 clips · 1 of 13 rigs · 2 of 14 code-driven motions.** Full inventory in §5b | `blender/scripts/rig_figure.py` |
 | 🔊 Audio | 🟡 **SYNTHESISED PLACEHOLDER** — every sound generated at startup; no audio files exist | `Assets/Game/Fx/Sfx.cs` |
 
 ---
@@ -104,11 +105,82 @@ half-authored assets exist. A new session starts from a clean state.
 | ~~N3~~ | ~~`export_assets.py`~~ | ✅ **DONE.** Object-count assertion + join-per-material. | — |
 | ~~N3b~~ | ~~Territory grid + border rendering~~ ✅ DONE |  |  |
 | ~~N4–N6~~ | ~~Slices 1 and 2, the citizen model~~ ✅ DONE — superseded by the demo |  |  |
+| **N12** | **Canonical rest pose + ONE shared humanoid clip library.** Normalise every figure to the same A-pose in `rig_figure.py`; author clips once into `humanoid_clips.fbx`. | Prerequisite for every clip after the first 8 — otherwise 43 clips × ~60 figures are baked separately. See §5b. | — |
+| **N13** | **Tier 1 animation — the 20 clips that finish Age I.** Mine, Farm, Forage, Flee, Cheer, Run, HitReact, DeathFront, Block, Attack2, GuardIdle, 2H×3, Spear×3, AimIdle, Banner×2. | Spearmen currently thrust with the *sword* Attack; citizens mine and farm with the *chop*. | N12 |
 | **N8** | **A human plays the demo.** Zoom feel on a real wheel and a real trackpad; is the first raid fair; is 15 minutes the right length. | Everything so far was verified by a bot and by screenshots. None of it has been *felt*. | — |
 | **N9** | **The real opponent** — doc 06's utility Commander replacing `RaidDirector`. | The demo's enemy does not gather, build or decide. | N8 |
 | **N10** | **Cities, rare resources, nations** — the rest of doc 12. | Borders exist; the things that make territory a *choice* do not. | — |
 | ~~N11~~ | ~~A real rig~~ ✅ **DONE 2026-09-20** — `rig_figure.py`: armature, rigid skinning, 8 authored clips; Unity `Animator`. See DL41. |  |  |
 | N7 | Age I remaining assets: `runehall`, `farm`, `palisade`, `longship`, `fishingboat`, 6 resource nodes | Makes Age I complete and playable | N1 |
+
+---
+
+## 5b. Pending — the animation inventory
+
+**~79 authored clips (8 done, 71 to go) · 14 code-driven motions (2 done) · 13 rigs (1 done).**
+Derived from the roster in `docs/04-roster.html`: 60 unit types, 39 building types, six ages.
+
+**What keeps it at 79 and not 500:** clips are authored per **weapon class**, not per unit. Sixty unit types
+collapse into about ten ways of holding something — an Age VI rifleman reuses the Age I citizen's Walk and
+Death. And everything with wheels, wings or a hull is moved **in code**, not with clips (DL42).
+
+### A. Humanoid — one skeleton for every person in all six ages: 43 clips (8 done → 35 to go)
+| Class | Clips | n | Have |
+|---|---|---|---|
+| Shared (everyone) | Idle ✅ · Walk ✅ · Run · HitReact · DeathBack ✅ · DeathFront | 6 | 3 |
+| Worker | Carry ✅ · Chop ✅ · Hammer ✅ · Mine · Farm · Forage · Flee · Cheer | 8 | 3 |
+| Sword + shield | Attack ✅ · Attack2 · Block · GuardIdle | 4 | 1 |
+| Two-handed (axeman, berserker) | Idle2H · Attack2H · AttackSpin | 3 | 0 |
+| Spear / pike | GuardSpear · Thrust · Brace | 3 | 0 — *spearmen currently borrow the sword Attack* |
+| Bow / crossbow | Shoot ✅ · AimIdle · ReloadCrossbow | 3 | 1 |
+| Firearm (Ages III–VI) | RifleIdle · RifleWalk · Aim · Fire · ReloadMuzzle · ReloadBolt · KneelFire · Bayonet | 8 | 0 |
+| Thrown (grenadier) | Throw | 1 | 0 |
+| Crew-served (MG, AT gun, artillery, missile team) | Load · FireBrace · Deploy · Operate | 4 | 0 |
+| Support (standard bearer, monk, medic) | BannerIdle · BannerWalk · Heal | 3 | 0 |
+
+### B. Creatures and riders: 19 clips (0 done)
+| Rig | Clips | n |
+|---|---|---|
+| Rider (humanoid upper body on a mount) | RideIdle · Ride · AttackMelee · AttackLance · ShootMounted · DeathFall | 6 |
+| Horse | Idle · Walk · Gallop · Rear · Death | 5 |
+| War elephant | Idle · Walk · Attack · Death | 4 |
+| Deer (the hunt resource) | Graze · Walk · Run · Death | 4 |
+
+### C–F. Machines 8 · ships 3 · buildings 5 · sequences 1
+| Group | Clips | n |
+|---|---|---|
+| Machines | Trebuchet Fire + Reload · Ram Swing · Cannon Fire, Limber, Unlimber *(one rig serves bombard, field gun, howitzer, AT gun)* · Rocket-truck Raise + Fire | 8 |
+| Ships | Oars Row · Sail Unfurl · Sail Furl *(bobbing, rolling and sinking are code)* | 3 |
+| Buildings | Gate Open/Close · Silo Open/Close · Derrick Pump | 5 |
+| Sequences | the missile launch timeline (`docs/09-fx-audio.html`) | 1 |
+
+### G. Code-driven motion, NOT clips: 14 systems (2 done)
+Wheel spin · track scroll · suspension bob · turret traverse · barrel recoil · propeller/rotor spin ·
+aircraft bank-and-pitch · ship/balloon bob-and-roll · ship sinking · radar/windmill rotation ·
+banner/sail cloth sway · tree fall · building construction rise ✅ · building collapse ✅.
+**This is why tanks, planes and destroyers cost zero authored clips.**
+
+### H. Rigs to build: 13 (1 done)
+Humanoid ✅ · horse · elephant · deer · trebuchet · ram · cannon family · rocket truck · oared hull ·
+sailed hull · gate · silo · derrick.
+
+### In build order
+| Tier | Unlocks | Clips | Rigs |
+|---|---|---|---|
+| 0 — ✅ done | the demo | 8 | 1 |
+| **1 — finish Age I** | Mine · Farm · Forage · Flee · Cheer · Run · HitReact · DeathFront · Block · Attack2 · GuardIdle · 2H×3 · Spear×3 · AimIdle · Banner×2 | **20** | 0 |
+| 2 — Age II + mounts + water | rider 6 · horse 5 · elephant 4 · deer 4 · ReloadCrossbow · Heal · trebuchet 2 · ram 1 · gate 2 · oars + sails 3 | **29** | 8 |
+| 3 — Gunpowder + Industrial | firearm 8 · Throw · crew 4 · cannon 3 | **16** | 1 |
+| 4 — Modern + Atomic | rocket truck 2 · silo 2 · derrick 1 · missile sequence 1 — *plus 12 code-driven systems* | **6** | 3 |
+| | | **79** | **13** |
+
+### The one prerequisite — before Tier 1 (N12)
+Today every figure FBX carries **its own copy** of the 8 clips, because poses are corrected per figure (the
+figures are not authored neutral). At 43 humanoid clips × ~60 figures that is thousands of baked clips.
+**Fix: normalise the REST pose in `blender/scripts/rig_figure.py`** — rotate each limb's mesh data to one
+canonical A-pose when the rig is built. Every humanoid then shares one rest pose, so the 43 clips are authored
+**once**, exported as `humanoid_clips.fbx`, and shared by every person in the game. Unity Generic clips bind
+by bone path and the paths are already identical; the rigid bind makes the normalisation exact (DL43).
 
 ---
 
@@ -165,6 +237,8 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 | **DL39** | **Figures ship as FLAT limb meshes; the skeleton is assembled in Unity (`FigureAnimator.Awake`).** | FBX could not carry the hierarchy intact (see Gotchas). Flat root-level objects are the path slice 0 and `AxisProbe` already proved. |
 | **DL40** | **Units are drawn 1.38× life size, their palette lifted ~45% in value, on a team-colour disc.** | At true scale a citizen is a dark speck from 30 m. Every RTS exaggerates its figures; buildings stay true scale and the sim is unaffected. |
 | **DL41** | **Units have a REAL skeleton.** `rig_figure.py` builds an 11-bone armature from the figure's joint spheres, binds ONE skinned mesh rigidly (each vertex → one bone, weight 1.0), authors 8 clips at 30 fps, and exports the standard Blender-armature FBX. Unity imports a Generic rig; `FigureRigSetup` asserts it and generates an `AnimatorController`; `RigAnimator` drives it. | Dhruv asked for it, and it is strictly better: one SkinnedMeshRenderer instead of ten MeshRenderers, clips that can be viewed and edited in Blender, cross-fades between states, and `Animator` doing the work instead of per-frame C#. Rigid bind because every part of these figures IS rigid — nothing to paint, and it deforms exactly as the loose parts did. DL36/DL39 (limbs posed in code) remain as the fallback for any figure exported flat. |
+| **DL42** | **Clips are authored per WEAPON CLASS, not per unit; anything with wheels, wings or a hull moves in code.** | 60 unit types are ~10 ways of holding something, so the humanoid needs 43 clips, not hundreds. Wheels, tracks, turrets, propellers, banking and bobbing are rotations and offsets — a clip would only be a worse copy of the maths. Whole-game total: ~79 clips (§5b). |
+| **DL43** | **One shared humanoid clip library, made possible by a canonical rest pose.** | Poses are currently corrected per figure because the figures are not authored neutral, which forces every FBX to carry its own clips. Normalising the rest pose once, at rig time, removes the reason — and rigid binding makes it exact. |
 | **DL37** | **This repo never writes inside `~/blender`.** The repo's `blender/scripts/` is authoritative. | `~/blender` is not under version control and a live mobile session edits it; that session's rules make `lib/` and `scripts/` integrator-owned. New models live in `blender/base/` here and only READ `~/blender/lib`. |
 | **DL38** | **Generated materials are synced from the palette in a separate pass; stray materials are scanned out of asset `.blend`s.** | Unity resolves an existing external material by name without calling `OnAssignMaterialModel`, so a material created magenta stays magenta forever. And `Berry`/`OreIron` lived only inside another scene's script. |
 
@@ -344,6 +418,13 @@ Every one of these cost real time on a previous project.
 ## 11. Session log
 
 Append one block per session. Newest at the top.
+
+### 2026-09-20 — Session 7: how many animations the whole game needs
+Dhruv asked for the count. **~79 authored clips (8 done), 14 code-driven motions (2 done), 13 rigs (1 done)** — the
+full inventory is §5b. Two ideas keep it that small: clips per *weapon class* rather than per unit (60 units →
+~10 classes → 43 humanoid clips), and code rather than clips for anything with wheels, wings or a hull. One
+prerequisite surfaced while counting: each figure currently bakes its own copy of every clip, which does not
+scale past the demo — a canonical rest pose fixes it (N12, DL43). Tier 1 is 20 clips and finishes Age I (N13).
 
 ### 2026-09-20 — Session 6: a real skeleton
 Dhruv: "let's focus on the skeleton. how can we create it? let's do it." `blender/scripts/rig_figure.py` builds an
