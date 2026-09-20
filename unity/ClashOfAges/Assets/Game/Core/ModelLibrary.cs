@@ -8,6 +8,13 @@ namespace COA.Game
     {
         public List<string> names = new List<string>();
         public List<GameObject> prefabs = new List<GameObject>();
+        public List<string> controllerNames = new List<string>();
+        public List<RuntimeAnimatorController> controllers = new List<RuntimeAnimatorController>();
+        public RuntimeAnimatorController Controller(string model)
+        {
+            int i = controllerNames.IndexOf(model);
+            return i >= 0 ? controllers[i] : null;
+        }
         public Material teamDisc, ghostOk, ghostBad, ring, ringEnemy, marker, blood, stump, border, particle, arrow, hpBack, hpFill;
 
         Dictionary<string, GameObject> _map;

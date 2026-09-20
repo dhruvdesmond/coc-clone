@@ -9,7 +9,7 @@ namespace COA.Game
     {
         public const float UnitScale = 1.38f;
         public int unitId; public bool selected;
-        GameObject _disc; GameRoot _root; Unit _u; NavMeshAgent _agent; FigureAnimator _anim; GameObject _ring, _load; HealthBar _hp;
+        GameObject _disc; GameRoot _root; Unit _u; NavMeshAgent _agent; UnitAnim _anim; GameObject _ring, _load; HealthBar _hp;
         Vector3 _lastDest = new Vector3(9999, 0, 9999); float _stuck; bool _dead; float _deadT; Renderer[] _rends;
         Vector3 _vel; Vector3 _prev;
 
@@ -36,7 +36,10 @@ namespace COA.Game
             v._agent.avoidancePriority = 30 + (u.id % 40);
             if (NavMesh.SamplePosition(go.transform.position, out var hit, 6f, NavMesh.AllAreas)) v._agent.Warp(hit.position);
 
-            v._anim = go.AddComponent<FigureAnimator>();
+            // a real skeleton if the model has one (rig_figure.py), otherwise limbs posed in code
+            var controller = root.models.Controller(u.def.model);
+            if (controller != null && RigAnimator.Supports(go)) { var ra = go.AddComponent<RigAnimator>(); ra.Init(controller); v._anim = ra; }
+            else v._anim = go.AddComponent<FigureAnimator>();
             v._ring = MeshKit.Make("Ring", MeshKit.Ring, u.owner == World.Human ? root.models.ring : root.models.ringEnemy, go.transform);
             v._ring.transform.localPosition = new Vector3(0f, 0.06f, 0f);
             v._ring.transform.localScale = Vector3.one * 0.62f;
@@ -135,17 +138,17 @@ namespace COA.Game
             // pose
             _anim.speed = speed;
             bool ranged = _u.def.range > 3f;
-            if (speed > 0.3f) _anim.clip = _u.carry > 0.5f ? FigureAnimator.Clip.Carry : FigureAnimator.Clip.Walk;
-            else if (_u.state == UnitState.Gathering) _anim.clip = _u.lastKind == NodeKind.Berry || _u.lastKind == NodeKind.Farm ? FigureAnimator.Clip.Hammer : FigureAnimator.Clip.Chop;
-            else if (_u.state == UnitState.Building) _anim.clip = FigureAnimator.Clip.Hammer;
-            else if (_u.state == UnitState.Attacking) _anim.clip = ranged ? FigureAnimator.Clip.Shoot : FigureAnimator.Clip.Attack;
-            else _anim.clip = FigureAnimator.Clip.Idle;
+            if (speed > 0.3f) _anim.clip = _u.carry > 0.5f ? UnitAnim.Clip.Carry : UnitAnim.Clip.Walk;
+            else if (_u.state == UnitState.Gathering) _anim.clip = _u.lastKind == NodeKind.Berry || _u.lastKind == NodeKind.Farm ? UnitAnim.Clip.Hammer : UnitAnim.Clip.Chop;
+            else if (_u.state == UnitState.Building) _anim.clip = UnitAnim.Clip.Hammer;
+            else if (_u.state == UnitState.Attacking) _anim.clip = ranged ? UnitAnim.Clip.Shoot : UnitAnim.Clip.Attack;
+            else _anim.clip = UnitAnim.Clip.Idle;
 
             UpdateLoad();
             _hp.Set(_u.hp / _u.maxHp, selected || _u.hp < _u.maxHp - 0.5f);
         }
 
-        public void Strike() { if (_anim != null) _anim.strike = 0f; }
+        public void Strike() { if (_anim != null) _anim.Strike(); }
 
         /// <summary>The thing being carried must be readable: a log, a berry basket, a stone, an ingot.</summary>
         void UpdateLoad()

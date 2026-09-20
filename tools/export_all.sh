@@ -4,7 +4,7 @@ BL=/Applications/Blender.app/Contents/MacOS/Blender
 R=/Users/dhruv/clash-of-clans; M=$R/unity/ClashOfAges/Assets/Models; B=~/blender/base
 mkdir -p $M
 asset()  { $BL -b --factory-startup $1 --python $R/blender/scripts/export_assets.py -- --name $2 --out $M 2>&1 | grep -E "^\[asset\] (joined|dims|!)|Traceback|Error" ; mv -f $M/$2.meta.json $M/$2.meta.json.txt 2>/dev/null }
-figure() { $BL -b --factory-startup $1 --python $R/blender/scripts/export_figure.py -- --name $2 --out $M ${3:+--prefix} $3 2>&1 | grep -E "^\[figure\]|Traceback|Error|line [0-9]" ; mv -f $M/$2.meta.json $M/$2.meta.json.txt 2>/dev/null }
+figure() { $BL -b --factory-startup $1 --python $R/blender/scripts/rig_figure.py -- --name $2 --out $M ${3:+--prefix} $3 2>&1 | grep -E "^\[rig\]|Traceback|Error|line [0-9]" ; mv -f $M/$2.meta.json $M/$2.meta.json.txt 2>/dev/null }
 case ${1:-all} in
   figures|all)
     figure $B/starter/models/villager.blend villager

@@ -12,7 +12,7 @@ namespace COA.Game
     {
         public Material material;
         const int Up = 2;                                  // mask texels per sim cell
-        Texture2D _mask; Color32[] _px; float[] _cur, _target; int _w, _h, _version = -1; float _bloom;
+        Texture2D _mask; Color32[] _px; float[] _cur, _target; int _w, _h, _version = -1; float _bloom; bool _dirty;
         public Texture2D Mask => _mask;
 
         void Start()
@@ -90,7 +90,15 @@ namespace COA.Game
         void Update()
         {
             var t = GameRoot.I.World.territory;
-            if (t.version != _version) { _version = t.version; Rebuild(t); }
+            if (t.version != _version)
+            {
+                bool first = _version < 0;
+                _version = t.version; Rebuild(t);
+                // The FIRST border must appear, not ease in: easing from zero sends every texel of the nation through
+                // the 0.5 "frontier" value at the same moment, and the whole map flashes as one giant border line.
+                if (first) System.Array.Copy(_target, _cur, _cur.Length);
+                _dirty = true;
+            }
 
             // business speed: ease toward the new border over ~0.8 s
             float k = 1f - Mathf.Exp(-3.2f * Time.deltaTime); bool moving = false;
@@ -99,8 +107,9 @@ namespace COA.Game
                 float d = _target[i] - _cur[i];
                 if (d > 0.002f || d < -0.002f) { _cur[i] += d * k; moving = true; }
             }
-            if (moving)
+            if (moving || _dirty)
             {
+                _dirty = false;
                 for (int i = 0; i < _px.Length; i++) _px[i] = new Color32((byte)(_cur[i * 2] * 255f), (byte)(_cur[i * 2 + 1] * 255f), 0, 255);
                 _mask.SetPixels32(_px); _mask.Apply(false);
             }

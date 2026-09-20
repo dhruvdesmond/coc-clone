@@ -103,6 +103,7 @@ public static class DemoSceneBuilder
             lib.names.Add(Path.GetFileNameWithoutExtension(p));
             lib.prefabs.Add(AssetDatabase.LoadAssetAtPath<GameObject>(p));
         }
+        foreach (var kv in FigureRigSetup.Build()) { lib.controllerNames.Add(kv.Key); lib.controllers.Add(kv.Value); }
         const string U = "Assets/Materials/UI/";
         lib.ring      = SceneKit.SavedUnlit(U + "Ring.mat",      new Color(0.35f, 0.95f, 0.45f, 0.95f));
         lib.ringEnemy = SceneKit.SavedUnlit(U + "RingEnemy.mat", new Color(1.00f, 0.25f, 0.20f, 0.85f));

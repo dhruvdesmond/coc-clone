@@ -29,7 +29,8 @@ clash-of-clans/                     ← this repo
 ├── tools/                          ← u.sh (guarded Unity runner) · test.sh · export_all.sh
 ├── art/unit_sheet.png              ← the units, their pivots and their poses, rendered in Blender
 ├── blender/scripts/                ← AUTHORITATIVE pipeline scripts: export_palette · export_assets ·
-│                                      export_figure · export_nature · figure_sheet
+│                                      rig_figure (skeleton + clips) · export_figure (flat fallback) ·
+│                                      export_nature · figure_sheet
 ├── blender/base/age1_demo/         ← models authored HERE (Rune Hall, Muster Hall, Farm)
 └── unity/ClashOfAges/              ← the game
     └── Assets/
@@ -192,4 +193,4 @@ correction confirmed applied once.
 
 **Borders, build-inside-only, attrition and regen are built.** Cities, rare resources, nations and the Armageddon
 counter (the rest of `docs/12-territory.html`) are not. The opponent is a scripted `RaidDirector`, not doc 06's AI.
-**The units have no skeleton** — limb hierarchies posed in code (DL36). See `PROGRESS.md` §5 for what is next.
+**The units have real skeletons** (DL41): `blender/scripts/rig_figure.py` → 11 bones, rigid skin, 8 clips → Unity `Animator`, asserted by `FigureRigSetup`. See `PROGRESS.md` §5 for what is next.

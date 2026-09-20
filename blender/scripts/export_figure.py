@@ -59,12 +59,9 @@ def centre(o):
     return sum(bb, Vector()) / 8.0
 
 
-def main():
-    args = _argv()
-    name, out = _opt(args, "--name"), _opt(args, "--out")
-    prefix = _opt(args, "--prefix", name)          # object-name prefix inside the .blend
-    pathlib.Path(out).mkdir(parents=True, exist_ok=True)
-
+def prepare(name, prefix):
+    """Open-file -> ten joined limb meshes with origins at the joints. Shared with rig_figure.py, which
+    builds a real armature from the same pivots and tips. Returns a dict; nothing is exported here."""
     meshes = [o for o in bpy.data.objects if o.type == "MESH" and o.name.startswith(prefix + "_")]
     if not meshes:
         print(f"[figure] ! no objects named {prefix}_*"); sys.exit(1)
@@ -187,6 +184,17 @@ def main():
     # So: ten FLAT root-level objects -- the exact path slice 0 and AxisProbe already proved -- and
     # FigureAnimator assembles the skeleton in Unity, where pivots are identity by construction.
 
+    return dict(limb_obj=limb_obj, pivots=pivots, tips=tips, tris=tris_before, coll=coll, props=props, parts=len(meshes))
+
+
+def main():
+    args = _argv()
+    name, out = _opt(args, "--name"), _opt(args, "--out")
+    prefix = _opt(args, "--prefix", name)          # object-name prefix inside the .blend
+    pathlib.Path(out).mkdir(parents=True, exist_ok=True)
+    ctx = prepare(name, prefix)
+    limb_obj, pivots, tips, tris_before, coll, props = (ctx[k] for k in ("limb_obj", "pivots", "tips", "tris", "coll", "props"))
+
     tip_objs = []
     for l, p in tips.items():
         e = bpy.data.objects.new(f"{l}_tip", None)
@@ -242,11 +250,13 @@ def main():
     with open(os.path.join(out, f"{name}.meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
 
-    print(f"[figure] {name}: {len(meshes)} parts -> {len(LIMBS)} limbs, {tris} tris, "
+    print(f"[figure] {name}: {ctx["parts"]} parts -> {len(LIMBS)} limbs, {tris} tris, "
           f"{dims[0]} x {dims[1]} x {dims[2]} m")
     print(f"[figure] props: {', '.join(props) if props else 'none'}")
     print(f"[figure] wrote {fbx} ({os.path.getsize(fbx)//1024} KB)")
     print("[figure] OK")
 
 
-main()
+
+if __name__ == "__main__":
+    main()

@@ -109,7 +109,12 @@ public class PaletteImporter : AssetPostprocessor
         mi.globalScale        = 1f;
         mi.importNormals      = ModelImporterNormals.Import;
         mi.importTangents     = ModelImporterTangents.CalculateMikk;
-        mi.importAnimation    = false;
+        // A RIG (rig_figure.py writes "kind": "rig" into its sidecar) keeps its skeleton and its clips.
+        bool rig = IsRig(assetPath);
+        mi.importAnimation    = rig;
+        mi.animationType      = rig ? ModelImporterAnimationType.Generic : ModelImporterAnimationType.None;
+        if (rig) { mi.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel; mi.optimizeGameObjects = false;
+                   mi.animationCompression = ModelImporterAnimationCompression.Off; mi.resampleCurves = true; }
         mi.importCameras      = false;
         mi.importLights       = false;
         mi.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
@@ -118,6 +123,30 @@ public class PaletteImporter : AssetPostprocessor
         // World meshes are drawn with Graphics.RenderMeshInstanced and the terrain feeds
         // a MeshCollider + NavMesh bake; both want CPU-readable data.
         mi.isReadable         = assetPath.StartsWith(WorldRoot, StringComparison.Ordinal);
+    }
+
+    public static bool IsRig(string modelPath)
+    {
+        var sidecar = Path.ChangeExtension(modelPath, null) + ".meta.json.txt";
+        return File.Exists(sidecar) && File.ReadAllText(sidecar).Contains("\"kind\": \"rig\"");
+    }
+
+    static readonly HashSet<string> Looping = new HashSet<string> { "Idle", "Walk", "Carry", "Chop", "Hammer" };
+
+    /// <summary>Blender names takes "Rig|Walk"; strip the armature prefix and set loop flags from the clip name.</summary>
+    void OnPreprocessAnimation()
+    {
+        if (!InScope(assetPath) || !IsRig(assetPath)) return;
+        var mi = (ModelImporter)assetImporter;
+        var clips = mi.defaultClipAnimations;
+        foreach (var c in clips)
+        {
+            int bar = c.name.LastIndexOf('|');
+            if (bar >= 0) c.name = c.name.Substring(bar + 1);
+            c.loopTime = Looping.Contains(c.name);
+            c.lockRootRotation = c.lockRootHeightY = c.lockRootPositionXZ = false;
+        }
+        mi.clipAnimations = clips;
     }
 
     /// <summary>Hand every FBX material slot a palette material instead of a grey default.</summary>
@@ -236,6 +265,7 @@ public class PaletteImporter : AssetPostprocessor
         int expectTris = (int)ReadFloat(json, "\"triangles\"", -1f);
         if (ex < 0) return;
 
+        if (IsRig(assetPath)) return;          // rigs are asserted by FigureRigSetup against the MESH bounds
         var b = WorldBounds(go);
         // Blender Z-up -> Unity Y-up: Blender (x, y, z) becomes Unity (x, z, y).
         float gx = b.size.x, gy = b.size.z, gz = b.size.y;
@@ -243,6 +273,8 @@ public class PaletteImporter : AssetPostprocessor
         int tris = 0;
         foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
             if (mf.sharedMesh != null) tris += mf.sharedMesh.triangles.Length / 3;
+        foreach (var sk in go.GetComponentsInChildren<SkinnedMeshRenderer>())
+            if (sk.sharedMesh != null) tris += sk.sharedMesh.triangles.Length / 3;
 
         // Three decimals and a vertex count, deliberately: a log that printed
         // "bounds (0.00, 0.00, 0.00)" at two decimals was once read as "empty mesh"

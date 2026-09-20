@@ -74,7 +74,7 @@ Working title only — the name does not matter yet.
 | D15 | **`docs/12-territory.html`** — borders, attrition, cities, rares, 6 nations, Armageddon | 2026-09-20 | The correction to a Rise of Nations clone. Closes Q1. |
 | D16 | **The land in Unity** — terrain + baked 4K albedo, water, **19,727 GPU-instanced objects in 128 draw calls**, NavMesh | 2026-09-20 | `export_nature.py`, `InstancedWorld.cs`. Axis mapping MEASURED: Blender (x,y,z) → Unity (−x,z,−y) |
 | D17 | **The simulation** — economy, construction, training, scholars, 4 techs, age advance, territory, attrition, combat, raids | 2026-09-20 | Pure C#. **10 EditMode tests.** One `Catalog.cs` table |
-| D18 | **Figures as limb hierarchies** — `export_figure.py`; villager, swordsman, spearman, archer | 2026-09-20 | **No skeleton exists.** 10 limbs pivoting on the joint spheres + `_tip` markers; posed in code. `art/unit_sheet.png` |
+| D18 | **Rigged figures** — `rig_figure.py`: villager, swordsman, spearman, archer | 2026-09-20 | **11 bones, rigid skin, 8 clips each.** Asserted on import by `FigureRigSetup`. `art/rig_sheet_villager.png` |
 | D19 | **Three new Norse models** — Rune Hall, Muster Hall, Farm | 2026-09-20 | `blender/base/age1_demo/build.py`, reads `~/blender/lib`, writes nothing there |
 | D20 | **Play layer** — NavMesh movers, selection, orders, placement ghost, construction | 2026-09-20 | Left-click is selection only |
 | D21 | **HUD** — resources, command panel + tooltips + hotkeys, objectives, toasts, banners, minimap, title/end cards | 2026-09-20 | uGUI built in code |
@@ -107,7 +107,7 @@ half-authored assets exist. A new session starts from a clean state.
 | **N8** | **A human plays the demo.** Zoom feel on a real wheel and a real trackpad; is the first raid fair; is 15 minutes the right length. | Everything so far was verified by a bot and by screenshots. None of it has been *felt*. | — |
 | **N9** | **The real opponent** — doc 06's utility Commander replacing `RaidDirector`. | The demo's enemy does not gather, build or decide. | N8 |
 | **N10** | **Cities, rare resources, nations** — the rest of doc 12. | Borders exist; the things that make territory a *choice* do not. | — |
-| **N11** | **A real rig** — armature + rigid bind in the figure exporter, authored clips. | Procedural limb posing reads at RTS distance and nowhere else. | — |
+| ~~N11~~ | ~~A real rig~~ ✅ **DONE 2026-09-20** — `rig_figure.py`: armature, rigid skinning, 8 authored clips; Unity `Animator`. See DL41. |  |  |
 | N7 | Age I remaining assets: `runehall`, `farm`, `palisade`, `longship`, `fishingboat`, 6 resource nodes | Makes Age I complete and playable | N1 |
 
 ---
@@ -164,6 +164,7 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 | **DL36** | **Figures are limb hierarchies posed in code, with ABSOLUTE poses.** | No armature exists anywhere in the library. Every part is rigid and the joints are literal spheres, so ten pivots reproduce what a rigid-bind rig would. Poses must be absolute because the figures are not authored neutral: additive angles sent the archer's bow arm straight up. |
 | **DL39** | **Figures ship as FLAT limb meshes; the skeleton is assembled in Unity (`FigureAnimator.Awake`).** | FBX could not carry the hierarchy intact (see Gotchas). Flat root-level objects are the path slice 0 and `AxisProbe` already proved. |
 | **DL40** | **Units are drawn 1.38× life size, their palette lifted ~45% in value, on a team-colour disc.** | At true scale a citizen is a dark speck from 30 m. Every RTS exaggerates its figures; buildings stay true scale and the sim is unaffected. |
+| **DL41** | **Units have a REAL skeleton.** `rig_figure.py` builds an 11-bone armature from the figure's joint spheres, binds ONE skinned mesh rigidly (each vertex → one bone, weight 1.0), authors 8 clips at 30 fps, and exports the standard Blender-armature FBX. Unity imports a Generic rig; `FigureRigSetup` asserts it and generates an `AnimatorController`; `RigAnimator` drives it. | Dhruv asked for it, and it is strictly better: one SkinnedMeshRenderer instead of ten MeshRenderers, clips that can be viewed and edited in Blender, cross-fades between states, and `Animator` doing the work instead of per-frame C#. Rigid bind because every part of these figures IS rigid — nothing to paint, and it deforms exactly as the loose parts did. DL36/DL39 (limbs posed in code) remain as the fallback for any figure exported flat. |
 | **DL37** | **This repo never writes inside `~/blender`.** The repo's `blender/scripts/` is authoritative. | `~/blender` is not under version control and a live mobile session edits it; that session's rules make `lib/` and `scripts/` integrator-owned. New models live in `blender/base/` here and only READ `~/blender/lib`. |
 | **DL38** | **Generated materials are synced from the palette in a separate pass; stray materials are scanned out of asset `.blend`s.** | Unity resolves an existing external material by name without calling `OnAssignMaterialModel`, so a material created magenta stays magenta forever. And `Berry`/`OreIron` lived only inside another scene's script. |
 
@@ -252,6 +253,14 @@ Every one of these cost real time on a previous project.
   The red control material coloured the whole scene.
 
 ### Building the demo (2026-09-20) — each of these looked like something else
+- **A skinned renderer's bounds are NOT the mesh's size.** Unity grows them to enclose every animation clip, so a
+  swordsman with his sword overhead measures "2.18 m" and a correct rig fails a height check. Assert against
+  `sharedMesh.bounds` (which stays in Blender's Z-up frame: height is `size.z`).
+- **An ARMATURE survives Blender→Unity where a nested object hierarchy did not.** Same FBX exporter, opposite
+  outcome — bones are the path every rigged character takes and both ends convert them consistently. Still
+  asserted, never assumed: bone count, clip names, clip lengths, loop flags, mesh height.
+- **Easing a border in from nothing flashes the whole nation** — every texel passes through the 0.5 "frontier"
+  value at once. The first border must appear, not ease.
 - **NEVER ship a nested hierarchy through FBX with `bake_space_transform=True`.** It arrived broken at the BIND
   pose: children rotated 90°, positions in a different axis convention from their parent. The citizen lay in
   pieces on the ground and I did not notice for hours, because every shot was from 30 m and my Blender sheet
@@ -335,6 +344,21 @@ Every one of these cost real time on a previous project.
 ## 11. Session log
 
 Append one block per session. Newest at the top.
+
+### 2026-09-20 — Session 6: a real skeleton
+Dhruv: "let's focus on the skeleton. how can we create it? let's do it." `blender/scripts/rig_figure.py` builds an
+11-bone armature straight from the figure's joint spheres (the pivots were always in the data), joins the parts
+into one mesh with a **rigid bind**, and authors eight clips — Idle, Walk, Carry, Chop, Hammer, Attack, Shoot,
+Death — by sampling the pose functions at 30 fps and keying every bone on every frame (quaternions
+sign-continuous, looping clips closed on their first frame). Poses stay absolute: each limb's rest direction is
+corrected to "hanging down" first, so one clip means the same thing on the aiming archer and the idle citizen.
+
+In Unity: Generic rig, clips renamed from `Rig|Walk` and loop-flagged by name at import, one generated
+`AnimatorController` per figure (a state per clip, no transitions — the sim decides state; `Walk`/`Carry` speed
+follows ground speed so feet do not skate), `RigAnimator` cross-fading and snapping attacks to frame 0.
+`FigureRigSetup` asserts all of it; its first run FAILED two figures on height, and the failure was the check
+(skinned bounds include animation) — measured, fixed, recorded. **All four rigs pass; the bot won again
+(19.3 min), every unit on a skeleton.** `art/rig_sheet_villager.png` is the armature deforming the mesh.
 
 ### 2026-09-20 — Session 5: a playable demo, and a bot that wins it
 Six phases, each committed: the land, the citizen, build-and-grow, borders and the age advance, something to

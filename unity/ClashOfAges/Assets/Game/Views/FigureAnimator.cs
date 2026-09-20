@@ -11,12 +11,11 @@ namespace COA.Game
     /// Three speeds, never blended (docs/09): world is linear and slow, business eases, VIOLENCE
     /// DOES NOT EASE -- the strike is a snap, which is the whole trick and it is free.
     /// </summary>
-    public sealed class FigureAnimator : MonoBehaviour
+    /// FALLBACK ONLY since rig_figure.py: used for a figure exported flat (export_figure.py) with no skeleton.
+    public sealed class FigureAnimator : UnitAnim
     {
-        public enum Clip { Idle, Walk, Carry, Chop, Hammer, Attack, Shoot, Dead }
-        public Clip clip;
-        public float speed;                      // m/s, drives walk cadence
         [HideInInspector] public float strike;   // set to 0 to start an attack swing
+        public override void Strike() { strike = 0f; }
 
         Transform _body, _head, _armL, _foreL, _armR, _foreR, _legL, _shinL, _legR, _shinR;
         Quaternion[] _bind; Transform[] _all; Vector3 _bodyPos;
@@ -103,7 +102,7 @@ namespace COA.Game
                                           : Quaternion.Inverse(_corr[p]) * e * _corr[i] * _corr[p];
         }
 
-        public void Die(float yaw) { clip = Clip.Dead; _deadT = 0f; _deadYaw = yaw; }
+        public override void Die(float yaw) { clip = Clip.Dead; _deadT = 0f; _deadYaw = yaw; }
 
         void LateUpdate()
         {
