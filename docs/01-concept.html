@@ -21,6 +21,7 @@
 <a href="09-fx-audio.html">09 FX</a>
 <a href="10-tech.html">10 Tech</a>
 <a href="11-lighting.html">11 Lighting</a>
+<a href="12-territory.html">12 Territory</a>
 </div>
 <header style="margin-top:22px">
   <div class="kicker">01 · Foundation</div>
@@ -97,9 +98,17 @@ spine of the game. Lifted from Rise of Nations, which got it right.</p>
 UI trim. You cannot go back and you cannot mix. Cost: 6× the art. Mitigation: ages 1 and 5 are
 already built (Norse kit and modern kit); see <a href="05-assets.html">05 · Assets</a>.</p>
 
-<h4>5. No timers, no energy, no purchases.</h4>
-<p>It is named after Clash of Clans and it takes the base-building intimacy and the readable silhouette
-language. It takes <b>none</b> of the free-to-play scaffolding. This is a premium PC game that ends.</p>
+<h4>5. Territory is drawn as colour, and you can only build inside your own.</h4>
+<p>Borders expand from cities and are painted on the ground. Enemy units inside your nation take
+continuous attrition; yours regenerate. <b>This is the rule that makes it Rise of Nations</b> rather
+than a base-builder with an age ladder — you fight over the map itself, not over resource nodes. It is
+also the most expensive rule here, because it adds a map-wide system. Worth it: see
+<a href="12-territory.html">12 · Territory</a>.</p>
+
+<h4>6. No timers, no energy, no purchases.</h4>
+<p>The folder is called <code>clash-of-clans</code> for historical reasons and the name has stuck. The
+game takes <b>none</b> of the free-to-play scaffolding — no build timers, no energy, no currency. This
+is a premium PC game that ends.</p>
 
 <h2>Win conditions</h2>
 <table>
@@ -107,13 +116,16 @@ language. It takes <b>none</b> of the free-to-play scaffolding. This is a premiu
   <tr><td>Conquest</td><td>Destroy every enemy Town Centre</td><td>The default. Always available.</td></tr>
   <tr><td>Ascendancy</td><td>Reach the Atomic Age and hold it 10 minutes</td><td>Rewards the economic player; gives the tech ladder a finish line</td></tr>
   <tr><td>Wonder</td><td>Build and hold an age-appropriate Wonder for 8 minutes</td><td>Creates a timed crisis that forces the other player to attack</td></tr>
-  <tr><td>Territory</td><td>Hold 70% of map control points for 5 minutes</td><td>An out for stalemates</td></tr>
+  <tr><td>Territory</td><td>Hold 70% of the map's <b>land area by border</b> for 5 minutes</td><td>An out for stalemates, and it reads directly off the territory grid</td></tr>
+  <tr><td><b>Armageddon survival</b></td><td>Five nuclear detonations by anyone ends the world. <b>Every nation that has ever launched loses.</b> A non-nuclear survivor wins.</td><td class="tag hot">This is the answer to Q1 — see <a href="12-territory.html">12 · Territory</a></td></tr>
 </table>
-<div class="note warn">
-  <span class="lbl">Open question</span>
-  A sixth age with nuclear weapons and a &ldquo;hold it for 10 minutes&rdquo; win is a design that can
-  end in mutual annihilation. <b>Decide before building Age 6:</b> is using a nuke a win button, or is
-  it a loss condition disguised as one? The interesting answer is the second. Logged in PROGRESS.md.
+<div class="note good">
+  <span class="lbl">Resolved — was the project's oldest open question</span>
+  <b>Is using a nuke a win button, or a loss condition disguised as one?</b> Rise of Nations already
+  had the better answer: <b>a shared Armageddon counter</b>. Every detonation by anyone increments it;
+  at five, the world ends and everyone who ever launched loses. The warhead becomes a button that
+  spends a shared, finite, irreversible resource — and the fifth press kills you too. Full rules in
+  <a href="12-territory.html">12 · Territory</a>.
 </div>
 
 <h2>What this game is not</h2>

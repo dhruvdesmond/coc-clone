@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Territory, Borders & Nations · Clash of Ages</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+<a class="back" href="../index.html">← Clash of Ages hub</a>
+<div class="nav">
+<a href="01-concept.html">01 Game</a>
+<a href="02-ages.html">02 Ages</a>
+<a href="03-resources.html">03 Economy</a>
+<a href="04-roster.html">04 Roster</a>
+<a href="05-assets.html">05 Assets</a>
+<a href="06-ai.html">06 AI</a>
+<a href="07-pipeline.html">07 Pipeline</a>
+<a href="08-map.html">08 Map</a>
+<a href="09-fx-audio.html">09 FX</a>
+<a href="10-tech.html">10 Tech</a>
+<a href="11-lighting.html">11 Lighting</a>
+<a class="here" href="12-territory.html">12 Territory</a>
+</div>
+<header style="margin-top:22px">
+  <div class="kicker">12 · The RoN core</div>
+  <h1>Territory, Borders &amp; Nations</h1>
+  <p class="lede">This document exists because the brief is <b>a Rise of Nations clone</b>, and the
+  first eleven documents had RoN's <i>economy</i> without RoN's <i>map</i>. Borders are the thing
+  Rise of Nations is actually remembered for, and nothing else here substitutes for them.</p>
+</header>
+
+<div class="note warn">
+  <span class="lbl">What was missing, stated plainly</span>
+  Docs 01–11 already had the Knowledge economy, the four research branches, the three-gate age
+  advance and the catch-up discount — all straight from RoN, all correct. But they described a game
+  where you build a base and fight over resource nodes. <b>That is not Rise of Nations. In RoN you
+  fight over the map itself</b>, and the map is coloured. Everything below is the correction.
+</div>
+
+<h2>1. Borders — strategy made visible as colour</h2>
+<p>Every city projects a territory radius. The union of those radii is your <b>nation</b>, drawn on
+the ground as a saturated colour wash with a hard edge at the frontier. You can see, at a glance and
+without reading a number, exactly who owns what and where the pressure is.</p>
+
+<table>
+  <tr><th>Rule</th><th>Value</th><th>Why</th></tr>
+  <tr><td>Territory radius, Town Centre</td><td class="num">38 m</td><td>Roughly 7 building footprints — a settlement plus its fields</td></tr>
+  <tr><td>Territory radius, City (Age II+)</td><td class="num">52 m</td><td>Cities are the real territory instrument</td></tr>
+  <tr><td>Per Civic border tech</td><td class="num">+8 m</td><td>4 techs across the ages, so a maxed city reaches 84 m</td></tr>
+  <tr><td>Fort / border tower</td><td class="num">+22 m</td><td>The cheap way to push a frontier without founding a city</td></tr>
+  <tr><td>Wonder</td><td class="num">+30 m</td><td>Another reason to build one</td></tr>
+  <tr><td>Contested overlap</td><td>Goes to the side with more <b>total radius weight</b> at that point</td><td>Deterministic, no flicker at the seam</td></tr>
+</table>
+
+<h4>You can only build inside your own borders</h4>
+<p>This single rule is what makes territory matter rather than decorate. Expanding is not "walk
+somewhere and place a building" — it is <b>found a city, wait for the border to bloom, then build</b>.
+Which means expansion is visible to your opponent a full minute before it is useful to you, and it is
+attackable in that window.</p>
+
+<h2>2. Attrition — the reason invading is hard</h2>
+<div class="note good">
+  <span class="lbl">The mechanic that makes borders load-bearing</span>
+  <b>Enemy units inside your borders take continuous damage.</b> Not a debuff, not a slow — real
+  health loss, every second, everywhere in your nation. It is why in Rise of Nations you cannot simply
+  mass an army and walk it into someone's capital, and it is why the game is about the frontier rather
+  than about the base.
+</div>
+<table>
+  <tr><th>Situation</th><th class="num">Damage</th><th>Note</th></tr>
+  <tr><td>Inside enemy borders, unsupplied</td><td class="num">1.8 HP/s</td><td>Scales with their Civic attrition techs</td></tr>
+  <tr><td>Inside enemy borders, in supply</td><td class="num">0</td><td>Supply is the counter — see below</td></tr>
+  <tr><td>Inside your own borders</td><td class="num">−1.0 HP/s</td><td><b>Regeneration.</b> Falling back to your own land heals you.</td></tr>
+  <tr><td>Neutral ground</td><td class="num">0</td><td>Most of the early map</td></tr>
+</table>
+<p>The consequence is a genuinely different shape of war from the counter-triangle skirmishing in
+<a href="04-roster.html">04 · Roster</a>: you advance your <i>border</i> first and your army second.
+Taking ground means taking or razing the city that projects it.</p>
+
+<h4>Supply</h4>
+<table>
+  <tr><th>Source</th><th>Effect</th><th>Age</th></tr>
+  <tr><td>Supply wagon</td><td>Cancels attrition in a 26 m bubble. Slow, fragile, 3 pop.</td><td>II →</td></tr>
+  <tr><td>Fort held inside enemy land</td><td>Projects supply at 30 m; a captured foothold</td><td>III →</td></tr>
+  <tr><td>Rail depot link</td><td>Supply follows the rail line</td><td>IV →</td></tr>
+  <tr><td>Air supply drop</td><td>90 s of supply anywhere, from an Airfield</td><td>V →</td></tr>
+</table>
+<p><b>Killing the supply wagon is therefore the single highest-value target in any invasion</b>, which
+gives raiding cavalry a job in every age and gives the AI's Officer layer an obvious priority.</p>
+
+<h2>3. Cities</h2>
+<p>RoN's territory instrument is the city, not the barracks. Cities are capped, expensive, and the
+main thing you fight over.</p>
+<table>
+  <tr><th></th><th>Town Centre (start)</th><th>City</th></tr>
+  <tr><td>Cost</td><td class="num">—</td><td class="num">200 F · 200 W · 100 S</td></tr>
+  <tr><td>Territory</td><td class="num">38 m</td><td class="num">52 m</td></tr>
+  <tr><td>Population</td><td class="num">+5</td><td class="num">+10</td></tr>
+  <tr><td>Trains citizens</td><td>yes</td><td>yes</td></tr>
+  <tr><td>Resource drop-off</td><td>yes</td><td>yes</td></tr>
+  <tr><td>Cap</td><td colspan="2"><b>City limit by age: 2 · 3 · 5 · 7 · 9 · 12.</b> Raised by Civic tech.</td></tr>
+  <tr><td>Minimum spacing</td><td colspan="2">60 m between city centres — stops border-stacking</td></tr>
+</table>
+<p><b>Capturing a city flips its territory instantly.</b> Razing it removes the territory entirely and
+leaves neutral ground. That choice — take it or burn it — is a real decision every time.</p>
+
+<h2>4. Rare resources</h2>
+<p>RoN scatters named rare resources across the map; owning one inside your borders grants a
+permanent passive. They are the reason to want a <i>specific</i> patch of ground rather than just more
+ground.</p>
+<table>
+  <tr><th>Rare</th><th>Grants</th><th>Age</th></tr>
+  <tr><td>Furs</td><td>+8% Food from hunting and farms</td><td>I</td></tr>
+  <tr><td>Amber</td><td>+10 Gold/min, +5% Knowledge</td><td>I</td></tr>
+  <tr><td>Bog iron</td><td>+8% Metal, infantry armour +1</td><td>I</td></tr>
+  <tr><td>Horses</td><td>Cavalry −15% cost, +5% speed</td><td>II</td></tr>
+  <tr><td>Salt</td><td>Units regenerate in friendly territory 50% faster</td><td>II</td></tr>
+  <tr><td>Saltpetre</td><td>Gunpowder units −12% cost</td><td>III</td></tr>
+  <tr><td>Coal seam (rich)</td><td>+15% Coal</td><td>IV</td></tr>
+  <tr><td>Rubber</td><td>Vehicles −10% cost</td><td>V</td></tr>
+  <tr><td>Pitchblende</td><td>Uranium +25%</td><td>VI</td></tr>
+</table>
+<p><b>6–10 rares per Standard map</b>, placed by the generator at natural junctions, deliberately
+<i>outside</i> any starting territory. Each needs a Market or Trading Post built on it to activate.</p>
+
+<h2>5. Nations</h2>
+<p>RoN ships 18 nations with unique powers and units. That is a large content commitment, so:
+<b>six nations at first</b>, one per age theme, each with two powers and one unique unit. Six is
+enough for replay variety and maps onto art we either have or need anyway.</p>
+<table>
+  <tr><th>Nation</th><th>Powers</th><th>Unique unit</th></tr>
+  <tr><td>Norse</td><td>Ships cost −20% · Storehouses hold +50%</td><td>Berserker (exists ✓)</td></tr>
+  <tr><td>Franks</td><td>Cavalry +1 armour · Forts build 40% faster</td><td>Lancer (exists ✓)</td></tr>
+  <tr><td>Rus</td><td>Attrition dealt +50% · Snow/forest movement penalty waived</td><td>Horsearcher (exists ✓)</td></tr>
+  <tr><td>Britons</td><td>Ranged +1 range · Markets give a second trade route</td><td>Longbow</td></tr>
+  <tr><td>Turks</td><td>Siege −25% cost · Free Metal tech each age</td><td>Bombard</td></tr>
+  <tr><td>Maurya</td><td>Population cap +15 · Farms +10%</td><td>War elephant (exists ✓)</td></tr>
+</table>
+<div class="note good">
+  <span class="lbl">Four of the six unique units already exist</span>
+  Berserker, lancer, horsearcher and war elephant are already modelled in
+  <code>~/blender/base/troops/models/</code>. The nation roster was chosen <i>around</i> the art we
+  have, which is why six nations costs two new models rather than eighteen.
+</div>
+
+<h2>6. The Armageddon counter — and it answers Q1</h2>
+<div class="note warn">
+  <span class="lbl">This resolves the project's oldest open question</span>
+  <b>Q1 asked: is launching a nuke a win button, or a loss condition disguised as one?</b> Rise of
+  Nations already has the right answer and it is better than anything I proposed:
+  <b>a shared Armageddon counter.</b>
+</div>
+<p>Every nuclear detonation, <i>by anyone</i>, adds 1 to a counter visible to all players. When it
+reaches the threshold, <b>the world ends and every player with nuclear weapons loses — including the
+one who was winning.</b></p>
+<table>
+  <tr><th>Setting</th><th>Value</th></tr>
+  <tr><td>Threshold</td><td class="num">5 detonations</td></tr>
+  <tr><td>Who loses</td><td>Every nation that has ever launched. A non-nuclear survivor <b>wins.</b></td></tr>
+  <tr><td>Visibility</td><td>A permanent counter in the HUD from the moment the first silo is built</td></tr>
+  <tr><td>Decay</td><td>None. It only goes up.</td></tr>
+</table>
+<p>This makes the warhead exactly what <a href="01-concept.html">01 · Concept</a> wanted it to be: not
+a button that wins, but <b>a button that spends a shared, finite, irreversible resource</b> — and the
+fifth press kills everyone. You spend seventy minutes building a civilisation and are handed the
+means to make all of it irrelevant, including yours. That is the game's argument, and it is now a
+mechanic rather than a theme.</p>
+<p><b>The ABM site matters more under this rule</b>, because intercepting does not increment the
+counter. Defence is genuinely better than retaliation, which is the correct lesson to build into a
+system.</p>
+
+<h2>7. Conquer the World — later, not at launch</h2>
+<p>RoN's campaign is a turn-based map of the world over which you fight real-time battles. It is the
+best thing in the game and it is a whole second project. <b>Backlogged deliberately</b>, with one
+constraint honoured now so it stays possible: the 20 Hz simulation in
+<a href="10-tech.html">10 · Tech</a> takes its entire starting state from a seed plus a setup struct,
+so a meta-layer can hand it "this army, this territory, this age" without any rework.</p>
+
+<h2>What this changes elsewhere</h2>
+<table>
+  <tr><th>Doc</th><th>Change</th></tr>
+  <tr><td><a href="01-concept.html">01 · Concept</a></td><td>Borders added as a core rule; the win conditions now include Armageddon survival</td></tr>
+  <tr><td><a href="04-roster.html">04 · Roster</a></td><td>City, Fort and Supply wagon join the roster</td></tr>
+  <tr><td><a href="06-ai.html">06 · AI</a></td><td>The Commander needs two new goals — <code>EXPAND_BORDER</code> and <code>KILL_SUPPLY</code> — and must weigh attrition before committing to an invasion</td></tr>
+  <tr><td><a href="08-map.html">08 · Map</a></td><td>Border rendering is a new map-wide system; rares need generator placement</td></tr>
+  <tr><td><a href="10-tech.html">10 · Tech</a></td><td>A territory field is a second map-resolution grid alongside the flow field</td></tr>
+</table>
+
+<h2>Implementation note — territory is a grid, and it is cheap</h2>
+<p>Borders are computed on the <b>same 1 m grid as the flow field</b> (validated in
+<a href="08-map.html">08 · Map</a> against Supreme Commander 2's shipped convention). One byte per
+cell holding the owning player index: <b>410 KB at the largest map size</b>, recomputed only when a
+city is founded, captured, razed or a border tech completes — which is a handful of times per match,
+not per frame. Rendering is one fullscreen pass sampling that grid.</p>
+<p><b>Attrition then costs one grid lookup per unit per sim tick</b> — 200 lookups at 20 Hz. Free.</p>
+<footer>
+<b>Clash of Ages</b> — a Rise of Nations clone. Design document; changes here must be mirrored in the
+Decisions log in <code>PROGRESS.md</code>, with the reason.<br>Last updated 2026-09-20.
+</footer>
+</div>
+</body>
+</html>

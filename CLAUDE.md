@@ -1,7 +1,14 @@
 # Clash of Ages — working instructions for Claude
 
-A medieval-to-modern real-time strategy game for Windows and macOS. You start with **one citizen**
-and finish with a **missile silo**. Six ages, continuous 3D map, procedural Blender art, Unity 6 URP.
+**A Rise of Nations clone** — medieval to modern, for Windows and macOS. You start with **one
+citizen** and finish with a **missile silo**. Six ages, continuous 3D map, procedural Blender art,
+Unity 6 URP.
+
+**The reference is Rise of Nations, not Clash of Clans.** That matters when making judgement calls:
+the game is fought over **territory drawn as colour on the map**, with attrition inside borders,
+cities as the territory instrument, rare resources, national powers, and a shared Armageddon counter.
+If a proposed feature would work equally well in a base-builder, it is probably the wrong feature.
+See `docs/12-territory.html`.
 
 > **Read `PROGRESS.md` first, every session. Update it last, every session.**
 > It is the living state of the project: done / in flight / next, the decisions log with reasons, the
@@ -18,7 +25,7 @@ clash-of-clans/                     ← this repo
 ├── PROGRESS.md                     ← LIVING STATE. read first, update last.
 ├── index.html                      ← design hub, opens the 11 docs
 ├── style.css
-├── docs/01-concept … 11-lighting.html
+├── docs/01-concept … 12-territory.html
 ├── blender/scripts/                ← pipeline scripts (synced copies, see §5)
 └── unity/ClashOfAges/              ← the game
     └── Assets/
@@ -91,6 +98,8 @@ Vale port. **Do not re-derive their contents from the code — load them.**
    one material. Asset-level assertions are still valid there; the image is not.
 
 ### Both
+- **The reference is Rise of Nations.** If a proposed feature would work equally well in a
+  base-builder, it is probably the wrong feature. The game is fought over territory drawn as colour.
 - **One agent, one asset or one system.** "Build the Feudal age" produces eight mediocre models.
 - **Two tables of the same fact is one table too many.** `lib/materials.py` is the only palette;
   Unity reads the JSON it exports.
@@ -156,6 +165,11 @@ better, fix this properly by making the repo the authority and pointing `~/blend
 9/9 assertions pass, reproducibly. Scale exact to the millimetre, 108 objects joined to 1 renderer
 with 6 submeshes, 22,548 triangles exact, all 6 materials mapped from the 79-entry palette, tone
 correction confirmed applied once.
+
+**The territory system is designed but not built** — borders, attrition, cities, rares, six nations
+and the Armageddon counter, all in `docs/12-territory.html`. The territory grid is the thing
+everything else hangs off and it is cheap (one byte per 1 m cell, 410 KB at the largest map,
+recomputed only when a city changes). Build it before combat exists, not after.
 
 **Next is slice 1 — one citizen.** A citizen walks to a tree on a heightfield, chops, carries, drops
 off, and the wood counter moves. The `citizen` model does not exist yet and is the first thing to

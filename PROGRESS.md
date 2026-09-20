@@ -1,5 +1,10 @@
 # Clash of Ages — PROGRESS
 
+> **This is a RISE OF NATIONS clone.** Not Clash of Clans — that was an offhand remark early on and
+> it is wrong. The folder and repo keep the `clash-of-clans` name for continuity; the *game* does not.
+> If you are deciding anything, the reference is RoN: borders as colour, attrition, cities, rares,
+> national powers, the Armageddon counter. See `docs/12-territory.html`.
+
 > **This file is the state of the project. Read it first, update it last.**
 >
 > **If you are a new session and the chat history is gone: everything you need is here.**
@@ -13,13 +18,14 @@
 > - Every trap discovered goes in **Gotchas**, immediately, while it still hurts.
 > - Update before you finish, not when you remember.
 
-**Last updated:** 2026-09-20 · **SLICE 0 IS DONE.** Unity project created, the Blender to Unity
+**Last updated:** 2026-09-20 · **Corrected to a Rise of Nations clone** (doc 12 added, Q1 closed).
+**SLICE 0 IS DONE.** Unity project created, the Blender to Unity
 bridge built and verified end to end on one asset. 11 design documents.
 ---
 
 ## 1. What this is, in four lines
 
-A real-time strategy game for **Windows and macOS**. Six ages, medieval Norse through to atomic.
+**A Rise of Nations clone** for **Windows and macOS**. Six ages, medieval Norse through to atomic.
 You begin with **one citizen**; citizens gather and build; buildings make more citizens; Knowledge
 accrues and buys the next age. Continuous 3D map, no grid. Built from **procedural Blender assets**
 in **Unity 6000.0.83f1 / URP 3D**. Premium, single player vs AI, no timers, no purchases.
@@ -32,7 +38,8 @@ Working title only — the name does not matter yet.
 
 | Area | State | Where |
 |---|---|---|
-| 📐 Design docs | ✅ **DONE** — 11 documents | `index.html` + `docs/` |
+| 📐 Design docs | ✅ **DONE** — 12 documents | `index.html` + `docs/` |
+| 🗺️ Territory system | ⬜ **DESIGNED, NOT BUILT** — borders, attrition, cities, rares, nations, Armageddon | `docs/12-territory.html` |
 | 💡 Lighting | ✅ **DECIDED** — realtime sun + APV, verified against Unity 6 docs | `docs/11-lighting.html` |
 | 🎨 Asset library | 🟡 **35 of ~192 built** (inherited from the Norse/Vale work) | `~/blender/base/` |
 | 🔧 Blender→Unity bridge | ✅ **DONE and VERIFIED** — 9/9 assertions pass on `hut_a` | `docs/07-pipeline.html` |
@@ -63,6 +70,7 @@ Working title only — the name does not matter yet.
 | D12 | **`SliceZero.cs`** — builds the scene, renders it, asserts 9 things | 2026-09-20 | **ALL PASS**, reproducible across runs |
 | D13 | **`ConfigureQuality.cs`** — 4096 shadows, 4 cascades, MSAA off, HDR, SRP Batcher | 2026-09-20 | Targets discrete NVIDIA + Apple silicon MacBook Pro |
 | D14 | **`RTSCamera.cs` + `ScrollProbe.cs` + `Builder.cs`** | 2026-09-20 | Camera written; ScrollProbe is the Q5 measurement harness |
+| D15 | **`docs/12-territory.html`** — borders, attrition, cities, rares, 6 nations, Armageddon | 2026-09-20 | The correction to a Rise of Nations clone. Closes Q1. |
 | — | **Inherited: 35 procedural Blender assets** | pre-existing | Norse kit, modern kit, 6 terrain tiles, 10 troops |
 | — | **Inherited: `lib/mapgen.py` map assembly + asserting `review()`** | pre-existing | Biome-as-vertex-attribute, paths in wear channel |
 | — | **Inherited: a proven Blender→Unity port** (Vale) | pre-existing | Terrain FBX + 4K baked biome + 17,834 instanced cover |
@@ -83,6 +91,7 @@ half-authored assets exist. A new session starts from a clean state.
 | ~~N1~~ | ~~Slice 0 — the bridge~~ | ✅ **DONE 2026-09-20.** 9/9 assertions pass on `hut_a`. | — |
 | ~~N2~~ | ~~`export_palette.py`~~ | ✅ **DONE.** 79 materials. | — |
 | ~~N3~~ | ~~`export_assets.py`~~ | ✅ **DONE.** Object-count assertion + join-per-material. | — |
+| **N3b** | **Territory grid + border rendering.** One byte per 1 m cell, recomputed on city change; one fullscreen pass to draw it. | The system everything else in doc 12 hangs off, and it is cheap — 410 KB at the largest map, a handful of recomputes per match. Do it before combat exists, not after. | — |
 | **N4** | **Slice 1 — one citizen.** Heightfield terrain, a citizen walks to a tree, chops, carries, drops off, the wood counter moves. | The first verb of the core loop, and the first thing that is fun to look at. | N5 |
 | N5 | Build the `citizen` model in Blender | Slice 1 needs it, and it does not exist yet | — (can run parallel to N1) |
 | N6 | **Slice 2 — build and grow.** Hut placement, pop cap, train citizen #2, Age I economy runs unattended 10 min. | The loop closes | N4 |
@@ -115,7 +124,7 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 | **DL9** | **Fog of war applies to the AI at every difficulty** | An AI that sees through fog can only be out-statted, never outwitted, and every feint the player attempts silently fails. Difficulty comes from reaction time, scouting and micro instead. |
 | **DL10** | **Uranium: only 2–3 deposits per map** | Converts the endgame from an economy race into a territorial fight over three points. One line in the map generator. |
 | **DL11** | **No multiplayer at launch** | Netcode is a second project and would eat the art budget. The 20 Hz deterministic sim keeps lockstep possible later without a rewrite. |
-| **DL12** | **Named after Clash of Clans; takes none of its monetisation** | Takes the base-building intimacy and the readable silhouettes. No timers, no energy, no purchases. This is a premium game that ends. |
+| **DL12** | **This is a Rise of Nations clone. The folder name `clash-of-clans` is historical and stays.** | Dhruv's original brief was "a game like rise of nations from medieval times to modern times"; the Clash of Clans framing was a later offhand remark and was wrong. Renaming the folder and repo buys nothing and breaks links — the *design* is what had to change. |
 | **DL13** | **4 buildings get all 6 age variants; everything else exists in 2–3 ages** | Literal "every building swaps every age" is 108 models. This is ~70 and nobody will notice the difference. |
 | **DL14** | **One fully realtime directional sun. No Shadowmask for ground cover.** | Shadowmask requires a static GameObject; our ~18,000 cover instances are `DrawMeshInstancedIndirect` with no GameObjects, so they can never be shadowmasked under any configuration. Verified 3-0. |
 | **DL15** | **Shadows Max Distance is driven by camera zoom height (18–90 m), never by map size** | URP stretches the shadow map over Max Distance, so pixel density depends on that distance alone; the 240/420/640 m map extents are irrelevant to it. Verified 3-0. Step it between discrete zoom bands — changing it at runtime pops. |
@@ -130,6 +139,11 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 | **DL24** | **Material remaps are cleared before reimport.** | Once an FBX stores a remap in its `.meta`, `OnAssignMaterialModel` is skipped entirely, so materials created during a failed import stay wrong forever. |
 | **DL25** | **Modifiers are applied in Blender before counting and exporting.** | The exporter runs with `use_mesh_modifiers=True`, so `hut_a`s 95 bevels and 12 displaces reach Unity: 9,860 → 22,548 triangles. Counting before applying them puts a wrong number in the sidecar. |
 | **DL26** | **Quality targets discrete GPUs only.** RTX 3060 floor, Apple silicon MacBook Pro (M4 Pro is the dev machine). | 4096 shadow maps, 4 cascades, HDR, SMAA, full post-processing. Integrated graphics are explicitly not a target. |
+| **DL27** | **Borders are a core system: territory drawn as colour, and you can only build inside your own.** | The thing RoN is actually remembered for. Docs 01–11 had RoN's economy but a base-builder's map. Expansion becomes *found a city, wait for the border, then build* — visible to the opponent a minute before it is useful to you. |
+| **DL28** | **Attrition: enemy units inside your borders lose 1.8 HP/s; yours regenerate at 1.0.** | This is what makes borders load-bearing rather than decorative, and it is why you cannot just mass an army and walk it into a capital. Supply wagons are the counter, which gives raiding cavalry a job in every age. |
+| **DL29** | **Cities are the territory instrument, capped 2/3/5/7/9/12 by age, 60 m apart.** | Caps and spacing stop border-stacking and make each city a real decision. Capturing flips territory instantly; razing returns it to neutral. |
+| **DL30** | **Six nations, not RoN's eighteen — chosen around the art we already have.** | Norse, Franks, Rus, Britons, Turks, Maurya. Four of the six unique units (berserker, lancer, horsearcher, war elephant) are already modelled, so six nations costs two new models. |
+| **DL31** | **The Armageddon counter answers Q1.** Five detonations by anyone ends the world; every nation that ever launched loses, a non-nuclear survivor wins. | Better than anything I proposed. The warhead becomes a button that spends a shared, finite, irreversible resource — and the fifth press kills you too. Also makes the ABM site matter, since interception does not increment the counter. |
 
 ---
 
@@ -137,7 +151,7 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 
 | # | Question | Why it matters | Status |
 |---|---|---|---|
-| **Q1** | **Is launching a nuke a win button, or a loss condition disguised as one?** | It decides the shape of the entire endgame, and Age VI art cannot be finalised without the answer. The more interesting answer is the second. | ⬜ Open |
+| ~~Q1~~ | ~~Is launching a nuke a win button, or a loss condition disguised as one?~~ | ✅ **RESOLVED 2026-09-20 by DL31** — the RoN Armageddon counter. Five detonations end the world and everyone who launched loses. | ✅ Closed |
 | **Q2** | Does the existing **Norse RTS** sprite project (`game-ideas/unity/NorseRTS`) get retired, or continue as a separate mobile track? | It shares the Blender asset library. If both live, asset changes must serve two pipelines. | ⬜ Open |
 | **Q3** | Campaign, or skirmish-only at first? | A campaign is a large content commitment; skirmish + a good AI may be the better first release. | ⬜ Open |
 | **Q4** | Target: Steam release, or a portfolio/learning project? | Changes how much polish, localisation and storefront work is scoped. | ⬜ Open |
@@ -267,6 +281,33 @@ Every one of these cost real time on a previous project.
 ## 11. Session log
 
 Append one block per session. Newest at the top.
+
+### 2026-09-20 — Session 4: it is a RISE OF NATIONS clone, not Clash of Clans
+Dhruv corrected the brief. His original words, at the very start, were "a game like rise of nations
+from medieval times to modern times" — the Clash of Clans framing was a later offhand remark and I
+built the docs around it. **Folder and repo keep the `clash-of-clans` name** at his instruction;
+renaming buys nothing and breaks links.
+
+**This was not a find-and-replace.** Only four literal "Clash of Clans" strings existed, and the
+economy was already pure RoN — Knowledge generated not gathered, four research branches, three-gate
+age advance, the catch-up discount. What was missing was RoN's *map*. Docs 01–11 described a game
+where you build a base and fight over resource nodes. **In Rise of Nations you fight over the map
+itself, and the map is coloured.**
+
+`docs/12-territory.html` is the correction: **borders** projected from cities and painted on the
+ground, **attrition** (enemies bleed 1.8 HP/s inside your nation, your own units regenerate),
+**cities** as the capped territory instrument, **rare resources**, **six nations** chosen around the
+art we already own, and the **Armageddon counter**.
+
+**Q1 is closed.** It had been open since session 1: is a nuke a win button or a loss condition
+disguised as one? RoN's own answer is better than anything I proposed — a shared counter where five
+detonations end the world and *every nation that ever launched loses*, so a non-nuclear survivor
+wins. The warhead becomes a button that spends a shared, finite, irreversible resource, and the fifth
+press kills you too. It also makes the ABM site matter, because interception does not increment it.
+
+**Four of the six nations' unique units already exist** (berserker, lancer, horsearcher, war
+elephant), so six nations costs two new models rather than eighteen. The roster was chosen around the
+art, deliberately.
 
 ### 2026-09-20 — Session 3: SLICE 0, and the bridge is real
 Built and verified the whole Blender to Unity path on one asset.

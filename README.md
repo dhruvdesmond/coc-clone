@@ -6,8 +6,10 @@ A medieval-to-modern real-time strategy game for **Windows and macOS**.
 > You finish with a **missile silo**. Everything in between — gathering, building,
 > population, research, war — is the game.
 
-Rise of Nations' age ladder, Clash of Clans' base-building intimacy. Built entirely from
-**procedural Blender assets** in **Unity 6 (URP, 3D)**. Premium, single player vs AI, no timers.
+**A Rise of Nations clone.** Its age ladder, its Knowledge economy, its four research branches — and
+above all its **borders**: territory drawn as colour on the ground, where enemies bleed and you heal.
+Built entirely from **procedural Blender assets** in **Unity 6 (URP, 3D)**. Premium, single player vs
+AI, no timers, no purchases.
 
 | | |
 |---|---|
@@ -15,7 +17,7 @@ Rise of Nations' age ladder, Clash of Clans' base-building intimacy. Built entir
 | **Art** | Blender 5.2.1 LTS, fully procedural — no downloaded models, no image textures |
 | **Ages** | 6 — Settlement · Feudal · Gunpowder · Industrial · Modern · Atomic |
 | **Resources** | 9, never more than 6 on screen (three are age-gated) |
-| **Content** | 39 building types · 60 unit types · ~192 models planned, 35 built |
+| **Content** | 39 building types · 60 unit types · 6 nations · ~192 models planned, 35 built |
 | **Targets** | Discrete GPUs only — RTX 3060 floor, Apple silicon MacBook Pro |
 
 ## Start here
