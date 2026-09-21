@@ -111,6 +111,87 @@ public static class SceneKit
         return mat;
     }
 
+    /// <summary>The water material (COA/Water) and the tileable ripple map it needs. Both are GENERATED: no image comes from disk.</summary>
+    public static Material SavedWater(string matPath, string noisePath)
+    {
+        var shader = Shader.Find("COA/Water");
+        if (shader == null) { Debug.LogError("[water] FAIL shader COA/Water not found"); return SavedLit(matPath, new Color(0.085f, 0.20f, 0.25f, 0.8f), 0.9f, 0f, null, true); }
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+        if (mat == null) { mat = new Material(shader); Directory.CreateDirectory(Path.GetDirectoryName(matPath)); AssetDatabase.CreateAsset(mat, matPath); }
+        mat.shader = shader;                                     // the asset used to be URP/Lit; and a saved asset keeps old values otherwise
+        mat.SetTexture("_Noise", SavedRippleMap(noisePath, 256));
+        mat.renderQueue = (int)RenderQueue.Transparent - 40;
+        EditorUtility.SetDirty(mat);
+        return mat;
+    }
+
+    /// <summary>RG = the surface normal's x/z packed 0..1, B = height. Tileable: every octave's lattice wraps at the edge, so the
+    /// map can slide forever with no seam. Linear, mip-mapped (it is seen from 90 m).</summary>
+    public static Texture2D SavedRippleMap(string path, int size)
+    {
+        var h = new float[size * size]; var rng = new System.Random(19);
+        float amp = 1f, total = 0f;
+        for (int period = 4; period <= 64; period *= 2, amp *= 0.55f)
+        {
+            var lattice = new float[period * period]; for (int i = 0; i < lattice.Length; i++) lattice[i] = (float)rng.NextDouble();
+            float cell = size / (float)period;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float fx = x / cell, fy = y / cell; int x0 = (int)fx, y0 = (int)fy; float tx = fx - x0, ty = fy - y0;
+                    tx = tx * tx * (3f - 2f * tx); ty = ty * ty * (3f - 2f * ty);
+                    int x1 = (x0 + 1) % period, y1 = (y0 + 1) % period; x0 %= period; y0 %= period;
+                    float a = Mathf.Lerp(lattice[y0 * period + x0], lattice[y0 * period + x1], tx), b = Mathf.Lerp(lattice[y1 * period + x0], lattice[y1 * period + x1], tx);
+                    h[y * size + x] += Mathf.Lerp(a, b, ty) * amp;
+                }
+            total += amp;
+        }
+        var px = new Color[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float H(int xx, int yy) => h[((yy + size) % size) * size + ((xx + size) % size)] / total;
+                float dx = (H(x + 1, y) - H(x - 1, y)) * 6f, dy = (H(x, y + 1) - H(x, y - 1)) * 6f;
+                px[y * size + x] = new Color(Mathf.Clamp01(dx * 0.5f + 0.5f), Mathf.Clamp01(dy * 0.5f + 0.5f), H(x, y), 1f);
+            }
+        // stretch the height channel to the full 0..1: the shader thresholds it, and raw fbm huddles around 0.5
+        float lo = 1f, hi = 0f; foreach (var c in px) { lo = Mathf.Min(lo, c.b); hi = Mathf.Max(hi, c.b); }
+        for (int i = 0; i < px.Length; i++) px[i].b = Mathf.InverseLerp(lo, hi, px[i].b);
+
+        var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        bool isNew = tex == null || tex.width != size;
+        if (isNew) tex = new Texture2D(size, size, TextureFormat.RGBA32, true, true);
+        tex.wrapMode = TextureWrapMode.Repeat; tex.filterMode = FilterMode.Trilinear; tex.anisoLevel = 4;
+        tex.SetPixels(px); tex.Apply(true, false);
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        if (isNew) { AssetDatabase.DeleteAsset(path); AssetDatabase.CreateAsset(tex, path); } else EditorUtility.SetDirty(tex);
+        return tex;
+    }
+
+    /// <summary>A flat XZ grid centred on the origin, facing up.</summary>
+    public static Mesh SavedGrid(string path, float sizeX, float sizeZ, float cell)
+    {
+        int nx = Mathf.CeilToInt(sizeX / cell), nz = Mathf.CeilToInt(sizeZ / cell);
+        var v = new Vector3[(nx + 1) * (nz + 1)]; var tri = new int[nx * nz * 6];
+        for (int z = 0; z <= nz; z++)
+            for (int x = 0; x <= nx; x++) v[z * (nx + 1) + x] = new Vector3(-sizeX * 0.5f + x * sizeX / nx, 0f, -sizeZ * 0.5f + z * sizeZ / nz);
+        for (int z = 0, t = 0; z < nz; z++)
+            for (int x = 0; x < nx; x++)
+            {
+                int i = z * (nx + 1) + x;
+                tri[t++] = i; tri[t++] = i + nx + 1; tri[t++] = i + 1; tri[t++] = i + 1; tri[t++] = i + nx + 1; tri[t++] = i + nx + 2;
+            }
+        var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+        bool isNew = mesh == null; if (isNew) mesh = new Mesh(); else mesh.Clear();
+        mesh.name = "water_grid"; mesh.indexFormat = v.Length > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
+        mesh.vertices = v; mesh.triangles = tri; mesh.RecalculateNormals();
+        var bounds = mesh.bounds; bounds.Expand(new Vector3(0f, 1f, 0f)); mesh.bounds = bounds;       // the swell moves vertices in the shader
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        if (isNew) AssetDatabase.CreateAsset(mesh, path); else EditorUtility.SetDirty(mesh);
+        Debug.Log($"[water] grid {nx} x {nz} cells, {v.Length} vertices, {sizeX:F0} x {sizeZ:F0} m");
+        return mesh;
+    }
+
     /// <summary>A saved URP/Unlit transparent material, for rings, markers, bars and ghosts.</summary>
     public static Material SavedUnlit(string path, Color color, bool transparent = true)
     {

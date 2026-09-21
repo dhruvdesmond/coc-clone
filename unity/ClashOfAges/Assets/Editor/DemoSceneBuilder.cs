@@ -46,14 +46,14 @@ public static class DemoSceneBuilder
         Debug.Log($"[demo] terrain bounds {tb.size.x:F3} x {tb.size.y:F3} x {tb.size.z:F3} m, centre {tb.center}");
 
         // ---- water
-        var water = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        water.name = "Water";
-        Object.DestroyImmediate(water.GetComponent<Collider>());
-        water.transform.position = new Vector3(0f, -0.03f, 0f);
-        water.transform.localScale = new Vector3(30f, 1f, 30f);
-        water.GetComponent<MeshRenderer>().sharedMaterial =
-            SceneKit.SavedLit("Assets/Materials/Water.mat", new Color(0.085f, 0.20f, 0.25f, 0.80f), 0.93f, 0.05f, null, true);
-        water.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        // A grid, not Unity's Plane: scaled to this size the primitive's vertices are 30 m apart and a vertex swell does nothing.
+        var water = new GameObject("Water");
+        water.transform.position = new Vector3(0f, COA.Game.WaterSurface.Level, 0f);
+        water.AddComponent<MeshFilter>().sharedMesh = SceneKit.SavedGrid("Assets/World/water_grid.asset", tb.size.x + 120f, tb.size.z + 120f, 2f);
+        var wmr = water.AddComponent<MeshRenderer>();
+        wmr.sharedMaterial = SceneKit.SavedWater("Assets/Materials/Water.mat", "Assets/Materials/WaterNoise.asset");
+        wmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; wmr.receiveShadows = true;
+        water.AddComponent<COA.Game.WaterSurface>();
 
         // ---- instanced world
         var wgo = new GameObject("InstancedWorld");

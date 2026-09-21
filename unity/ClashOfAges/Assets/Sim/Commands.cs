@@ -82,13 +82,15 @@ namespace COA.Sim
         {
             var d = Catalog.Buildings[type];
             if (type != BuildingType.Hall && territory.OwnerAt(pos) != owner) return "Outside your border";
-            if (groundProblem != null) { var g = groundProblem(pos, rot, d.half); if (g != null) return g; }
-            else if (siteOk != null && !siteOk(pos, d.radius)) return "Ground too steep or wet";
             foreach (var b in buildings)
                 if (!b.destroyed && Vec2.Dist(b.pos, pos) < b.def.radius + d.radius + 0.6f) return "Too close to " + b.def.name;
             foreach (var n in nodes)
                 if (!n.Depleted && n.kind != NodeKind.Tree && n.kind != NodeKind.Farm &&
                     Vec2.Dist(n.pos, pos) < Catalog.NodeRadius(n.kind) + d.radius) return "Blocked by a resource";
+            // LAST, because it is the dear one: presentation answers it with dozens of terrain raycasts. Asked first, a bot hunting
+            // for a hut site in a crowded town cost half the frame rate (1,700 refusals a minute, most of them knowable for free).
+            if (groundProblem != null) { var g = groundProblem(pos, rot, d.half); if (g != null) return g; }
+            else if (siteOk != null && !siteOk(pos, d.radius)) return "Ground too steep or wet";
             return null;
         }
 

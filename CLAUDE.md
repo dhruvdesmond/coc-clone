@@ -78,7 +78,35 @@ Vale port. **Do not re-derive their contents from the code — load them.**
 | `unity:urp-postprocessing` | the Volume stack — bloom, tonemapping, colour grading |
 | `unity:physics-3d-collision` | when selection raycasts or unit collision misbehave |
 | `unity:optimize-audio` | the audio pass in `docs/09-fx-audio.html` |
+| `unity:audio-setup-mixers` | an AudioMixer with SFX / ambience / music groups — needed for the distance-and-zoom audio work (PENDING B3) |
+| `unity:validate-urp-render-graph-renderer-feature` | before adding any renderer feature (the unit silhouette is one; fog of war will be another) |
+| `unity:initialize-ai-navigation` | NavMesh problems — units stuck, bad bakes, obstacles |
 | `unity:build-live-game` | save/progression, much later |
+
+### Third-party skills and MCP servers — READ on 2026-09-21, none installed
+
+Dhruv asked what exists online for animation and game design. These were read file by file, not just by their descriptions.
+**Nothing below is installed.** A skill runs with Claude's permissions (this project often runs in bypass mode) and an MCP
+server executes code inside the Editor — so read the `SKILL.md` and any scripts before installing anything, every time.
+
+| What | Facts (2026-09-21) | Verdict for THIS project |
+|---|---|---|
+| [`CoplayDev/unity-mcp`](https://github.com/CoplayDev/unity-mcp) | MIT · 14k★ · active. Drives a **live, open** Editor. Tool groups: core, `animation` (Animator + AnimationClip creation), `vfx` (shaders, procedural textures), `testing`, `profiling` (profiler, memory, **Frame Debugger**), `docs`. | **Maybe later, for LOOKING, not authoring.** Two conflicts with how we work: (1) our scenes are *generated* — anything it edits in a scene is destroyed by the next `DemoSceneBuilder` run; (2) it needs the Editor open, and `tools/u.sh` launches its own Editor on the same project — one project, one Editor. Its real value here is `profiling`/Frame Debugger for open questions Q6 and Q8. |
+| [`Besty0728/Unity-Skills`](https://github.com/Besty0728/Unity-Skills) | MIT · 1.8k★. 805 REST "skills" for the live Editor; built on unity-mcp's idea, adds dry-run, audit log, rollback. | **Skip** — same two conflicts as above; at most one of the two. |
+| [`ahujasid/blender-mcp`](https://github.com/ahujasid/blender-mcp) | MIT · 29k★. Drives a live Blender through an add-on socket; pulls Poly Haven / Sketchfab assets. | **Skip.** Breaks Blender rule 1 (`build.py` is the source of truth — GUI edits are destroyed) and rule 2 (procedural only, nothing downloaded). Independent reviews say it is weak at rigging and exact dimensions — the two things `rig_figure.py` and the sidecar assertions get exactly right. |
+| [`Donchitos/Claude-Code-Game-Studios`](https://github.com/Donchitos/Claude-Code-Game-Studios) | MIT · 25k★. 49 agents + 72 skills: a whole studio PROCESS (epics, sprints, gates, GDD folders). | **Do not install wholesale**: it expects its own folder layout, and its agents stop to ask "May I write this file?" before every change — the opposite of Dhruv's standing direction ("dont wait for me"). **Borrow three ideas** (below). |
+| [`baxatron-git/claude-game-design-suite`](https://github.com/baxatron-git/claude-game-design-suite) | 14★ · **no licence** (read it, do not copy it). 22 design skills. | Its `game-balance-analyst` is the best single file found: dominant-strategy analysis, an option-viability matrix, matchup matrices ("no matchup worse than 30/70"), and *simulate 1000+ encounters*. We have a headless sim — we can actually do that. **Borrow the method.** |
+| `agent-skills-hub` game-design | MIT · generic, 129 lines. | Skip — nothing we do not already do. |
+
+**No skill anywhere writes procedural animation clips.** For that, our own `blender-procedural` skill + `rig_figure.py` (with `--sheet`
+to look before Unity) is the tool, and it is better than anything found.
+
+**Ideas borrowed (no install needed) — tracked in `PENDING.md`:**
+1. **An SFX spec sheet per sound** (from the sound-designer agent): what it is, frequency character, duration, volume range, spatial
+   behaviour, variations needed, concurrency limit, cooldown. Use it for the axe (B3) and then every sound in `Sfx.cs`.
+2. **A playtest report template** (first five minutes · confusion points · moments of delight · bugs · pacing) for Dhruv's sessions.
+3. **A matchup matrix from the headless sim**: run N battles for every unit pair and assert no pairing is worse than 30/70 and the
+   counter triangle is circular. Today one test checks one triangle at one army size.
 
 ### Other
 

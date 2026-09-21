@@ -65,6 +65,59 @@ namespace COA.Game
             Check(bad == 0, $"{when}: all {seen} buildings stand on dry, flat, clear ground");
         }
 
+        /// <summary>Does the water MOVE, in the real frame? Two grabs 1.2 s apart from a camera that has not moved. Water pixels must
+        /// change; LAND pixels are the control and must not -- otherwise a shimmering capture path would pass as "animated water".</summary>
+        IEnumerator WaterBeat(Vector3 near)
+        {
+            // the nearest real shoreline: a point in the shallows with dry land a few metres away
+            Vector3? shore = null;
+            for (float r = 6f; r < 60f && shore == null; r += 2f)
+                for (int k = 0; k < 24 && shore == null; k++)
+                {
+                    float a = k * Mathf.PI / 12f; float x = near.x + Mathf.Cos(a) * r, z = near.z + Mathf.Sin(a) * r;
+                    if (Ground.Sample(x, z, out float y, out _) && y < -0.15f && y > -0.9f) shore = new Vector3(x, 0f, z);
+                }
+            if (shore == null) { Check(false, "water: found a shoreline to look at"); yield break; }
+
+            var cam = Camera.main; var rig = cam.GetComponent<RTSCamera>();
+            rig.Frame(shore.Value, 26f, 30f);
+            GameRoot.I.timeScale = 0.0001f;
+            for (int i = 0; i < 8; i++) yield return null;
+
+            // classify a grid of screen points by what is under them, staying clear of the HUD
+            var waterPts = new List<Vector2Int>(); var landPts = new List<Vector2Int>();
+            for (float u = 0.16f; u <= 0.74f; u += 0.02f)
+                for (float v = 0.22f; v <= 0.84f; v += 0.03f)
+                {
+                    var sp = new Vector3(u * Screen.width, v * Screen.height, 0f);
+                    if (!Ground.Raycast(cam.ScreenPointToRay(sp), out var hit)) continue;
+                    if (hit.y < -0.35f) waterPts.Add(new Vector2Int((int)sp.x, (int)sp.y)); else if (hit.y > 0.5f) landPts.Add(new Vector2Int((int)sp.x, (int)sp.y));
+                }
+
+            yield return new WaitForEndOfFrame();
+            var a0 = ScreenCapture.CaptureScreenshotAsTexture();
+            ScreenCapture.CaptureScreenshot("Verification/09_water.png", 1);
+            float until = Time.realtimeSinceStartup + 1.2f; while (Time.realtimeSinceStartup < until) yield return null;
+            yield return new WaitForEndOfFrame();
+            var a1 = ScreenCapture.CaptureScreenshotAsTexture();
+            ScreenCapture.CaptureScreenshot("Verification/09b_water_later.png", 1);
+
+            float Changed(List<Vector2Int> pts)
+            {
+                int n = 0; foreach (var p in pts) { var c0 = a0.GetPixel(p.x, p.y); var c1 = a1.GetPixel(p.x, p.y);
+                    if (Mathf.Abs(c0.r - c1.r) + Mathf.Abs(c0.g - c1.g) + Mathf.Abs(c0.b - c1.b) > 0.012f) n++; }
+                return pts.Count == 0 ? -1f : n / (float)pts.Count;
+            }
+            float wc = Changed(waterPts), lc = Changed(landPts);
+            Destroy(a0); Destroy(a1);
+            Check(waterPts.Count >= 40 && landPts.Count >= 40, $"water: the view holds both ({waterPts.Count} water samples, {landPts.Count} land samples)");
+            Check(wc > 0.5f, $"water MOVES: {wc * 100f:F0}% of water samples changed in 1.2 s");
+            Check(lc >= 0f && lc < 0.12f, $"control: the land does not ({lc * 100f:F0}% of land samples changed)");
+            for (int i = 0; i < 4; i++) yield return null;
+            GameRoot.I.timeScale = 6f;
+            Log("shot 09_water");
+        }
+
         IEnumerator Shot(string name, Vector3 focus, float height, float yaw)
         {
             var rig = Camera.main.GetComponent<RTSCamera>();
@@ -102,6 +155,7 @@ namespace COA.Game
             var c = w.units.First(u => u.owner == World.Human);
             var tree = w.nodes.Where(n => n.kind == NodeKind.Tree).OrderBy(n => Vec2.Dist(n.pos, c.pos)).First();
             yield return Shot("01_start", g.HallWorldPos, 30f, 30f);
+            yield return WaterBeat(g.HallWorldPos);
             w.CmdGather(new[] { c.id }, tree.id);
             float t0 = w.time;
             while (c.state != UnitState.Gathering && w.time - t0 < 60f) yield return null;
@@ -146,7 +200,7 @@ namespace COA.Game
                 Building Place(BuildingType t, float dist)
                 {
                     var d = Catalog.Buildings[t]; if (!me.stock.CanAfford(d.cost) || building) return null;
-                    for (int i = 0; i < 30; i++)
+                    for (int i = 0; i < 72; i++)                     // 30 was enough for an empty map; a town by a lake fills up
                     {
                         float a = i * 2.399f + (int)t; var p = hallPos + new Vec2(Mathf.Cos(a), Mathf.Sin(a)) * (dist + (i / 6) * 3f);
                         var why = w.SiteProblem(World.Human, t, p, (i * 45) % 360);
