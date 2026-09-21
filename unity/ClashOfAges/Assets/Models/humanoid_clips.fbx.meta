@@ -442,7 +442,7 @@ ModelImporter:
       takeName: Rig|Farm
       internalID: 2173042706890232616
       firstFrame: 0
-      lastFrame: 54
+      lastFrame: 48
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
@@ -500,7 +500,7 @@ ModelImporter:
       takeName: Rig|Forage
       internalID: 7851818728099634479
       firstFrame: 0
-      lastFrame: 60
+      lastFrame: 48
       wrapMode: 0
       orientationOffsetY: 0
       level: 0

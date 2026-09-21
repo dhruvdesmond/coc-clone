@@ -37,6 +37,16 @@
     "z": 2.0332
   },
   "toleranceFraction": 0.04,
+  "gripR": [
+    -0.2854,
+    0.0266,
+    1.0248
+  ],
+  "gripL": [
+    0.3073,
+    0.0767,
+    0.9625
+  ],
   "restPose": "canonical: torso upright, every limb straight down, bone roll pinned to forward",
   "facing": "Unity +Z",
   "pivot": "ground contact under the pelvis"

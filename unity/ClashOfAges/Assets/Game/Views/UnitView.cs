@@ -15,6 +15,62 @@ namespace COA.Game
 
         public Unit Unit => _u;
 
+        // ---- the citizen's hands. Tools are separate props parented to his forearm bone; he holds the one the job needs and
+        //      NOTHING while he carries. (The old figure had an axe welded to its hand: he farmed, mined and hauled with it.)
+        static readonly string[] ToolNames = { "tool_axe", "tool_pick", "tool_hoe", "tool_hammer" };
+        readonly GameObject[] _tools = new GameObject[4]; int _tool = -1; Transform _loadSocket;
+
+        static Transform FindDeep(Transform t, string name)
+        {
+            if (t.name == name) return t;
+            foreach (Transform c in t) { var r = FindDeep(c, name); if (r != null) return r; }
+            return null;
+        }
+
+        /// <summary>MUST run while the figure is still at rest (before the Animator poses it): props are placed square to the
+        /// FIGURE, then handed to a bone. Done later, "square to the figure" would mean square to whatever pose he was in.</summary>
+        void AttachProps(int layer)
+        {
+            var fore = FindDeep(transform, "ForeR"); var body = FindDeep(transform, "Body");
+            if (fore != null && _u.IsCitizen && _root.models.Grip(_u.def.model, out var grip))
+                for (int i = 0; i < ToolNames.Length; i++)
+                {
+                    var prefab = _root.models.Get(ToolNames[i]); if (prefab == null) continue;
+                    var t = Instantiate(prefab, transform); t.name = ToolNames[i];
+                    t.transform.localPosition = grip; t.transform.localRotation = Quaternion.identity; t.transform.localScale = Vector3.one;
+                    t.transform.SetParent(fore, true);
+                    // on the Units layer WITH him: the occluded-silhouette pass skips pixels a unit already drew. Left off it, a
+                    // prop in front of his body made the pass paint his hidden torso over the prop -- the "ghost log".
+                    foreach (var c in t.GetComponentsInChildren<Transform>(true)) c.gameObject.layer = layer;
+                    t.SetActive(false); _tools[i] = t;
+                }
+            if (body != null)
+            {
+                _loadSocket = new GameObject("LoadSocket").transform; _loadSocket.SetParent(transform, false);
+                _loadSocket.localPosition = new Vector3(0f, 1.06f, 0.33f);           // lying across both forearms (Carry clip)
+                _loadSocket.SetParent(body, true);
+            }
+        }
+
+        void UpdateTool()
+        {
+            int want = -1;
+            if (_u.IsCitizen && !_dead && _u.carry <= 0.5f)
+            {
+                bool work = _u.state == UnitState.Gathering || _u.state == UnitState.ToNode;
+                if (_u.state == UnitState.Building || _u.state == UnitState.ToBuild) want = 3;
+                else if (work)
+                {   // the node he is HEADING for, not the last one he worked: lastKind is only set on arrival
+                    var node = _root.World.N(_u.nodeId); var kind = node != null ? node.kind : _u.lastKind;
+                    want = kind == NodeKind.Tree ? 0 : kind == NodeKind.Farm ? 2 : kind == NodeKind.Berry ? -1 : 1;
+                }
+            }
+            if (want == _tool) return;
+            if (_tool >= 0 && _tools[_tool] != null) _tools[_tool].SetActive(false);
+            if (want >= 0 && _tools[want] != null) _tools[want].SetActive(true);
+            _tool = want;
+        }
+
         public static UnitView Create(GameRoot root, Unit u)
         {
             var prefab = root.models.Get(u.def.model);
@@ -37,6 +93,7 @@ namespace COA.Game
             if (NavMesh.SamplePosition(go.transform.position, out var hit, 6f, NavMesh.AllAreas)) v._agent.Warp(hit.position);
 
             // a real skeleton if the model has one (rig_figure.py), otherwise limbs posed in code
+            v.AttachProps(unitsLayer >= 0 ? unitsLayer : 0);                     // while he is still at rest
             var controller = root.models.Controller(u.def.model);
             if (controller != null && RigAnimator.Supports(go)) { var ra = go.AddComponent<RigAnimator>(); ra.Init(controller, RigAnimator.StyleFor(u.def.model)); v._anim = ra; }
             else v._anim = go.AddComponent<FigureAnimator>();
@@ -47,7 +104,7 @@ namespace COA.Game
             if (u.owner == World.Human)
             {   // your own people stand on a soft disc of your border colour: findable at a glance, not loud
                 var disc = MeshKit.Make("TeamDisc", MeshKit.Disc, root.models.teamDisc, go.transform);
-                disc.transform.localPosition = new Vector3(0f, 0.04f, 0f); disc.transform.localScale = Vector3.one * 0.50f;
+                disc.transform.localPosition = new Vector3(0f, 0.015f, 0f); disc.transform.localScale = Vector3.one * 0.44f;
                 v._disc = disc;
             }
             v._hp = HealthBar.Create(go.transform, 2.15f, 0.9f, root.models);
@@ -149,6 +206,8 @@ namespace COA.Game
             else _anim.clip = UnitAnim.Clip.Idle;
 
             UpdateLoad();
+            UpdateTool();
+            SitOnTheGround();
             _hp.Set(_u.hp / _u.maxHp, selected || _u.hp < _u.maxHp - 0.5f);
         }
 
@@ -157,6 +216,16 @@ namespace COA.Game
         public void Cheer(float seconds) { if (_anim != null) _anim.Cheer(seconds); }
 
         /// <summary>The thing being carried must be readable: a log, a berry basket, a stone, an ingot.</summary>
+        /// <summary>The NavMesh is a voxelised approximation of the terrain and can sit 10-20 cm under it; a figure standing on
+        /// the NavMesh stands IN the ground, and his boots disappear into the team disc ("blue feet"). Stand him on the terrain.</summary>
+        void SitOnTheGround()
+        {
+            if (_agent == null || !_agent.enabled || _dead) return;
+            float navY = transform.position.y - _agent.baseOffset;
+            float want = Mathf.Clamp(Ground.Height(transform.position.x, transform.position.z) - navY, -0.5f, 0.5f);
+            _agent.baseOffset = Mathf.Lerp(_agent.baseOffset, want, 1f - Mathf.Exp(-12f * Time.deltaTime));
+        }
+
         void UpdateLoad()
         {
             bool want = _u.carry > 0.5f;
@@ -164,13 +233,14 @@ namespace COA.Game
             {
                 _load = GameObject.CreatePrimitive(_u.carryRes == Res.Wood ? PrimitiveType.Cylinder : PrimitiveType.Cube);
                 Destroy(_load.GetComponent<Collider>());
-                _load.transform.SetParent(transform, false);
+                _load.transform.SetParent(_loadSocket != null ? _loadSocket : transform, false);
+                _load.layer = gameObject.layer;                                     // with him in the silhouette pass: no ghost over the log
                 var mr = _load.GetComponent<MeshRenderer>();
                 mr.sharedMaterial = _root.models.Get(_u.carryRes == Res.Wood ? "node_wood" : _u.carryRes == Res.Food ? "node_food"
                                   : _u.carryRes == Res.Stone ? "node_stone" : "node_iron")?.GetComponentInChildren<MeshRenderer>()?.sharedMaterials[0];
                 if (_u.carryRes == Res.Wood) { _load.transform.localScale = new Vector3(0.16f, 0.42f, 0.16f); _load.transform.localRotation = Quaternion.Euler(0, 0, 90f); }
                 else _load.transform.localScale = new Vector3(0.30f, 0.24f, 0.26f);
-                _load.transform.localPosition = new Vector3(0f, 1.02f, 0.40f);
+                _load.transform.localPosition = _loadSocket != null ? Vector3.zero : new Vector3(0f, 1.02f, 0.40f);
             }
             if (_load != null && _load.activeSelf != want) _load.SetActive(want);
             if (!want && _load != null && _u.carry <= 0f) { Destroy(_load); _load = null; }

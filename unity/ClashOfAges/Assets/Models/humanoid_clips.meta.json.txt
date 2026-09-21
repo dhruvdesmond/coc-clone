@@ -92,14 +92,14 @@
     },
     {
       "name": "Farm",
-      "frames": 54,
-      "seconds": 1.8,
+      "frames": 48,
+      "seconds": 1.6,
       "loop": true
     },
     {
       "name": "Forage",
-      "frames": 60,
-      "seconds": 2.0,
+      "frames": 48,
+      "seconds": 1.6,
       "loop": true
     },
     {
@@ -211,6 +211,16 @@
     "z": 1.7489
   },
   "toleranceFraction": 0.04,
+  "gripR": [
+    -0.2951,
+    -0.0295,
+    0.6621
+  ],
+  "gripL": [
+    0.2806,
+    0.0955,
+    0.7148
+  ],
   "restPose": "canonical: torso upright, every limb straight down, bone roll pinned to forward",
   "facing": "Unity +Z",
   "pivot": "ground contact under the pelvis"

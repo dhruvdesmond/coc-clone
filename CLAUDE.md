@@ -35,6 +35,7 @@ clash-of-clans/                     ← this repo
 │                                      rig_figure (skeleton + THE shared clip library) · export_figure (flat fallback) ·
 │                                      export_nature · figure_sheet
 ├── blender/base/age1_demo/         ← models authored HERE (Rune Hall, Muster Hall, Farm)
+├── blender/base/citizen/           ← THE CITIZEN and his four tools, authored HERE (the library's villager is retired from the game)
 └── unity/ClashOfAges/              ← the game
     └── Assets/
         ├── Sim/       THE GAME. Pure C#, noEngineReferences, 20 Hz. World · Commands · Catalog · Territory · RaidDirector
@@ -172,7 +173,13 @@ tools/export_all.sh [figures|buildings|new|nodes|all]   # re-export every Blende
 
 # palette -> 82 materials. --scan reads materials that live only inside an asset .blend
 $BL -b --factory-startup --python blender/scripts/export_palette.py -- --out $P/Assets/Resources \
-    --scan ~/blender/base/starter/models/node_food.blend ~/blender/base/starter/models/node_iron.blend
+    --scan ~/blender/base/starter/models/node_food.blend ~/blender/base/starter/models/node_iron.blend \
+           blender/base/citizen/models/{citizen,tool_axe,tool_pick,tool_hoe,tool_hammer}.blend
+
+# LOOK at a figure and a clip before Unity: a tool in his hand, 3/4 view, chosen frames
+$BL -b --factory-startup blender/base/citizen/models/citizen.blend --python blender/scripts/rig_figure.py -- \
+    --name tmp --prefix citizen --with-clips --out /tmp/rig --attach blender/base/citizen/models/tool_axe.blend \
+    --sheet /tmp/chop.png --turn 35 --shots "Chop:0,Chop:30,Chop:42,Chop:46"
 
 # the land: unique meshes + instance matrices (axes MEASURED: Blender (x,y,z) -> Unity (-x,z,-y))
 $BL -b --factory-startup ~/blender/base/map_village/map_village.blend \

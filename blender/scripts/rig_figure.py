@@ -41,6 +41,8 @@ FPS = 30
 LIMBS = EF.LIMBS
 PARENT = dict(EF.PARENT)
 CHILD = {"ArmL": "ForeL", "ArmR": "ForeR", "LegL": "ShinL", "LegR": "ShinR"}
+# Where a held tool's grip sits, from the wrist joint, with the arm hanging: in the fist, a little below and ahead.
+HAND_GRIP = Vector((0.0, -0.015, -0.035))
 DOWN, UP, FORWARD = Vector((0, 0, -1)), Vector((0, 0, 1)), Vector((0, -1, 0))
 WALK_SPEED, RUN_SPEED = 3.34, 4.40               # m/s the 24-frame walk and 20-frame run cycles are authored for
 
@@ -84,8 +86,8 @@ def clip_walk(f, n):    # the tool arm swings less: it is carrying something
     return _gait(f, n, 25, 5, lambda s: {"ArmL": (-s * 20, 0, -6), "ForeL": (-20, 0, 0), "ArmR": (s * 11, 0, 6), "ForeR": (-32, 0, 0)})
 
 
-def clip_carry(f, n):
-    return _gait(f, n, 25, 5, lambda s: {"ArmL": (-58, 0, 0), "ForeL": (-48, 0, 0), "ArmR": (-58, 0, 0), "ForeR": (-48, 0, 0)})
+def clip_carry(f, n):   # the load lies across both forearms: elbows in, forearms level, a little lean back against the weight
+    return _gait(f, n, 19, -3, lambda s: {"ArmL": (-26, 0, 3), "ForeL": (-66, 0, 8), "ArmR": (-26, 0, -3), "ForeR": (-66, 0, -8)})
 
 
 def clip_run(f, n):
@@ -114,28 +116,73 @@ def clip_deathfront(f, n):      # pitches forward, arms out to break a fall that
 
 
 # ---------------------------------------------------------------- worker
+# THE BEAT every work clip shares. 0 = the blow has landed, 1 = fully wound up.
+#   THE BLOW LANDS AT THE END OF THE LOOP. The sim fires its impact -- the thock, the chips -- when its work timer wraps,
+#   and the clip starts when the work starts; so a clip whose blow lands at u ~ 0.97 is in time with the sound without the
+#   game knowing anything about it. (The first version landed at u = 0.70: the thock came half a second after the axe.)
+#   And he no longer FREEZES after the hit: the tool bites, is wrenched free (a small rebound), and is drawn back.
+def _beat(u):
+    u %= 1.0
+    if u < 0.06: return 0.0                                     # bites
+    if u < 0.16: return 0.16 * smooth((u - 0.06) / 0.10)        # wrenched free
+    if u < 0.62: return lerp(0.16, 1.0, smooth((u - 0.16) / 0.46))   # drawn back, unhurried
+    if u < 0.80: return 1.0 + 0.06 * math.sin(math.pi * (u - 0.62) / 0.18)   # a breath at the top: anticipation
+    if u < 0.965: return 1.0 - (u - 0.80) / 0.165               # the blow. LINEAR: violence does not ease
+    return 0.0
+
+
+def _mix(hit, wound, k):
+    """Every channel of `hit` blended toward `wound` by k (k may overshoot 1 a little)."""
+    out = {}
+    for l in set(hit) | set(wound):
+        a, b = hit.get(l, (0, 0, 0)), wound.get(l, (0, 0, 0))
+        out[l] = tuple(a[i] + (b[i] - a[i]) * k for i in range(3))
+    return out
+
+
 def _swing(f, n, up, down, body_up, body_dn, reach=0.0):
-    """Slow raise, a SNAP down, a short rest on the wood."""
-    u = (f % n) / n
-    r = smooth(u / 0.62) if u < 0.62 else (1 - (u - 0.62) / 0.08 if u < 0.70 else 0.0)
-    return {"ArmR": (lerp(down, up, r), 0, 0), "ForeR": (lerp(-25, -70, r), 0, 0),
-            "ArmL": (lerp(down + 5 - reach, up * 0.63, r), 0, 0), "ForeL": (-40, 0, 0),
-            "Body": (lerp(body_dn, body_up, r), lerp(6, -12, r), 0), "Head": (lerp(8, -12, r), 0, 0),
-            "LegL": (-10, 0, -3), "LegR": (12, 0, 3), "ShinL": (10, 0, 0), "ShinR": (8, 0, 0)}
+    """Overhead: right for a pick, a hammer, a splitting maul. Knees give as the blow lands."""
+    hit = {"ArmR": (down, 0, 0), "ForeR": (-25, 0, 0), "ArmL": (down + 5 - reach, 0, 0), "ForeL": (-40, 0, 0),
+           "Body": (body_dn, 6, 0), "Head": (8, 0, 0),
+           "LegL": (-22, 0, -3), "ShinL": (30, 0, 0), "LegR": (4, 0, 3), "ShinR": (22, 0, 0)}
+    wound = {"ArmR": (up, 0, 0), "ForeR": (-70, 0, 0), "ArmL": (up * 0.63, 0, 0), "ForeL": (-40, 0, 0),
+             "Body": (body_up, -12, 0), "Head": (-12, 0, 0),
+             "LegL": (-10, 0, -3), "ShinL": (10, 0, 0), "LegR": (12, 0, 3), "ShinR": (8, 0, 0)}
+    return _mix(hit, wound, _beat(f / n))
 
 
-def clip_chop(f, n): return _swing(f, n, -150, -35, -10, 16)
 def clip_hammer(f, n): return _swing(f, n, -120, -48, -4, 12)
 def clip_mine(f, n): return _swing(f, n, -172, -22, -14, 30, reach=10)          # a pick comes from right overhead, into the ground
 
 
-def clip_farm(f, n):            # hoeing: reach out, chop down, drag back
-    u = (f % n) / n
-    reach = snap(u, [(0, 0), (0.30, 1), (0.38, 1), (0.46, 0.55), (1.0, 0)])
-    return {"Body": (22 + 10 * reach, 0, 0), "Head": (10, 0, 0),
-            "ArmR": (lerp(-28, -78, reach), 0, 4), "ForeR": (lerp(-62, -12, reach), 0, 0),
-            "ArmL": (lerp(-40, -92, reach), 0, -4), "ForeL": (lerp(-58, -8, reach), 0, 0),
-            "LegL": (-16, 0, -3), "ShinL": (18, 0, 0), "LegR": (14, 0, 3), "ShinR": (10, 0, 0)}
+# A TREE IS NOT A LOG ON A BLOCK. The first Chop was the overhead swing above, aimed at a standing trunk. This one is a
+# woodsman's: wound up behind the right shoulder with the body turned away, then hips, shoulders, arms -- ACROSS the body
+# and into the trunk at waist height. The tool is square to the forearm and its edge points down the forearm, so:
+#   forearm across the body pointing LEFT  ->  haft points FORWARD into the tree, edge leading LEFT. That is the blow.
+#   the swing itself is the forearm (and the body under it) sweeping round the vertical: ForeR yaw.
+CHOP_HIT = {"Body": (16, 32, 0), "Head": (2, -26, 0),
+            "ArmR": (-38, 0, 6), "ForeR": (-8, 14, -84),
+            "ArmL": (-46, -34, 0), "ForeL": (-52, 0, 26),              # the left hand comes across to the haft
+            "LegL": (-26, 0, -6), "ShinL": (34, 0, 0), "LegR": (16, 0, 8), "ShinR": (24, 0, 0)}
+CHOP_WOUND = {"Body": (2, -40, 0), "Head": (-2, 34, 0),
+              "ArmR": (14, 0, 38), "ForeR": (-20, -128, -84),
+              "ArmL": (-44, -50, 0), "ForeL": (-52, 0, 30),
+              "LegL": (-14, 0, -6), "ShinL": (12, 0, 0), "LegR": (14, 0, 8), "ShinR": (10, 0, 0)}
+
+
+def clip_chop(f, n): return _mix(CHOP_HIT, CHOP_WOUND, _beat(f / n))
+
+
+def clip_farm(f, n):
+    """Hoeing: reach out, chop down, drag home. The hoe runs down from the fist, so where it points is the forearm's pitch
+    in the WORLD = arm + forearm + the body's lean. The chop lands at the end of the loop, like every blow."""
+    u = ((f / n) - 0.51) % 1.0
+    reach = snap(u, [(0, 0), (0.30, 1), (0.38, 1.12), (0.46, 0.62), (1.0, 0)])     # 1.12: lifted clear before it comes down
+    lift = snap(u, [(0, 0), (0.30, 0), (0.38, 1), (0.46, 0), (1.0, 0)])
+    return {"Body": (20 + 9 * reach, 0, 0), "Head": (12, 0, 0),
+            "ArmR": (lerp(-24, -44, reach) - 14 * lift, 0, 6), "ForeR": (lerp(-32, -42, reach) - 10 * lift, 0, 0),
+            "ArmL": (lerp(-40, -62, reach) - 14 * lift, 8, -4), "ForeL": (lerp(-20, -30, reach), 0, 14),
+            "LegL": (-18, 0, -4), "ShinL": (22, 0, 0), "LegR": (14, 0, 4), "ShinR": (12, 0, 0)}
 
 
 def clip_forage(f, n):          # crouched at the bush, hands working alternately
@@ -303,7 +350,7 @@ CLIPS = [("Idle",         72, True,  clip_idle,        True),  ("Walk",        2
          ("Death",        33, False, clip_death,       False), ("DeathFront",  33, False, clip_deathfront, False),
          ("Carry",        24, True,  clip_carry,       True),  ("Chop",        48, True,  clip_chop,       True),
          ("Hammer",       33, True,  clip_hammer,      True),  ("Mine",        48, True,  clip_mine,       True),
-         ("Farm",         54, True,  clip_farm,        True),  ("Forage",      60, True,  clip_forage,     True),
+         ("Farm",         48, True,  clip_farm,        True),  ("Forage",      48, True,  clip_forage,     True),
          ("Flee",         18, True,  clip_flee,        True),  ("Cheer",       40, True,  clip_cheer,      True),
          ("Attack",       27, False, clip_attack,      True),  ("Attack2",     27, False, clip_attack2,    True),
          ("Block",        18, False, clip_block,       True),  ("GuardIdle",   72, True,  clip_guardidle,  True),
@@ -414,6 +461,24 @@ def main():
     ctx = EF.prepare(name, prefix)
     limb_obj, pivots, tips, coll = ctx["limb_obj"], ctx["pivots"], ctx["tips"], ctx["coll"]
     canonicalise(limb_obj, pivots, tips)
+
+    # ---- optional: put a TOOL in the right hand, for contact sheets only. It is joined to the forearm exactly as Unity
+    #      will parent it to the ForeR bone: grip at the hand, in rig space, with the arm hanging. Never used for an export
+    #      that ships -- the citizen's mesh carries no tool; he swaps them.
+    attach = EF._opt(args, "--attach")
+    if attach:
+        with bpy.data.libraries.load(attach) as (src, dst):
+            dst.objects = list(src.objects)
+        fore = limb_obj["ForeR"]; grip = tips["ForeR"] + HAND_GRIP
+        for o in [o for o in dst.objects if o is not None and o.type == "MESH"]:
+            coll.objects.link(o)
+            bpy.context.view_layer.update()
+            o.data.transform(Matrix.Translation(grip - pivots["ForeR"]) @ o.matrix_world)
+            o.matrix_world = fore.matrix_world.copy()
+            bpy.ops.object.select_all(action="DESELECT")
+            o.select_set(True); fore.select_set(True); bpy.context.view_layer.objects.active = fore
+            bpy.ops.object.join()
+        limb_obj["ForeR"] = bpy.context.view_layer.objects.active
 
     head = {l: pivots[l].copy() for l in LIMBS}
     tail = {l: tips[l].copy() for l in tips}
@@ -531,6 +596,9 @@ def main():
         "bones": ["Root"] + LIMBS, "fps": FPS, "walkSpeed": WALK_SPEED, "runSpeed": RUN_SPEED,
         "clips": [{"name": c, "frames": n, "seconds": round(n / FPS, 4), "loop": lp} for c, n, lp in report],
         "dimensionsMetres": {"x": dims[0], "y": dims[1], "z": dims[2]}, "toleranceFraction": 0.04,
+        # rig space (Blender, metres): x right-to-left, -y forward, z up. Unity = (-x, z, -y). A tool is parented to the
+        # ForeR bone with its origin here and its axes square to the FIGURE, while the figure is at rest.
+        "gripR": [round(c, 4) for c in (tail["ForeR"] + HAND_GRIP)], "gripL": [round(c, 4) for c in (tail["ForeL"] + HAND_GRIP)],
         "restPose": "canonical: torso upright, every limb straight down, bone roll pinned to forward",
         "facing": "Unity +Z", "pivot": "ground contact under the pelvis",
     }

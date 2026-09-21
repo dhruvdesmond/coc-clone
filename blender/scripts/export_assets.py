@@ -127,12 +127,22 @@ def main():
         print(f"[asset] ! triangle count changed in join: {src_tris} -> {out_tris}")
         sys.exit(1)
 
+    # --- props built with lib/figure.py's seg() arrive inside-out (see export_figure.py). Opt-in: a building's open planes
+    #     (shingles, banners) have no "outward" and must not be touched.
+    if "--recalc-normals" in args:
+        import bmesh
+        bm = bmesh.new(); bm.from_mesh(joined.data)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        bm.to_mesh(joined.data); bm.free(); joined.data.update()
+
     # --- recentre on the ground-contact point ---------------------------------
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     bb = [joined.matrix_world @ __import__("mathutils").Vector(c)
           for c in joined.bound_box]
     xs = [v.x for v in bb]; ys = [v.y for v in bb]; zs = [v.z for v in bb]
     cx, cy, zmin = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, min(zs)
+    if "--keep-origin" in args:          # a held PROP: its origin is the grip, and moving it to the ground would move the grip
+        cx = cy = zmin = 0.0
     for v in joined.data.vertices:
         v.co.x -= cx; v.co.y -= cy; v.co.z -= zmin
     joined.location = (0, 0, 0)

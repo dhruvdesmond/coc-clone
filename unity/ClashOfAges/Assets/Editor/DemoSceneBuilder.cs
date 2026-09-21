@@ -102,6 +102,16 @@ public static class DemoSceneBuilder
             var p = AssetDatabase.GUIDToAssetPath(guid);
             lib.names.Add(Path.GetFileNameWithoutExtension(p));
             lib.prefabs.Add(AssetDatabase.LoadAssetAtPath<GameObject>(p));
+            var rigSide = Path.ChangeExtension(p, null) + ".meta.json.txt";
+            if (File.Exists(rigSide))
+            {   // measured axes: Blender (x, y, z) -> Unity (-x, z, -y)
+                var gm = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(rigSide), @"""gripR"":\s*\[\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)");
+                if (gm.Success)
+                {
+                    float F(int i) => float.Parse(gm.Groups[i].Value, System.Globalization.CultureInfo.InvariantCulture);
+                    lib.gripNames.Add(Path.GetFileNameWithoutExtension(p)); lib.grips.Add(new Vector3(-F(1), F(3), -F(2)));
+                }
+            }
         }
         // Catalog.half is a second copy of the model's size, so it is ASSERTED against the first: the sidecar Blender wrote.
         foreach (var d in COA.Sim.Catalog.Buildings.Values)

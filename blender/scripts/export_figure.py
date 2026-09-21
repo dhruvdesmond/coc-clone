@@ -40,6 +40,11 @@ PART = {
     "Shoulderr": "ArmR", "UpperArmr": "ArmR", "Elbowr": "ForeR", "Forearmr": "ForeR", "Handr": "ForeR",
     "Hipl": "LegL", "Thighl": "LegL", "Kneel": "ShinL", "Shinl": "ShinL", "Footl": "ShinL",
     "Hipr": "LegR", "Thighr": "LegR", "Kneer": "ShinR", "Shinr": "ShinR", "Footr": "ShinR",
+    # the citizen authored in this repo (blender/base/citizen/build.py): clothing and a face
+    "Skirt": "Body", "Hem": "Body", "Buckle": "Body", "Pouch": "Body", "Collar": "Body",
+    "Cap": "Head", "CapBrim": "Head", "Nose": "Head", "Brow": "Head", "Eyel": "Head", "Eyer": "Head",
+    "Cuffl": "ForeL", "Cuffr": "ForeR",
+    "Bootl": "ShinL", "BootCuffl": "ShinL", "Bootr": "ShinR", "BootCuffr": "ShinR",
 }
 PIVOT = {"Body": "Belt", "Head": "Neck", "ArmL": "Shoulderl", "ForeL": "Elbowl", "ArmR": "Shoulderr",
          "ForeR": "Elbowr", "LegL": "Hipl", "ShinL": "Kneel", "LegR": "Hipr", "ShinR": "Kneer"}
@@ -81,6 +86,20 @@ def prepare(name, prefix):
     bpy.context.view_layer.objects.active = meshes[0]
     bpy.ops.object.convert(target="MESH")                       # apply modifiers
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+    # ---- FACE NORMALS. lib/figure.py's seg() winds every box INSIDE-OUT (measured: 14 of the old villager's parts, 100% of
+    #      their faces). Cycles is double-sided so it never showed; Unity culls back faces, so every figure in the game was
+    #      drawn as the INSIDE of its own limbs and torso. ~/blender is not ours to fix, so each part is corrected here, while
+    #      it is still one closed shell and "outward" is unambiguous.
+    import bmesh
+    flipped = 0
+    for o in meshes:
+        bm = bmesh.new(); bm.from_mesh(o.data)
+        before = [f.normal.copy() for f in bm.faces]
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        flipped += sum(1 for f, b in zip(bm.faces, before) if f.normal.dot(b) < 0)
+        bm.to_mesh(o.data); bm.free(); o.data.update()
+    print(f"[figure] normals: {flipped} inside-out faces turned outward")
 
     # ---- recentre on the ground-contact point and turn to face Blender -Y (= Unity +Z) ------
     pts = [o.matrix_world @ Vector(c) for o in meshes for c in o.bound_box]

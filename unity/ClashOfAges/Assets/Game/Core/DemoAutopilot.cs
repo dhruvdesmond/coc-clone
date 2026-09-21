@@ -46,6 +46,7 @@ namespace COA.Game
         /// <summary>WHY the bot could not build, tallied per sim-minute. A bot that cannot find a site does not crash; it just
         /// quietly loses twenty minutes later, and the loss looks like balance.</summary>
         readonly Dictionary<string, int> _refused = new Dictionary<string, int>();
+        readonly HashSet<string> _jobShots = new HashSet<string>();
 
         void Check(bool ok, string what) { Log((ok ? "PASS " : "FAIL ") + what); if (!ok) _fail++; }
 
@@ -164,11 +165,18 @@ namespace COA.Game
             yield return WaitSim(1.0f);
             var toTree = tree.pos - c.pos; float faceYaw = Mathf.Atan2(toTree.x, toTree.z) * Mathf.Rad2Deg;
             yield return Shot("02_first_chop", Ground.At(c.pos), 8f, faceYaw + 35f);
+            // ...and the blow itself. The sim fires the impact when workTimer wraps at 1.6 s; the clip is authored to LAND there.
+            g.timeScale = 1f;
+            float ti = w.time; while (c.state == UnitState.Gathering && c.workTimer < 1.52f && w.time - ti < 4f) yield return null;
+            yield return Shot("02c_chop_lands", Ground.At(c.pos), 8f, faceYaw + 35f);
             float wood0 = w.Me.stock[Res.Wood];
             yield return WaitSim(45f);
             float tc = w.time; while (c.carry < 1f && w.time - tc < 40f) yield return null;
             while (c.state != UnitState.ToDropOff && w.time - tc < 60f) yield return null;
-            yield return WaitSim(1.2f);
+            // out in the open, not under the canopy he has just left: half-way home
+            float home0 = Vec2.Dist(tree.pos, Ground.ToSim(g.HallWorldPos));
+            g.timeScale = 1f;
+            while (!(c.carry > 1f && c.state == UnitState.ToDropOff && Vec2.Dist(c.pos, Ground.ToSim(g.HallWorldPos)) < home0 * 0.62f) && w.time - tc < 150f) yield return null;
             yield return Shot("02b_citizen_carrying", Ground.At(c.pos), 8f, faceYaw + 200f);
             Check(w.Me.stock[Res.Wood] > wood0 + 9f || c.carry > 1f, "wood was carried home and deposited: " + wood0.ToString("F0") + " -> " + w.Me.stock[Res.Wood].ToString("F0"));
         }
@@ -295,6 +303,19 @@ namespace COA.Game
                 // ---- the named shots ----
                 var firstHut = w.buildings.FirstOrDefault(b => b.owner == World.Human && b.type == BuildingType.Hut && b.complete);
                 if (!shotHut && firstHut != null) { shotHut = true; yield return Shot("03_first_hut", Ground.At(firstHut.pos), 22f, 60f); }
+                // the citizen at each of his jobs, close up: is the right tool in his hand, and does the blow land?
+                foreach (var job in new[] { ("10_citizen_farming", NodeKind.Farm), ("11_citizen_mining", NodeKind.Stone), ("12_citizen_foraging", NodeKind.Berry) })
+                {
+                    if (_jobShots.Contains(job.Item1)) continue;
+                    var worker = citizens.FirstOrDefault(c => c.state == UnitState.Gathering && c.lastKind == job.Item2 && c.workTimer > 0.4f);
+                    if (worker == null) continue;
+                    _jobShots.Add(job.Item1); yield return Shot(job.Item1, Ground.At(worker.pos), 8f, worker.facing + 215f);
+                }
+                if (!_jobShots.Contains("13_citizen_building"))
+                {
+                    var builder = citizens.FirstOrDefault(c => c.state == UnitState.Building && c.workTimer > 0.3f);
+                    if (builder != null) { _jobShots.Add("13_citizen_building"); yield return Shot("13_citizen_building", Ground.At(builder.pos), 8f, builder.facing + 215f); }
+                }
                 if (!shotRune && rune != null && rune.scholars >= 2) { shotRune = true; yield return Shot("04_rune_hall_staffed", Ground.At(rune.pos), 26f, 150f); }
                 if (!shotBorder && tower != null && tower.complete) { shotBorder = true; yield return WaitSim(2f); yield return Shot("05_border", g.HallWorldPos, 62f, 20f); }
                 if (!shotAge && me.age >= 2) { shotAge = true; yield return WaitSim(3f); yield return Shot("06_feudal_age", g.HallWorldPos, 40f, 110f); }
