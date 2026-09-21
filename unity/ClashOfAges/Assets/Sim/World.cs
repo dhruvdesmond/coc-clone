@@ -36,6 +36,7 @@ namespace COA.Sim
     public sealed class Node
     {
         public int id; public NodeKind kind; public Vec2 pos; public float amount, max; public int treeEntity = -1;
+        public float radius = 1.6f;                  // a tree's CANOPY. The trunk is a point; the canopy is what ends up through a roof.
         public int workers; public int farmBuilding = -1; public bool Depleted => amount <= 0f;
     }
 
@@ -71,6 +72,9 @@ namespace COA.Sim
 
         /// <summary>Presentation's answer to "is this ground usable": slope, water, map edge. Null = always yes.</summary>
         public Func<Vec2, float, bool> siteOk;
+        /// <summary>Presentation's answer for a whole FOOTPRINT (centre, yaw, half-extents): null if buildable, else the reason
+        /// in words the player can act on. The sim is 2D and has no idea where the lakes are.</summary>
+        public Func<Vec2, float, Vec2, string> groundProblem;
 
         int _nextId = 1;
         readonly Dictionary<int, Unit> _unitById = new Dictionary<int, Unit>();

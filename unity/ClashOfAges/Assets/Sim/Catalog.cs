@@ -19,6 +19,9 @@ namespace COA.Sim
         public BuildingType type; public string name, model, blurb, hotkey; public Cost cost; public float buildTime, hp, radius;
         public int popProvided; public bool dropOff; public float territory; public UnitType[] trains = new UnitType[0];
         public float towerRange, towerDps; public int scholarSlots; public float knowledgeBase, knowledgePerScholar;
+        /// <summary>Half the footprint, in the building's own axes: x along the model's length, z across it. MEASURED from the
+        /// model's sidecar and asserted against it by DemoSceneBuilder -- `radius` is only for spacing and for who can reach it.</summary>
+        public Vec2 half;
     }
 
     public sealed class TechDef
@@ -54,29 +57,29 @@ namespace COA.Sim
         {
             [BuildingType.Hall]       = new BuildingDef { type = BuildingType.Hall, name = "Longhouse", model = "hall", hotkey = "",
                 blurb = "Town centre. Trains citizens, takes every resource, anchors your border.",
-                cost = Cost.Of(food: 200, wood: 200, stone: 100), buildTime = 90, hp = 2400, radius = 7.5f, popProvided = 5,
+                cost = Cost.Of(food: 200, wood: 200, stone: 100), buildTime = 90, hp = 2400, radius = 7.5f, half = new Vec2(7.9f, 4.65f), popProvided = 5,
                 dropOff = true, territory = 38f, trains = new[] { UnitType.Citizen },
                 towerRange = 12f, towerDps = 5f },     // an RoN city defends itself a little: the first raid is a scare, not a wipe
             [BuildingType.Hut]        = new BuildingDef { type = BuildingType.Hut, name = "Hut", model = "hut_a", hotkey = "H",
-                blurb = "+5 population.", cost = Cost.Of(wood: 40), buildTime = 15, hp = 400, radius = 3.2f, popProvided = 5 },
+                blurb = "+5 population.", cost = Cost.Of(wood: 40), buildTime = 15, hp = 400, radius = 3.2f, half = new Vec2(2.75f, 2.5f), popProvided = 5 },
             [BuildingType.Storehouse] = new BuildingDef { type = BuildingType.Storehouse, name = "Storehouse", model = "stabbur", hotkey = "T",
                 blurb = "Resource drop-off. Put it next to what you are gathering.",
-                cost = Cost.Of(wood: 60), buildTime = 20, hp = 500, radius = 3.8f, dropOff = true },
+                cost = Cost.Of(wood: 60), buildTime = 20, hp = 500, radius = 3.8f, half = new Vec2(3.7f, 3.45f), dropOff = true },
             [BuildingType.RuneHall]   = new BuildingDef { type = BuildingType.RuneHall, name = "Rune Hall", model = "runehall", hotkey = "R",
                 blurb = "Makes Knowledge - the only way to the next age. Staff it with scholars.",
-                cost = Cost.Of(wood: 120, stone: 40), buildTime = 40, hp = 700, radius = 5.2f,
+                cost = Cost.Of(wood: 120, stone: 40), buildTime = 40, hp = 700, radius = 5.2f, half = new Vec2(5.15f, 4.5f),
                 scholarSlots = 2, knowledgeBase = 0.20f, knowledgePerScholar = 0.15f },
             [BuildingType.Muster]     = new BuildingDef { type = BuildingType.Muster, name = "Muster Hall", model = "muster", hotkey = "M",
                 blurb = "Trains swordsmen, spearmen and archers.",
-                cost = Cost.Of(wood: 100, metal: 30), buildTime = 30, hp = 900, radius = 6.2f,
+                cost = Cost.Of(wood: 100, metal: 30), buildTime = 30, hp = 900, radius = 6.2f, half = new Vec2(6.35f, 3.6f),
                 trains = new[] { UnitType.Swordsman, UnitType.Spearman, UnitType.Archer } },
             [BuildingType.Tower]      = new BuildingDef { type = BuildingType.Tower, name = "Watchtower", model = "tower_a", hotkey = "W",
                 blurb = "Shoots raiders and pushes your border out by 22 m.",
-                cost = Cost.Of(wood: 60, stone: 40), buildTime = 25, hp = 800, radius = 2.4f,
+                cost = Cost.Of(wood: 60, stone: 40), buildTime = 25, hp = 800, radius = 2.4f, half = new Vec2(1.85f, 1.85f),
                 territory = 22f, towerRange = 16f, towerDps = 8f },
             [BuildingType.Farm]       = new BuildingDef { type = BuildingType.Farm, name = "Farm", model = "farm", hotkey = "F",
                 blurb = "Slow food that never runs out. Two workers.",
-                cost = Cost.Of(wood: 50), buildTime = 18, hp = 300, radius = 4.3f },
+                cost = Cost.Of(wood: 50), buildTime = 18, hp = 300, radius = 4.3f, half = new Vec2(3.9f, 3.15f) },
         };
 
         public static readonly TechDef[] Techs =

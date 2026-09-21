@@ -178,4 +178,51 @@ public class SimTests
         Assert.IsTrue(rune != null && rune.complete, $"the bot must get a Rune Hall up (citizens {w.units.Count(u => u.IsCitizen && u.owner == World.Human)}, wood {w.Me.stock[Res.Wood]:F0}, stone {w.Me.stock[Res.Stone]:F0}, food {w.Me.stock[Res.Food]:F0}, placed {rune != null})");
         Assert.That(w.time / 60f, Is.InRange(2.5f, 12.5f), "docs/03 puts the Rune Hall at ~8-10 min for a HUMAN; a bot with straight-line walking and close nodes measured 5.9");
     }
+
+    // ---------------------------------------------------------------- PENDING B1: no building in a lake or a tree
+    [Test] public void FootprintDistance_IsARectangleNotACircle()
+    {
+        var half = new Vec2(8f, 4f); var c = new Vec2(10, 10);
+        Assert.AreEqual(0f, Footprint.Dist(new Vec2(17.9f, 13.9f), c, 0f, half), 1e-4f, "a corner is INSIDE; a 7.5 m circle says it is 1.4 m outside");
+        Assert.AreEqual(2f, Footprint.Dist(new Vec2(10f, 16f), c, 0f, half), 1e-4f);
+        Assert.AreEqual(2f, Footprint.Dist(new Vec2(16f, 10f), c, 90f, half), 1e-4f, "turned 90: the long axis now runs along z");
+        var p = new Vec2(3.3f, -1.2f);
+        var back = Footprint.ToLocal(Footprint.ToWorld(p, c, 37f), c, 37f);
+        Assert.AreEqual(p.x, back.x, 1e-4f); Assert.AreEqual(p.z, back.z, 1e-4f);
+    }
+
+    [Test] public void Placement_RefusesWater_UnderAnyPartOfTheFootprint()
+    {
+        var w = NewWorld(out _, out var c);
+        // a lake: everything east of x = 20. The sim cannot see it; presentation tells it, for the WHOLE turned rectangle.
+        w.groundProblem = (pos, rot, half) =>
+        {
+            foreach (var corner in new[] { new Vec2(half.x, half.z), new Vec2(half.x, -half.z), new Vec2(-half.x, half.z), new Vec2(-half.x, -half.z) })
+                if (Footprint.ToWorld(corner, pos, rot).x > 20f) return "Too close to water";
+            return null;
+        };
+        var d = Catalog.Buildings[BuildingType.Muster];                        // 12.7 x 7.2 m: long enough to matter
+        var site = new Vec2(20f - d.half.z - 0.5f, 0f);                        // fits ONLY if its short side faces the lake
+        Assert.AreEqual("Too close to water", w.SiteProblem(World.Human, BuildingType.Muster, site, 0f));
+        Assert.IsNull(w.SiteProblem(World.Human, BuildingType.Muster, site, 90f), "turned 90 degrees it clears the shore");
+        w.Me.stock[Res.Wood] = 500; w.Me.stock[Res.Metal] = 500;
+        Assert.IsNull(w.CmdPlace(World.Human, BuildingType.Muster, site, 0f, Ids(c), out var why)); Assert.AreEqual("Too close to water", why);
+    }
+
+    [Test] public void Placement_ClearsEveryTreeWhoseCanopyReachesTheWalls()
+    {
+        var w = NewWorld(out _, out var c);
+        w.Me.stock[Res.Wood] = 500; w.Me.stock[Res.Metal] = 500;
+        var d = Catalog.Buildings[BuildingType.Muster]; var site = new Vec2(0f, 22f);
+        var inside  = w.SpawnNode(NodeKind.Tree, site + new Vec2(d.half.x - 0.5f, 0f), 100f);
+        var corner  = w.SpawnNode(NodeKind.Tree, site + new Vec2(d.half.x - 0.3f, d.half.z - 0.3f), 100f);   // the rectangle's corner
+        var canopy  = w.SpawnNode(NodeKind.Tree, site + new Vec2(0f, d.half.z + 2.0f), 100f); canopy.radius = 3.2f;   // trunk clear of the wall, crown through the roof
+        var far     = w.SpawnNode(NodeKind.Tree, site + new Vec2(0f, d.half.z + 6.0f), 100f); far.radius = 3.2f;
+        var b = w.CmdPlace(World.Human, BuildingType.Muster, site, 0f, Ids(c), out var why);
+        Assert.IsNotNull(b, why);
+        Assert.IsTrue(inside.Depleted && corner.Depleted, "trees inside the rectangle are felled");
+        Assert.IsTrue(canopy.Depleted, "a tree whose CANOPY reaches the wall is felled, wherever its trunk is");
+        Assert.IsFalse(far.Depleted, "a tree that does not reach the building is left alone");
+        Assert.AreEqual(0, w.TreesOn(b.pos, b.rot, b.def.half).Count);
+    }
 }

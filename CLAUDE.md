@@ -10,7 +10,9 @@ cities as the territory instrument, rare resources, national powers, and a share
 If a proposed feature would work equally well in a base-builder, it is probably the wrong feature.
 See `docs/12-territory.html`.
 
-> **Read `PROGRESS.md` first, every session. Update it last, every session.**
+> **Read `PENDING.md` and `PROGRESS.md` first, every session. Update them last, every session.**
+> `PENDING.md` is the queue and the pointer store: when Dhruv sends a screenshot, a bug or a half-sentence of direction, it is
+> written into PENDING §5 **before** any work starts — his words, verbatim. `PROGRESS.md` is the history and the detail.
 > It is the living state of the project: done / in flight / next, the decisions log with reasons, the
 > open questions, and every trap already paid for. It exists so a lost chat session costs nothing.
 > The design lives in `index.html` + `docs/`. This file is how to *work* here.
@@ -22,7 +24,8 @@ See `docs/12-territory.html`.
 ```
 clash-of-clans/                     ← this repo
 ├── CLAUDE.md                       ← you are here
-├── PROGRESS.md                     ← LIVING STATE. read first, update last.
+├── PENDING.md                      ← THE QUEUE + every pointer Dhruv gives. If it disagrees with PROGRESS on what is pending, it wins.
+├── PROGRESS.md                     ← LIVING STATE: done, decisions, gotchas, session log. read first, update last.
 ├── index.html                      ← design hub, opens the 13 docs
 ├── style.css
 ├── docs/01-concept … 13-demo.html
@@ -133,7 +136,7 @@ UE=/Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app/Contents/MacOS/Unity
 P=/Users/dhruv/clash-of-clans/unity/ClashOfAges
 
 # THE THREE YOU WILL ACTUALLY USE
-tools/test.sh                        # 10 headless sim tests. Batchmode is safe: no pixels.
+tools/test.sh                        # 13 headless sim tests. Batchmode is safe: no pixels.
 tools/u.sh play DemoVerify.Full      # a bot plays the whole demo in the Editor: 8 screenshots, asserts, exits
 tools/u.sh compile                   # ALWAYS before a GUI run -- a compile error in GUI mode hangs on a dialog
 

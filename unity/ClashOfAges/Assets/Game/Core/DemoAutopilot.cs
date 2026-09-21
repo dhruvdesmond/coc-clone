@@ -43,7 +43,27 @@ namespace COA.Game
         }
 
         void Log(string s) { _report.Add(s); Debug.Log("[autopilot] " + s); }
+        /// <summary>WHY the bot could not build, tallied per sim-minute. A bot that cannot find a site does not crash; it just
+        /// quietly loses twenty minutes later, and the loss looks like balance.</summary>
+        readonly Dictionary<string, int> _refused = new Dictionary<string, int>();
+
         void Check(bool ok, string what) { Log((ok ? "PASS " : "FAIL ") + what); if (!ok) _fail++; }
+
+        /// <summary>PENDING B1: a human found the longhouse standing in a lake in his first ten minutes; the bot had walked past it
+        /// for eight sessions. So the bot now looks: every building on the map, both sides, must stand on dry flat ground with no
+        /// live tree's canopy reaching its walls.</summary>
+        void CheckFootprints(string when)
+        {
+            var w = GameRoot.I.World; int bad = 0, seen = 0;
+            foreach (var b in w.buildings)
+            {
+                if (b.destroyed) continue; seen++;
+                var ground = Ground.FootprintProblem(b.pos, b.rot, b.def.half); int trees = w.TreesOn(b.pos, b.rot, b.def.half).Count;
+                if (ground == null && trees == 0) continue;
+                bad++; Log($"  {b.def.name} (owner {b.owner}) at {b.pos.x:F1},{b.pos.z:F1} heading {b.rot:F0}: {ground ?? "ground ok"}, {trees} tree(s) in the walls");
+            }
+            Check(bad == 0, $"{when}: all {seen} buildings stand on dry, flat, clear ground");
+        }
 
         IEnumerator Shot(string name, Vector3 focus, float height, float yaw)
         {
@@ -85,6 +105,7 @@ namespace COA.Game
             w.CmdGather(new[] { c.id }, tree.id);
             float t0 = w.time;
             while (c.state != UnitState.Gathering && w.time - t0 < 60f) yield return null;
+            CheckFootprints("at the start");
             Check(c.state == UnitState.Gathering, "citizen reached the tree and is chopping (" + (w.time - t0).ToString("F1") + " s)");
             yield return WaitSim(1.0f);
             var toTree = tree.pos - c.pos; float faceYaw = Mathf.Atan2(toTree.x, toTree.z) * Mathf.Rad2Deg;
@@ -117,6 +138,8 @@ namespace COA.Game
                     Log($"t={w.time / 60f:F0}m real={Time.realtimeSinceStartup:F0}s fps={1f / Time.unscaledDeltaTime:F0} cit={w.units.Count(u => u.owner == World.Human && u.IsCitizen)} sol={w.units.Count(u => u.owner == World.Human && !u.IsCitizen)} " +
                         $"F={me.stock[Res.Food]:F0} W={me.stock[Res.Wood]:F0} S={me.stock[Res.Stone]:F0} M={me.stock[Res.Metal]:F0} K={me.stock[Res.Knowledge]:F0} pop={me.popUsed}/{me.popCap} " +
                         $"bld={string.Join(",", w.buildings.Where(b => b.owner == World.Human).Select(b => b.type + (b.destroyed ? "x" : b.complete ? "" : "*")))} idle={w.units.Count(u => u.owner == World.Human && u.IsCitizen && u.state == UnitState.Idle)} raids={w.raids.raidsSent}");
+                if ((int)w.time % 60 == 0 && _refused.Count > 0)
+                { Log("   refused: " + string.Join("  ", _refused.OrderByDescending(kv => kv.Value).Select(kv => kv.Key + " x" + kv.Value))); _refused.Clear(); }
                 var citizens = w.units.Where(u => u.owner == World.Human && u.IsCitizen && u.Alive).ToList();
                 var soldiers = w.units.Where(u => u.owner == World.Human && !u.IsCitizen && u.Alive).ToList();
                 bool building = w.buildings.Count(b => b.owner == World.Human && !b.complete && !b.destroyed) >= 2;   // two sites at once
@@ -126,7 +149,8 @@ namespace COA.Game
                     for (int i = 0; i < 30; i++)
                     {
                         float a = i * 2.399f + (int)t; var p = hallPos + new Vec2(Mathf.Cos(a), Mathf.Sin(a)) * (dist + (i / 6) * 3f);
-                        if (w.SiteProblem(World.Human, t, p) != null) continue;
+                        var why = w.SiteProblem(World.Human, t, p, (i * 45) % 360);
+                        if (why != null) { var key = t + ":" + why; _refused[key] = _refused.TryGetValue(key, out int c0) ? c0 + 1 : 1; continue; }
                         var free = citizens.Where(c => c.state != UnitState.Scholar).OrderBy(c => Vec2.Dist(c.pos, p)).Take(2).Select(c => c.id).ToList();
                         var b = w.CmdPlace(World.Human, t, p, (i * 45) % 360, free, out _); if (b != null) { building = true; return b; }
                     }
@@ -230,6 +254,7 @@ namespace COA.Game
             Log($"end: time {w.time / 60f:F1} min  over={w.over} won={w.won}  age={m.age}  techs={m.techs.Count}  gathered={m.gathered:F0}  killed={m.unitsKilled}  lost={m.unitsLost}  raids={w.raids.raidsSent}");
             float total = Mathf.Max(1f, _stateSeconds.Values.Sum());
             Log("citizen time: " + string.Join("  ", _stateSeconds.OrderByDescending(kv => kv.Value).Select(kv => kv.Key + " " + (100f * kv.Value / total).ToString("F0") + "%")));
+            CheckFootprints("at the end");
             Check(shotHut, "a hut was built");
             Check(shotRune, "the rune hall was built and staffed");
             Check(m.age >= 2, "the Feudal Age was reached");

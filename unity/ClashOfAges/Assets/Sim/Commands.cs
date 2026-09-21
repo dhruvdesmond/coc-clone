@@ -78,17 +78,31 @@ namespace COA.Sim
         public void CmdRally(int buildingId, Vec2 p) { var b = B(buildingId); if (b != null) { b.rally = p; b.hasRally = true; } }
 
         /// <summary>Why a site is refused, or null if it is fine. One function, used by the ghost AND the command.</summary>
-        public string SiteProblem(int owner, BuildingType type, Vec2 pos)
+        public string SiteProblem(int owner, BuildingType type, Vec2 pos, float rot = 0f)
         {
             var d = Catalog.Buildings[type];
             if (type != BuildingType.Hall && territory.OwnerAt(pos) != owner) return "Outside your border";
-            if (siteOk != null && !siteOk(pos, d.radius)) return "Ground too steep or wet";
+            if (groundProblem != null) { var g = groundProblem(pos, rot, d.half); if (g != null) return g; }
+            else if (siteOk != null && !siteOk(pos, d.radius)) return "Ground too steep or wet";
             foreach (var b in buildings)
                 if (!b.destroyed && Vec2.Dist(b.pos, pos) < b.def.radius + d.radius + 0.6f) return "Too close to " + b.def.name;
             foreach (var n in nodes)
                 if (!n.Depleted && n.kind != NodeKind.Tree && n.kind != NodeKind.Farm &&
                     Vec2.Dist(n.pos, pos) < Catalog.NodeRadius(n.kind) + d.radius) return "Blocked by a resource";
             return null;
+        }
+
+        /// <summary>How far a building keeps a tree's canopy from its walls.</summary>
+        public const float TreeClearance = 0.6f;
+
+        /// <summary>Every live tree whose canopy reaches the footprint. ONE rule, used by placement, by world setup and by the
+        /// test that says no building stands in a tree -- three copies of "how close is too close" is how B1 happened.</summary>
+        public List<Node> TreesOn(Vec2 pos, float rot, Vec2 half)
+        {
+            var hit = new List<Node>();
+            foreach (var n in nodes)
+                if (n.kind == NodeKind.Tree && !n.Depleted && Footprint.Dist(n.pos, pos, rot, half) < n.radius * 0.7f + TreeClearance) hit.Add(n);
+            return hit;
         }
 
         /// <summary>Overlap only -- for world setup, where there is no border yet.</summary>
@@ -104,15 +118,13 @@ namespace COA.Sim
         public Building CmdPlace(int owner, BuildingType type, Vec2 pos, float rot, IList<int> builders, out string problem)
         {
             var d = Catalog.Buildings[type];
-            problem = SiteProblem(owner, type, pos);
+            problem = SiteProblem(owner, type, pos, rot);
             if (problem == null && !players[owner].stock.CanAfford(d.cost)) problem = "Not enough resources";
             if (problem != null) return null;
             players[owner].stock.Pay(d.cost);
             var b = SpawnBuilding(owner, type, pos, rot, false);
-            // trees standing on the footprint are cleared (and refunded as a little wood)
-            foreach (var n in nodes)
-                if (n.kind == NodeKind.Tree && !n.Depleted && Vec2.Dist(n.pos, pos) < d.radius + 0.8f)
-                { players[owner].stock[Res.Wood] += 10; n.amount = 0; DepleteNode(n); }
+            // trees on or OVERHANGING the footprint are cleared (and refunded as a little wood)
+            foreach (var n in TreesOn(pos, rot, d.half)) { players[owner].stock[Res.Wood] += 10; n.amount = 0; DepleteNode(n); }
             Emit(SimEventType.BuildingPlaced, b.id, owner, pos);
             if (builders != null) CmdBuild(builders, b.id);
             return b;

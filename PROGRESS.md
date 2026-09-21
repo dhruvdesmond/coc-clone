@@ -5,6 +5,9 @@
 > If you are deciding anything, the reference is RoN: borders as colour, attrition, cities, rares,
 > national powers, the Armageddon counter. See `docs/12-territory.html`.
 
+> **`PENDING.md` is the queue** — what is not done, in order, plus every pointer Dhruv gives (bugs seen while playing, reference
+> screenshots, standing direction). This file is the history and the detail. If they disagree on what is pending, PENDING wins.
+
 > **This file is the state of the project. Read it first, update it last.**
 >
 > **If you are a new session and the chat history is gone: everything you need is here.**
@@ -247,6 +250,7 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 | **DL40** | **Units are drawn 1.38× life size, their palette lifted ~45% in value, on a team-colour disc.** | At true scale a citizen is a dark speck from 30 m. Every RTS exaggerates its figures; buildings stay true scale and the sim is unaffected. |
 | **DL41** | **Units have a REAL skeleton.** `rig_figure.py` builds an 11-bone armature from the figure's joint spheres, binds ONE skinned mesh rigidly (each vertex → one bone, weight 1.0), authors 8 clips at 30 fps, and exports the standard Blender-armature FBX. Unity imports a Generic rig; `FigureRigSetup` asserts it and generates an `AnimatorController`; `RigAnimator` drives it. | Dhruv asked for it, and it is strictly better: one SkinnedMeshRenderer instead of ten MeshRenderers, clips that can be viewed and edited in Blender, cross-fades between states, and `Animator` doing the work instead of per-frame C#. Rigid bind because every part of these figures IS rigid — nothing to paint, and it deforms exactly as the loose parts did. DL36/DL39 (limbs posed in code) remain as the fallback for any figure exported flat. |
 | **DL42** | **Clips are authored per WEAPON CLASS, not per unit; anything with wheels, wings or a hull moves in code.** | 60 unit types are ~10 ways of holding something, so the humanoid needs 43 clips, not hundreds. Wheels, tracks, turrets, propellers, banking and bobbing are rotations and offsets — a clip would only be a worse copy of the maths. Whole-game total: ~79 clips (§5b). |
+| **DL46** | **A building's footprint is a turned RECTANGLE measured from its model, and every building in the world — the player's, the bot's, and the two halls and tower that setup spawns — is sited through the same two rules:** `Ground.FootprintProblem` (dry out to a 1.2 m shore margin; no steeper than ~10° across the floor) and `World.TreesOn` (any tree whose *canopy* reaches the walls is felled). `Catalog.half` is asserted against the Blender sidecar at scene build. | Dhruv found a house in a lake in his first ten minutes (PENDING B1). Three causes, all of the form "a rule existed but something went round it": footprints were circles and a 15.8 × 9.3 m longhouse does not fit in its own 7.5 m circle; trees were cleared by trunk distance, ignoring a 3 m canopy; and setup spawned buildings at coordinates nobody checked. The enemy camp search demanded 58 m and a flat 9 m circle, which nothing on a 104 × 84 m map satisfies, so **every game** it fell back to an unchecked mirror point 29 m from the player. It is now the farthest place a longhouse really fits (54.5 m). |
 | **DL44** | **The canonical rest pose covers held PROPS, not just limbs — and the pelvis offset rides on `Root`.** Shields are found by shape (one thin axis, two wide) and turned to face forward with the arm hanging; polearms (> 1.4 m, one long axis) are laid level, point forward. Clips keep only bone rotations plus `Root`'s position; `RigAnimator` scales that offset by the figure's thigh length. | Measured, not assumed: the swordsman's shield was mounted 47° off and the spearman's 70° off, so one guard pose stood one shield up and laid the other flat like a table; the spear was 101° off and a thrust drove it into the turf. And an FBX bake keys position on every bone — 1,932 curves that would have stamped the citizen's limb lengths onto troops that are 16–23% bigger. `Root` rests at the origin on every figure, so it is the one bone whose position is portable. |
 | **DL45** | **`UnitAnim.Clip` says what a unit is DOING; `RigAnimator.Style` (Worker / Sword / Spear / Bow) decides which authored clip that is.** Strikes are entered by the sim's Attack event and return to the style's guard stance; a Hit event plays HitReact, or Block half the time for shield bearers, and never interrupts the unit's own strike; soldiers closing on a target Run; idle units Cheer for ~5 s on an age advance; death picks Death or DeathFront at random. | It is DL42 in code: `UnitView` stays ignorant of weapons, and a new weapon class is one enum value and one row per verb. Swordsmen alternate Attack/Attack2 so two cuts in a row are not the same cut. |
 | **DL43** | **One shared humanoid clip library, made possible by a canonical rest pose.** | Poses are currently corrected per figure because the figures are not authored neutral, which forces every FBX to carry its own clips. Normalising the rest pose once, at rig time, removes the reason — and rigid binding makes it exact. |
@@ -276,6 +280,16 @@ Never delete. If a decision is reversed, add a new row saying so and why.
 ## 9. Gotchas — paid for already, do not re-learn
 
 Every one of these cost real time on a previous project.
+
+### Sim / placement
+- **A search that can fail needs a loud fallback.** `FindCampSite` returned a default when no candidate passed, and no candidate
+  ever passed. Eight sessions of games were played 29 m from an enemy hall standing in a lake. Log the fallback as an ERROR.
+- **When the bot loses after a rules change, read WHY it was refused before touching balance.** The first footprint rule was
+  accidentally twice as strict on slope; the bot logged `Farm:Ground too steep x2175` per minute, hoarded 899 wood and lost.
+  The per-minute `refused:` line in the autopilot log is permanent now.
+- **The shore margin tests for WATER only.** Measuring slope out there too is what made the rule too strict.
+- **A bot does not look.** It walked past a house in a lake for eight sessions. Anything a human would see at a glance and a bot
+  would not needs an explicit assertion (`CheckFootprints`), and its first run found a second bug (the tower in the trees).
 
 ### Blender
 - **An FBX that carries animation imports its transforms POSED, not at bind.** The clip library "differed" from the villager it
@@ -436,6 +450,21 @@ Every one of these cost real time on a previous project.
 ## 11. Session log
 
 Append one block per session. Newest at the top.
+
+### 2026-09-21 — Session 9: Dhruv plays it; a house in a lake; PENDING.md
+**First human play.** Within minutes: "house on lake.. and on trees also.." He also sent a Northgard screenshot — "how beautiful
+it is" — and asked for a `PENDING.md` that stores every pointer. Created it first: the queue, 14 concrete visual pointers from
+the reference (V1 ground pads and V2 soft light are the cheap, large ones), the bug list, his standing directions.
+**The bug (DL46):** circular footprints, trunk-only tree clearing, and setup buildings sited at unchecked coordinates — the
+house in the lake was the enemy's hall, put there every game by a camp search that could never succeed. Fixed with measured
+rectangular footprints, one ground rule and one tree rule used by everyone, and an enemy camp that is now genuinely far
+(29 m → 54.5 m). The bot now asserts every building at start and end; its first run found the enemy tower inside three trees.
+My first version of the rule was too strict on slope and the bot lost (0 rune halls, 899 wood hoarded); the refusal tally showed
+why in one run. **Verified:** 13/13 sim tests · `DemoVerify.Full` PASS, won at 19.3 min, 14/14 buildings clean, 0 exceptions.
+**Changed for the player:** the enemy is farther away, so raids take longer to arrive — the bot lost 3 units instead of 8–9 and
+faced 4 raids instead of 5. The demo is probably a little EASIER now; whether that is right is a question for Dhruv's next game.
+**Not done:** the reference screenshots could not be saved (macOS temp folder is unreadable to Claude) — Dhruv needs to drop
+them in `art/reference/`. None of the visual pointers are built yet (PENDING P2).
 
 ### 2026-09-20 — Session 8: one clip library, and Tier 1 (N12 + N13)
 Dhruv: "do it." **29 clips now, authored once, played by every humanoid.** `rig_figure.py` canonicalises each figure's rest

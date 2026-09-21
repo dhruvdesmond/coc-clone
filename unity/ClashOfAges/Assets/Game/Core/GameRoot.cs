@@ -35,14 +35,16 @@ namespace COA.Game
         {
             I = this;
             Ground.colliders = terrainColliders;
-            World = new World(mapSize.x, mapSize.y) { builtinMovement = false, siteOk = Ground.SiteOk };
+            World = new World(mapSize.x, mapSize.y) { builtinMovement = false, siteOk = Ground.SiteOk, groundProblem = Ground.FootprintProblem };
             Setup();
         }
 
         void Setup()
         {
             var w = World;
-            var hall = new Vec2(hallSite.x, hallSite.y);
+            // hallSite is a WISH. It was once taken as fact, and the longhouse stood with one gable in the lake (PENDING B1).
+            var hallHalf = Catalog.Buildings[BuildingType.Hall].half;
+            var hall = FindBuildingSite(new Vec2(hallSite.x, hallSite.y), hallHalf, out float hallRot);
             HallWorldPos = Ground.At(hall);
 
             // every exported tree is a wood node; chopping one removes it from the instanced renderer
@@ -50,19 +52,22 @@ namespace COA.Game
             for (int i = 0; i < trees.Length; i++)
             {
                 var p = trees[i].position;
-                if (Vec2.Dist(new Vec2(p.x, p.z), hall) < 9.5f) { instancedWorld.RemoveTree(i); continue; }   // clear the hall's pad
-                w.SpawnNode(NodeKind.Tree, new Vec2(p.x, p.z), Mathf.Lerp(90f, 150f, Mathf.InverseLerp(3f, 9f, trees[i].height)), i);
+                var node = w.SpawnNode(NodeKind.Tree, new Vec2(p.x, p.z), Mathf.Lerp(90f, 150f, Mathf.InverseLerp(3f, 9f, trees[i].height)), i);
+                if (trees[i].radius > 0.1f) node.radius = trees[i].radius;
             }
+            ClearPad(hall, hallRot, hallHalf);
 
-            var enemy = FindCampSite(hall);
+            var enemy = FindCampSite(hall, hallHalf, out float enemyRot);
             EnemyCampPos = Ground.At(enemy);
-            foreach (var n in new List<Node>(w.nodes))           // clear the camp too
-                if (Vec2.Dist(n.pos, enemy) < 9.5f) { instancedWorld.RemoveTree(n.treeEntity); n.amount = 0; }
-            w.nodes.RemoveAll(n => n.Depleted);
+            ClearPad(enemy, enemyRot, hallHalf);
 
-            w.SpawnBuilding(World.Human, BuildingType.Hall, hall, 0f, true);
-            w.SpawnBuilding(World.Enemy, BuildingType.Hall, enemy, 180f, true);
-            w.SpawnBuilding(World.Enemy, BuildingType.Tower, FreeSpotNear(enemy, 11f, 2.4f), 0f, true);
+            w.SpawnBuilding(World.Human, BuildingType.Hall, hall, hallRot, true);
+            w.SpawnBuilding(World.Enemy, BuildingType.Hall, enemy, enemyRot, true);
+            // the bot's first footprint check found this tower standing inside three spruces: same bug, never seen
+            var towerHalf = Catalog.Buildings[BuildingType.Tower].half;
+            var tower = FindBuildingSite(FreeSpotNear(enemy, 13f, 2.4f), towerHalf, out float towerRot);
+            ClearPad(tower, towerRot, towerHalf);
+            w.SpawnBuilding(World.Enemy, BuildingType.Tower, tower, towerRot, true);
             w.raids.campPos = enemy; w.raids.targetPos = hall;
 
             // starting resources near home: berries, stone, iron -- placed on real, flat, dry ground
@@ -79,17 +84,58 @@ namespace COA.Game
             SyncViews();
         }
 
-        Vec2 FindCampSite(Vec2 hall)
+        /// <summary>The nearest place to `wish` where this footprint really fits -- dry, flat, on the map -- trying the wish
+        /// itself first, then rings outward, each at four headings. Trees do not disqualify a site: they are cleared.</summary>
+        Vec2 FindBuildingSite(Vec2 wish, Vec2 half, out float rot)
         {
-            Vec2 best = new Vec2(-hall.x, -hall.z); float bestScore = float.MinValue;
-            for (float x = -mapSize.x * 0.5f + 12f; x < mapSize.x * 0.5f - 12f; x += 3f)
-                for (float z = -mapSize.y * 0.5f + 12f; z < mapSize.y * 0.5f - 12f; z += 3f)
+            float[] headings = { 0f, 90f, 45f, 135f };
+            for (int ring = 0; ring < 30; ring++)
+            {
+                int steps = ring == 0 ? 1 : 6 + ring * 2;
+                for (int k = 0; k < steps; k++)
+                {
+                    float a = k * Mathf.PI * 2f / steps;
+                    var p = wish + new Vec2(Mathf.Cos(a), Mathf.Sin(a)) * (ring * 2.5f);
+                    foreach (var h in headings)
+                        if (Ground.FootprintProblem(p, h, half) == null && World.SiteProblemIgnoringBorder(p, Mathf.Max(half.x, half.z)) == null)
+                        {
+                            if (ring > 0 || h != 0f) Debug.Log($"[site] {wish.x:F1},{wish.z:F1} does not fit a {half.x * 2f:F1} x {half.z * 2f:F1} m footprint " +
+                                                               $"({Ground.FootprintProblem(wish, 0f, half)}); moved {Vec2.Dist(p, wish):F1} m, heading {h:F0}");
+                            rot = h; return p;
+                        }
+                }
+            }
+            Debug.LogError($"[site] FAIL no buildable site within 75 m of {wish.x:F1},{wish.z:F1}");
+            rot = 0f; return wish;
+        }
+
+        /// <summary>World setup's version of what CmdPlace does: every tree whose canopy reaches the footprint goes, plus a
+        /// little more so the pad reads as a clearing. Same rule (World.TreesOn), wider rectangle.</summary>
+        void ClearPad(Vec2 pos, float rot, Vec2 half)
+        {
+            foreach (var n in World.TreesOn(pos, rot, new Vec2(half.x + 1.5f, half.z + 1.5f))) { instancedWorld.RemoveTree(n.treeEntity); n.amount = 0; }
+            World.nodes.RemoveAll(n => n.Depleted);
+        }
+
+        /// <summary>The enemy's home: the place FARTHEST from yours where a longhouse really fits. The first version demanded
+        /// "58 m away and a flat 9 m circle", which nothing on a 104 x 84 m map satisfies -- so it fell back, every game, silently,
+        /// to a mirrored point 29 m from the player that nobody had checked. That was the house in the lake (PENDING B1).</summary>
+        Vec2 FindCampSite(Vec2 hall, Vec2 half, out float rot)
+        {
+            Vec2 best = hall; float bestScore = float.MinValue; rot = 0f;
+            float[] headings = { 0f, 90f, 45f, 135f };
+            for (float x = -mapSize.x * 0.5f + 10f; x <= mapSize.x * 0.5f - 10f; x += 2f)
+                for (float z = -mapSize.y * 0.5f + 10f; z <= mapSize.y * 0.5f - 10f; z += 2f)
                 {
                     var p = new Vec2(x, z); float d = Vec2.Dist(p, hall);
-                    if (d < 58f || !Ground.SiteOk(p, 9f)) continue;
                     float score = d - Mathf.Abs(Ground.Height(x, z) - 2.5f) * 4f;      // far, and not up on the snow
-                    if (score > bestScore) { bestScore = score; best = p; }
+                    if (score <= bestScore) continue;
+                    foreach (var h in headings)
+                        if (Ground.FootprintProblem(p, h, half) == null) { bestScore = score; best = p; rot = h; break; }
                 }
+            float got = Vec2.Dist(best, hall);
+            if (got < 40f) Debug.LogError($"[site] FAIL enemy camp is only {got:F1} m from the player's hall");
+            else Debug.Log($"[site] enemy camp at {best.x:F1},{best.z:F1} heading {rot:F0}, {got:F1} m from the player's hall");
             return best;
         }
 

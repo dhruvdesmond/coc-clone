@@ -103,6 +103,17 @@ public static class DemoSceneBuilder
             lib.names.Add(Path.GetFileNameWithoutExtension(p));
             lib.prefabs.Add(AssetDatabase.LoadAssetAtPath<GameObject>(p));
         }
+        // Catalog.half is a second copy of the model's size, so it is ASSERTED against the first: the sidecar Blender wrote.
+        foreach (var d in COA.Sim.Catalog.Buildings.Values)
+        {
+            var side = "Assets/Models/" + d.model + ".meta.json.txt";
+            if (!System.IO.File.Exists(side)) { Debug.LogError("[footprint] FAIL no sidecar for " + d.model); continue; }
+            var m = System.Text.RegularExpressions.Regex.Match(System.IO.File.ReadAllText(side), @"""x"":\s*([\d.]+),\s*""y"":\s*([\d.]+)");
+            float sx = float.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), sy = float.Parse(m.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+            bool ok = Mathf.Abs(d.half.x * 2f - sx) < sx * 0.06f && Mathf.Abs(d.half.z * 2f - sy) < sy * 0.06f;
+            if (ok) Debug.Log($"[footprint] {d.name}: {d.half.x * 2f:F2} x {d.half.z * 2f:F2} m matches {d.model} ({sx:F2} x {sy:F2})");
+            else Debug.LogError($"[footprint] FAIL {d.name}: Catalog says {d.half.x * 2f:F2} x {d.half.z * 2f:F2} m but {d.model} measures {sx:F2} x {sy:F2}");
+        }
         foreach (var kv in FigureRigSetup.Build()) { lib.controllerNames.Add(kv.Key); lib.controllers.Add(kv.Value); }
         const string U = "Assets/Materials/UI/";
         lib.ring      = SceneKit.SavedUnlit(U + "Ring.mat",      new Color(0.35f, 0.95f, 0.45f, 0.95f));

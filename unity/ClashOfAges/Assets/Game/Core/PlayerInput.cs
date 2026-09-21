@@ -281,7 +281,7 @@ namespace COA.Game
             var type = placing.Value; var gp = Ground.ToSim(ground);
             _ghost.transform.SetPositionAndRotation(Ground.At(gp), Quaternion.Euler(0f, _ghostRot, 0f));
 
-            placementProblem = W.SiteProblem(World.Human, type, gp);
+            placementProblem = W.SiteProblem(World.Human, type, gp, _ghostRot);
             if (placementProblem == null && !W.Me.stock.CanAfford(Catalog.Buildings[type].cost)) placementProblem = "Not enough resources";
             PaintGhost(placementProblem == null);
 
