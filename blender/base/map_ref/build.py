@@ -20,7 +20,8 @@ from mathutils import Vector
 SCENE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, "/Users/dhruv/blender/lib")
 from nodeutils import new_mat, principled, noise_node, math_node, maprange     # noqa: E402
-from meshkit import Model, obj_from_bm, bm_box, bm_cyl, daylight, render_settings  # noqa: E402
+from meshkit import Model, obj_from_bm, bm_box, bm_cyl, beam_between, crate, fence_run, daylight, render_settings  # noqa: E402
+import mapgen as MG                                                             # noqa: E402
 from vegetation import make_tuft_mesh, grass_material                          # noqa: E402
 import materials, terrain as T                                                  # noqa: E402
 
@@ -78,7 +79,7 @@ def ground_material():
     sandf = math_node(nt, "ADD", sep.outputs["X"], jit.outputs["Result"], loc=(-900, 500))
     sandc = maprange(nt, sandf.outputs[0], 0.35, 0.62, 0.0, 1.0, (-700, 500))
     sand = nt.nodes.new("ShaderNodeMixRGB"); sand.location = (-500, 200)
-    sand.inputs["Color2"].default_value = (0.92, 0.90, 0.82, 1)
+    sand.inputs["Color2"].default_value = (0.80, 0.76, 0.64, 1)
     nt.links.new(sandc.outputs["Result"], sand.inputs["Fac"]); nt.links.new(mul.outputs["Color"], sand.inputs["Color1"])
     # mud track
     mud = nt.nodes.new("ShaderNodeMixRGB"); mud.location = (-300, 200)
@@ -117,6 +118,9 @@ MAT = {
     "flame":   emissive("Flame", (1.0, 0.62, 0.15), 30.0),
     "pebble":  flat("Pebble", (0.42, 0.42, 0.40), rough=0.9),
     "deadwood": flat("DeadWood", (0.86, 0.84, 0.78), rough=0.85),
+    "plank":   flat("Plank", (0.42, 0.28, 0.14), rough=0.85, noise=(12.0, 0.14)),
+    "tilerow": flat("TileRow", (0.30, 0.05, 0.025), rough=0.75),
+    "sigil":   flat("Sigil", (0.90, 0.88, 0.82), rough=0.8),
 }
 
 # ============================================================================ layout (metres; camera looks along +Y)
@@ -230,6 +234,13 @@ def gable_roof(m, name, cx, cy, yaw, sx, sy, z0, rise, over=0.45, mat=None):
         b.faces.new((e0, e1, e2) if ex > 0 else (e1, e0, e2))
     bmesh.ops.recalc_face_normals(b, faces=b.faces)
     o = obj_from_bm(m, f"{name}_Roof", b, mat or MAT["tile"], bevel=0.02, loc=(cx, cy, z0)); o.rotation_euler.z = yaw
+    if mat is None:   # tile rows: the reference reads its roofs by their courses
+        rows = bmesh.new(); L = math.hypot(hy, rise)
+        for k in range(1, 7):
+            t = k / 7; y = hy * (1 - t); zz = rise * t
+            for side in (-1, 1): bm_box(rows, 2 * hx + 0.04, 0.10, 0.07, (0, side * y, zz + 0.05))
+        bm_box(rows, 2 * hx + 0.12, 0.26, 0.16, (0, 0, rise + 0.05))
+        r = obj_from_bm(m, f"{name}_Rows", rows, MAT["tilerow"], bevel=0.0, loc=(cx, cy, z0)); r.rotation_euler.z = yaw
     return o
 
 
@@ -261,6 +272,8 @@ def build_hall(m, cx, cy, yaw):
     bx, by = yaw_pt(-2.0, -3.75, cx, cy, yaw)
     b = bmesh.new(); bm_box(b, 1.6, 0.06, 2.6, (0, 0, 1.3))
     o = obj_from_bm(m, "hall_Banner", b, MAT["banner"], bevel=0.0, loc=(bx, by, z + 0.8)); o.rotation_euler.z = yaw
+    sg = bmesh.new(); bm_box(sg, 0.62, 0.05, 0.62, (0, -0.05, 1.4))
+    o = obj_from_bm(m, "hall_Sigil", sg, MAT["sigil"], bevel=0.0, loc=(bx, by, z + 0.8)); o.rotation_euler = (0, math.pi / 4, yaw)
 
 
 def build_smithy(m, cx, cy, yaw):
@@ -284,6 +297,10 @@ def build_tent(m, cx, cy, yaw):
     r = bmesh.new(); bm_cyl(r, 3.6, 2.6, 12, (0, 0, 1.6 + 1.3), r_top=0.15); obj_from_bm(m, "tent_Roof", r, MAT["canvas"], bevel=0.0, loc=(cx, cy, z))
     t = bmesh.new(); bm_cyl(t, 3.7, 0.5, 12, (0, 0, 1.6 + 0.25), r_top=3.1); obj_from_bm(m, "tent_Trim", t, MAT["orange"], bevel=0.0, loc=(cx, cy, z))
     p = bmesh.new(); bm_cyl(p, 0.06, 5.2, 6, (0, 0, 2.6)); obj_from_bm(m, "tent_Pole", p, MAT["timber"], bevel=0.0, loc=(cx, cy, z))
+    for k in range(6):                                          # orange stripes hem to peak, and a dark open door facing the camera
+        a = k * math.tau / 6 + yaw
+        beam_between(m, f"tent_Stripe{k}", (cx + math.cos(a) * 3.55, cy + math.sin(a) * 3.55, z + 1.65), (cx + math.cos(a) * 0.2, cy + math.sin(a) * 0.2, z + 4.15), 0.34, 0.06, MAT["orange"], bevel=0.0)
+    d = bmesh.new(); bm_box(d, 1.1, 0.2, 1.5, (0, -3.0, 0.75)); o = obj_from_bm(m, "tent_Door", d, MAT["timber"], bevel=0.0, loc=(cx, cy, z)); o.rotation_euler.z = yaw
 
 
 def build_fire(m, cx, cy):
@@ -302,6 +319,25 @@ town = Model("Town")
 build_towers(town, *SITES["towers"][:3]); build_hall(town, *SITES["hall"][:3]); build_smithy(town, *SITES["smithy"][:3])
 build_tent(town, *SITES["tent"][:3]); build_fire(town, *SITES["fire"][:2])
 print(f"TOWN {len(town.objects)} objects")
+
+# ---- the library we already have: people, a well, crates, fences (PENDING B10 -- "why not use them also?")
+lib = MG.AssetLibrary("/Users/dhruv/blender")
+for k, p in {"swordsman": "base/troops/models/swordsman.blend", "archer": "base/troops/models/archer.blend", "axeman": "base/troops/models/axeman.blend",
+             "horseman": "base/troops/models/horseman.blend", "standard": "base/troops/models/standard.blend", "spearman": "base/troops/models/spearman.blend",
+             "citizen": os.path.join(SCENE_DIR, "..", "citizen", "models", "citizen.blend"), "well": "base/outbuildings/models/well.blend"}.items():
+    lib.load(k, p)
+PEOPLE = [("citizen", -4.0, -9.5, 0.6), ("citizen", 5.5, 1.0, 2.4), ("citizen", -9.0, 3.0, 1.0), ("citizen", 9.0, -6.0, -0.4),
+          ("swordsman", -8.5, 12.5, -0.6), ("archer", -6.5, 13.5, -0.9), ("axeman", 11.0, 5.0, 2.6), ("standard", -3.0, 5.5, 0.2),
+          ("spearman", 20.0, -3.0, 2.2), ("horseman", 23.0, 17.0, 3.6), ("horseman", 27.0, 14.0, 3.2)]
+for i, (k, x, y, yaw) in enumerate(PEOPLE):
+    lib.place(k, (x, y, height(x, y)), rot_z=yaw, scale=1.55, name=f"p{i}_{k}")   # RTS scale: the reference draws people half a door taller than life
+lib.place("well", (-6.5, 4.5, height(-6.5, 4.5)), rot_z=0.3, name="well")
+props = Model("Props")
+for (x, y, r) in [(-9.5, 5.5, 0.4), (-9.0, 6.2, 1.1), (17.2, 6.0, 0.2), (17.9, 6.6, 0.9), (-3.5, -7.5, 0.5), (20.0, -13.0, 0.7)]:
+    crate(props, (x, y, height(x, y)), MAT["plank"], rot=r, slat_mat=MAT["timber"])
+fence_run(props, [(19.0, -14.5, height(19, -14.5)), (23.0, -15.5, height(23, -15.5)), (26.0, -13.0, height(26, -13))], MAT["plank"], h=1.0)
+fence_run(props, [(-18.0, 6.0, height(-18, 6)), (-19.5, 2.0, height(-19.5, 2)), (-18.5, -2.0, height(-18.5, -2))], MAT["plank"], h=1.0)
+print(f"PEOPLE {len(PEOPLE)}  PROPS {len(props.objects)}")
 
 
 # ============================================================================ trees, rocks, dressing
@@ -353,14 +389,14 @@ print("FLORA " + " ".join(f"{k}={v}" for k, v in n.items()))
 
 # grass: long, ochre, everywhere but the pads and the deep sand
 GRASS = grass_material(new_mat, principled, maprange, green=(0.16, 0.24, 0.04, 1), olive=(0.30, 0.28, 0.07, 1), straw=(0.46, 0.38, 0.11, 1), translucency=0.4)
-tufts = [make_tuft_mesh(f"Tuft{i}", rnd.randint(40, 60), 900 + i, GRASS, h_range=(0.25, 0.62), w_range=(0.008, 0.016), bend_range=(0.08, 0.30)) for i in range(6)]
+tufts = [make_tuft_mesh(f"Tuft{i}", rnd.randint(40, 60), 900 + i, GRASS, h_range=(0.22, 0.55), w_range=(0.0045, 0.009), bend_range=(0.10, 0.34)) for i in range(6)]
 nt_ = 0
-for _ in range(26000):
+for _ in range(34000):
     x, y = rnd.uniform(-W / 2 + 0.5, W / 2 - 0.5), rnd.uniform(-Dp / 2 + 0.5, Dp / 2 - 0.5)
     if pad_w(x, y) > 0.25 or mud_w(x, y) > 0.45: continue
-    if rnd.random() < sand_w(x, y) * 1.15: continue
+    if rnd.random() < sand_w(x, y) * 0.80: continue
     o = D.objects.new(f"Tuft_{nt_:05d}", rnd.choice(tufts)); C.scene.collection.objects.link(o)
-    o.location = (x, y, height(x, y) - 0.04); s = rnd.uniform(1.0, 1.9); o.scale = (s, s, s * rnd.uniform(0.9, 1.6)); o.rotation_euler = (0, 0, rnd.uniform(0, math.tau))
+    o.location = (x, y, height(x, y) - 0.04); s = rnd.uniform(0.9, 1.6); o.scale = (s, s, s * rnd.uniform(0.9, 1.5)); o.rotation_euler = (0, 0, rnd.uniform(0, math.tau))
     nt_ += 1
 print(f"GRASS {nt_} tufts")
 

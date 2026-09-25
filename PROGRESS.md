@@ -465,6 +465,14 @@ Every one of these cost real time on a previous project.
 
 Append one block per session. Newest at the top.
 
+### 2026-09-25 — Session 11b: "are they the same?" — no; and "why not use our assets?" — done
+Compared honestly: same layout, palette and light; not the same picture — no people, flat buildings, white sand, hay grass, no
+props, no haze. Then the library went into the frame (`MG.AssetLibrary`, read-only): four citizens, six warriors including two
+horsemen, the well, crates and fences, at 1.55× so they read at RTS scale as the reference does; tile courses on the red roofs, a
+sigil on the banner, stripes and a door on the tent, cream sand with tufts thinning into it, finer grass. `art/map_ref_v2.png`.
+**Still short of the reference:** buildings are clean boxes (no shutters, chimney bricks, worn paint); trees are low-poly cones and
+blobs; no haze; the campfire is a stub. Those are the next passes if Dhruv wants this frame tighter before the vast map.
+
 ### 2026-09-25 — Session 11: the map, in Blender only — step 1, the reference frame (PENDING B9 / P0)
 Dhruv: "create a map in blender first. forget about the game … this is the reference image … try to make it 100% the same …
 then we will see how to improve it". Reference saved at last (`art/reference/northgard_camp.png`). Built `blender/base/map_ref/`:
