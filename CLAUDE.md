@@ -35,6 +35,7 @@ clash-of-clans/                     ← this repo
 │                                      rig_figure (skeleton + THE shared clip library) · export_figure (flat fallback) ·
 │                                      export_nature · figure_sheet
 ├── blender/base/age1_demo/         ← models authored HERE (Rune Hall, Muster Hall, Farm)
+├── blender/base/map_ref/           ← THE MAP (Blender only, PENDING P0): build.py renders straight to renders/; QUALITY=final for the full render
 ├── blender/base/citizen/           ← THE CITIZEN and his four tools, authored HERE (the library's villager is retired from the game)
 └── unity/ClashOfAges/              ← the game
     └── Assets/

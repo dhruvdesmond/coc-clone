@@ -465,6 +465,16 @@ Every one of these cost real time on a previous project.
 
 Append one block per session. Newest at the top.
 
+### 2026-09-25 — Session 11: the map, in Blender only — step 1, the reference frame (PENDING B9 / P0)
+Dhruv: "create a map in blender first. forget about the game … this is the reference image … try to make it 100% the same …
+then we will see how to improve it". Reference saved at last (`art/reference/northgard_camp.png`). Built `blender/base/map_ref/`:
+its own ground material (ochre grass + green patches, sand / cobble / mud from a vertex attribute), its own Northgard-style
+buildings (white plaster + timber frame + red tile; thatched pyramid hall with turret and banner; smithy with a stone furnace;
+tent; campfire), the library's trees, rocks, mushrooms and grass, a camera matched to the reference (50° pitch, 40 mm).
+Three preview iterations, each looked at against the reference: (1) overexposed, hall roof a flat disc, trees a hedge; (2) camera
+too tight, sand invisible; (3) `art/map_ref_v1_preview.png` — composition, palette and light now match. What is still missing is
+listed in PENDING P0. **Step 2, the vast biome/resource map, is not started.** Nothing in Unity changed.
+
 ### 2026-09-22 — Session 10: the citizen (PENDING B7/B8, DL48, DL49)
 Dhruv, on a close-up: "our citizen — improve its design?" then "just the citizen and its animation. let's not do anything
 related to the game." **New body** in this repo: chunky, blue tunic, red cap, a face, joints buried in the limbs. It passes the
