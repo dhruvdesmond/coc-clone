@@ -301,6 +301,11 @@ Every one of these cost real time on a previous project.
   would not needs an explicit assertion (`CheckFootprints`), and its first run found a second bug (the tower in the trees).
 
 ### Blender
+- **A world Volume Scatter renders NIGHT.** The sun is attenuated over an infinite path. Haze is a bounded box over the map with
+  the volume material; at a 55 m camera path, density 0.001 is a breath and 0.005 is milk.
+- **`mapgen.AssetLibrary.load()` merges `Foo.001` into `Foo` and REMOVES it.** Any material of yours whose name a library kit
+  already uses (LeafGold, Iron…) is created as `.001`, merged away, and every later reference dies with "StructRNA … has been
+  removed". Prefix scene-local material names (`Ref…`).
 - **A Cycles render cannot tell you a mesh is inside-out.** It is double-sided; Unity is not. If a figure looks hollow or see-through
   in Unity and perfect in Blender, measure face normals against each part's centre before anything else (DL49). A CONTROL found
   it in one run: the same test on the old villager failed the same way.
@@ -464,6 +469,13 @@ Every one of these cost real time on a previous project.
 ## 11. Session log
 
 Append one block per session. Newest at the top.
+
+### 2026-09-25 — Session 11c: "keep trying / show me" — trees and building detail
+Spruces and autumn trees are now authored in this repo (`fir()`, `autumn()` in `map_ref/build.py`): 8–10 jagged tiers, dark
+needles below and lit tips above, leaning trunks with limbs and 12–16 two-tone crown blobs. Bushes at the wood edge. Buildings:
+weathered plaster (dirt rising from the ground), shutters, a brick-course chimney, the smithy's awning with anvil and barrels,
+torches on poles, a campfire with flame tongues and a glow. Haze box (after a world volume rendered night). `art/map_ref_v3.png`.
+Preview renders now take ~3 min (the crowns are ~1,200 icospheres); final ~6 min.
 
 ### 2026-09-25 — Session 11b: "are they the same?" — no; and "why not use our assets?" — done
 Compared honestly: same layout, palette and light; not the same picture — no people, flat buildings, white sand, hay grass, no
