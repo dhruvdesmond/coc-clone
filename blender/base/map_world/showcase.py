@@ -43,9 +43,7 @@ for t, pos, look in PATH:
     f = int(round(t * FPS))
     cam.location = pos; cam.keyframe_insert("location", frame=f)
     aim.location = look; aim.keyframe_insert("location", frame=f)
-for o in (cam, aim):
-    for fc in o.animation_data.action.fcurves:
-        for kp in fc.keyframe_points: kp.interpolation = "BEZIER"; kp.easing = "AUTO"
+# keyframes default to Bezier with auto-clamped handles; Blender 5.x actions are layered (Action.fcurves is gone), so no per-curve loop
 scene.camera = cam
 scene.frame_start, scene.frame_end = 0, int(SECONDS * FPS)
 scene.frame_step = EVERY
