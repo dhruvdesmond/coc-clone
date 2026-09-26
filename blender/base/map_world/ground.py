@@ -32,10 +32,11 @@ SNOW = (0.92, 0.94, 0.97)
 ROCK = (0.46, 0.44, 0.41)
 
 
-def _math(nt, op, a, b, loc=(0, 0)):
+def _math(nt, op, a, b=None, loc=(0, 0)):
     """Math node whose inputs may be sockets OR numbers (nodeutils.math_node takes sockets only)."""
     m = nt.nodes.new("ShaderNodeMath"); m.location = loc; m.operation = op
     for i, v in enumerate((a, b)):
+        if v is None: continue
         if isinstance(v, (int, float)): m.inputs[i].default_value = v
         else: nt.links.new(v, m.inputs[i])
     return m
