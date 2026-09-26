@@ -16,7 +16,7 @@ SUN_ELEV, SUN_AZ, SUN_ENERGY, SUN_ANGLE = 62.0, 205.0, 4.5, 6.0     # sun over s
 SKY_STRENGTH = 0.45
 FILL_ENERGY, FILL_COLOR = 0.15, (0.75, 0.85, 1.0)
 HAZE_DENSITY, HAZE_COLOR = 0.0004, (0.60, 0.72, 0.85)      # 0.0035 in a 260 m box washed every crop grey (saturation 0.16); 0.0007 still paled the far half
-EXPOSURE = -1.75                                           # -1.25 pushed sand and meadow into AgX's desaturated top (desert saturation 0.05)
+EXPOSURE = -1.4                                            # -1.25 pushed sand and meadow into AgX's desaturated top (desert saturation 0.05)
 
 
 def _sun(name, elev, az, energy, angle, color=(1.0, 0.94, 0.82), shadow=True):
@@ -179,15 +179,15 @@ def storms(scene, wind=(1.0, 0.3), sand_centre=(140.0, -120.0), sand_size=(180.0
     massif (white, fine, streaking off the ridges). Both drift with the shared wind so the whole sky moves one way."""
     def sand_density(nt, coord):
         f = _drifting_noise(nt, coord, wind, 0.6, 0.010, 5.0, shear=1.6)                 # 0.06 dense and gapless was a white-out, not a storm
-        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.56; r.inputs["From Max"].default_value = 0.74
-        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.018; r.clamp = True; nt.links.new(f, r.inputs["Value"])
+        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.60; r.inputs["From Max"].default_value = 0.76
+        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.005      # a 100 m camera path through 0.018 was still a white-out; r.clamp = True; nt.links.new(f, r.inputs["Value"])
         fade = _height_fade(nt, coord, 6.0, sand_size[2] / 2)
         m = nt.nodes.new("ShaderNodeMath"); m.operation = "MULTIPLY"; nt.links.new(r.outputs["Result"], m.inputs[0]); nt.links.new(fade, m.inputs[1]); return m.outputs[0]
 
     def snow_density(nt, coord):
         f = _drifting_noise(nt, coord, wind, 1.1, 0.04, 6.0, shear=2.2)
-        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.58; r.inputs["From Max"].default_value = 0.74
-        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.014; r.clamp = True; nt.links.new(f, r.inputs["Value"])
+        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.60; r.inputs["From Max"].default_value = 0.76
+        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.004; r.clamp = True; nt.links.new(f, r.inputs["Value"])
         fade = _height_fade(nt, coord, 10.0, snow_size[2] / 2)
         m = nt.nodes.new("ShaderNodeMath"); m.operation = "MULTIPLY"; nt.links.new(r.outputs["Result"], m.inputs[0]); nt.links.new(fade, m.inputs[1]); return m.outputs[0]
 
