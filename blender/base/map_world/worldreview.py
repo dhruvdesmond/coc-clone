@@ -15,7 +15,7 @@ D, C = bpy.data, bpy.context
 # kind -> (minimum count, allowed regions or "water" or "dry"); a region passes when its soft weight is >= 0.30.
 # Rock-like kinds (rock, coal, uran) and small scatter (bush, dead) are placed half-buried on purpose: for them the check is
 # "still shows above the ground", not floating/sunken.
-BURIED_OK = ("rock", "coal", "uran", "bush", "dead")
+BURIED_OK = ("rock", "coal", "uran", "bush", "dead", "rare")
 EXPECTED = {
     "tree":     (1200, ("grass", "forest", "mount")),
     "rock":     (80,  None),
@@ -33,6 +33,12 @@ EXPECTED = {
     "people":   (10,  "dry"),
     "bridge":   (1,   None),
     "pier":     (1,   None),
+    "rare":     (18,  None),
+    "rubber":   (6,   ("grass", "forest")),
+    "deer":     (12,  ("forest", "grass")),
+    "horse_wild": (5, ("grass", "desert")),
+    "rig":      (1,   "water"),
+    "whale":    (1,   "water"),
 }
 
 
@@ -70,7 +76,7 @@ def run(placed, ctx, out_dir, t_build, device, extra_lines=()):
             elif where:
                 R = ctx.region(x, y)
                 if max(R.get(k, 0.0) for k in where) < 0.30: bad_biome.append(p["name"])
-            if where != "water" and kind not in ("bridge", "pier"):
+            if where != "water" and kind not in ("bridge", "pier", "rig", "whale"):
                 bb = _bbox(p["objs"])
                 if bb:
                     gz = ctx.height(x, y)

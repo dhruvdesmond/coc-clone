@@ -272,7 +272,7 @@ H2 = (130.0, -6.0)
 site("hut_b", H2[0], H2[1]); site("hut_d", H2[0] + 12, H2[1] + 8); site("hut_e", H2[0] - 10, H2[1] - 10); site("farm", H2[0] - 6, H2[1] + 18, 0.4)
 site("well", H2[0] + 6, H2[1] - 6, pad=2.5); site("stabbur", H2[0] + 16, H2[1] - 12)
 # the FISHING HAMLET on the south coast: boathouse turned to the sea, a pier
-H3 = (30.0, -118.0)
+H3 = (30.0, -134.0)
 h3 = site("boathouse", H3[0], H3[1], math.pi / 2, pad=6); site("hut_a", H3[0] - 12, H3[1] + 8); site("hut_c", H3[0] + 12, H3[1] + 10); site("well", H3[0], H3[1] + 14, pad=2.5)
 # the MINING CAMP at the mountain foot, across the river
 H4 = (-76.0, 60.0)
@@ -493,6 +493,74 @@ for i, (k, x, y) in enumerate([("citizen", V[0] + 6, V[1] + 4), ("citizen", V[0]
     put("people", k, x, y, 0.0, 1.4, tag=f"p{i}_{k}")
 print("PLACED " + " ".join(f"{k}={v}" for k, v in sorted(n.items())), flush=True)
 
+# ============================================================================ extras: the rares, the game, the wild herd, the rig (docs/14-world.md §2c)
+import extras as X
+import figure as F
+TR = materials.troop_kit()
+XM = {"pelt": flat("WPelt", (0.35, 0.24, 0.14)), "amber": emissive("WAmber", (1.0, 0.55, 0.12), 1.2), "rust": flat("WRust", (0.42, 0.18, 0.07), 0.6),
+      "crust": flat("WCrust", (0.85, 0.85, 0.80)), "gold": flat("WGold", (0.95, 0.75, 0.25), 0.35), "sinter": flat("WSinter", (0.80, 0.74, 0.62)),
+      "steam": emissive("WSteam", (0.9, 0.9, 0.92), 0.6), "whale": flat("WWhale", (0.12, 0.14, 0.17), 0.4), "deck": flat("WDeck", (0.55, 0.50, 0.40)),
+      "flame": emissive("WFlame", (1.0, 0.5, 0.1), 12.0), "deer": flat("WDeerHide", (0.42, 0.28, 0.14)), "antler": flat("WAntler", (0.66, 0.60, 0.50)),
+      "rbark": flat("WRubberBark", (0.62, 0.58, 0.48)), "rleaf": flat("WRubberLeaf", (0.50, 0.60, 0.28)), "pitch": emissive("WPitchblende", (0.55, 1.0, 0.25), 9.0)}
+
+
+def xproto(key, build, mats, **kw):
+    o = X.make(f"proto_{key}", build, mats, rnd, **kw); zs = [v.co.z for v in o.data.vertices]; PZ[key] = (min(zs), max(zs))
+    lib.register(key, [o]); lib.offset[key] = Vector((0, 0, 0)); PROTO.setdefault(key.split(":")[0], []).append(key)
+
+
+xproto("furs", X.furs, [TK["bark"], XM["pelt"]]); xproto("amber", X.amber, [XM["amber"]]); xproto("bogiron", X.bog_iron, [XM["rust"], TK["rock"]])
+xproto("saltpetre", X.saltpetre, [TK["rock"], XM["crust"]]); xproto("gold", X.gold_vein, [TK["rock"], XM["gold"]]); xproto("geyser", X.geyser, [XM["sinter"], TK["water"], XM["steam"]])
+xproto("whale", X.whale, [XM["whale"]]); xproto("rig", X.offshore_rig, [TR["iron"], XM["deck"], XM["flame"]])
+for i in range(2): xproto(f"deer:{i}", X.deer, [XM["deer"], XM["antler"]])
+for i in range(2): proto(f"rubber:{i}", [XM["rbark"], XM["rleaf"]], P.broadleaf, 6.0, 7, rnd)
+proto("pitch:0", [XM["pitch"]], P.boulder, rnd)
+# the wild horse is the library's own horse without a saddle: its parts are registered as one asset (bound boxes need an update first)
+wild = Model("WildHorse"); wobjs, _ = F.horse(wild, (0, 0, 0), TR, hide="hide_gry", saddle=False, name="wildhorse", rnd=rnd)
+C.view_layer.update(); lib.register("horse_wild", wobjs)
+
+
+def shore(x, back=4.0): return (x, COAST_Y(x) + back)
+
+
+def land(x, y, r=2.5, tries=30):
+    """A dry, clear spot near (x, y), or None."""
+    for k in range(tries):
+        px, py = (x, y) if k == 0 else (x + rnd.gauss(0, 3.0 + k * 0.4), y + rnd.gauss(0, 3.0 + k * 0.4))
+        if raw_h(px, py) > SEA + 1.0 and all(math.hypot(px - sx, py - sy) > r + sr + 1.0 for (sx, sy, sr) in PADS) and road_at(px, py)[0] < 0.3: return (px, py)
+    print(f"[extras] ! no clear ground near {x:.0f},{y:.0f}"); return None
+
+
+def sea(x, y, lo=-6.0, hi=-1.5, tries=40):
+    """A point of sea bed between lo and hi metres near (x, y) -- where an offshore rig can stand."""
+    for k in range(tries):
+        px, py = (x, y) if k == 0 else (x + rnd.gauss(0, 4.0 + k), y + rnd.gauss(0, 4.0 + k))
+        if lo < raw_h(px, py) < hi: return (px, py)
+    return None
+
+
+for key, (x, y) in [("furs", (-100, -24)), ("amber", shore(-110)), ("bogiron", (66, -46)), ("saltpetre", (-40, 112)), ("gold", (-150, 30)), ("geyser", (92, 62))]:
+    p = land(x, y, 4.0)
+    if p: PADS.append((p[0], p[1], 4.0)); put("rare", key, p[0], p[1], 0.0, 1.0, tag=key)
+for k in range(4): rock("rare", "pitch:0", 160 + rnd.gauss(0, 2.5), 136 + rnd.gauss(0, 2.5), rnd.uniform(0.5, 1.0))     # pitchblende: a brighter uranium
+for k in range(10): rock("rare", pick("coal"), -130 + rnd.gauss(0, 3.5), 130 + rnd.gauss(0, 3.5), rnd.uniform(0.7, 1.6))  # the rich coal seam
+for k in range(8):                                                                                                            # the rubber grove, in the wettest corner
+    p = land(-80 + rnd.gauss(0, 7), -130 + rnd.gauss(0, 7), 1.5)
+    if p: put("rubber", pick("rubber"), p[0], p[1], -0.15, rnd.uniform(0.85, 1.15), tag="tree")
+p = sea(150, -178)
+if p: put("rig", "rig", p[0], p[1], raw_h(*p) - height(*p), 1.0); PADS.append((p[0], p[1], 8.0))                             # base on the sea bed
+else: print("[extras] ! no shallow sea for the rig")
+p = sea(30, -195, lo=-12.0, hi=-4.0)
+if p: put("whale", "whale", p[0], p[1], SEA - height(*p), 1.0)
+for (hx, hy) in [(-90, -80), (-130, -20), (56, 86)]:                                                                        # deer herds in forest clearings
+    for k in range(5):
+        p = land(hx + rnd.gauss(0, 6), hy + rnd.gauss(0, 6), 1.2, tries=12)
+        if p: put("deer", pick("deer"), p[0], p[1], 0.0, rnd.uniform(0.9, 1.1))
+for k in range(6):                                                                                                           # the wild herd on the steppe (the Horses rare)
+    p = land(150 + rnd.gauss(0, 7), 30 + rnd.gauss(0, 7), 1.6, tries=12)
+    if p: put("horse_wild", "horse_wild", p[0], p[1], 0.0, 1.0)
+print("EXTRAS " + " ".join(f"{k}={n.get(k, 0)}" for k in ("rare", "rubber", "rig", "whale", "deer", "horse_wild")), flush=True)
+
 # ---- grass on grass, straw on the steppe
 t_grass = time.time()
 GRASS = grass_material(new_mat, principled, maprange, green=(0.06, 0.15, 0.03, 1), olive=(0.13, 0.16, 0.04, 1), straw=(0.24, 0.20, 0.07, 1))
@@ -531,7 +599,8 @@ plan = camera("Plan", (0, 0, 500), (0, 0, 0), ortho=W + 10)
 vil = camera("Village", (V[0] + 8, V[1] - 62, 46), (math.radians(50), 0, math.radians(6)), lens=40)
 # the twelve region crops the review looks at, one per thing that must read
 REGION_CAMS = [("village", V), ("hamlet_steppe", H2), ("hamlet_fishing", h3), ("camp_mining", h4), ("bridge", BRIDGE), ("ford", FORD),
-               ("mountain", (-130, 110)), ("volcano", VOLCANO), ("desert_oil", (150, -110)), ("salt", SALT), ("lake", LAKE), ("forest", (-110, -40))]
+               ("mountain", (-130, 110)), ("volcano", VOLCANO), ("desert_oil", (150, -110)), ("salt", SALT), ("lake", LAKE), ("forest", (-110, -40)),
+               ("herd", (-90, -80)), ("steppe_horses", (150, 30)), ("rig", (150, -178)), ("geyser", (92, 62))]
 crops = [(camera(f"R_{nm}", (cx + 6, cy - 70, 56), (math.radians(50), 0, math.radians(5)), lens=40), nm) for nm, (cx, cy) in REGION_CAMS] if REGIONS else []
 
 out = os.path.join(SCENE_DIR, "renders", "world_")
