@@ -51,3 +51,5 @@ __pycache__/
 blender/base/map_world/renders/*_final.png
 blender/base/map_world/renders/*_preview.png
 blender/base/map_world/renders/PLACED.csv
+blender/base/map_world/map_world.blend
+blender/base/map_world/map_world.blend1
