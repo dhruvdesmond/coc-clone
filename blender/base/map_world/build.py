@@ -540,7 +540,7 @@ def sea(x, y, lo=-6.0, hi=-1.5, tries=40):
     """A point of sea bed between lo and hi metres near (x, y) -- where an offshore rig can stand."""
     for k in range(tries):
         px, py = (x, y) if k == 0 else (x + rnd.gauss(0, 4.0 + k), y + rnd.gauss(0, 4.0 + k))
-        if lo < raw_h(px, py) < hi: return (px, py)
+        if abs(px) < W / 2 - 14 and abs(py) < Dp / 2 - 14 and lo < raw_h(px, py) < hi: return (px, py)     # on the map, in the shallows
     return None
 
 
@@ -552,7 +552,7 @@ for k in range(10): rock("rare", pick("coal"), -130 + rnd.gauss(0, 3.5), 130 + r
 for k in range(8):                                                                                                            # the rubber grove, in the wettest corner
     p = land(-80 + rnd.gauss(0, 7), -130 + rnd.gauss(0, 7), 1.5)
     if p: put("rubber", pick("rubber"), p[0], p[1], -0.15, rnd.uniform(0.85, 1.15), tag="tree")
-p = sea(150, -178)
+p = sea(140, -184)
 if p: put("rig", "rig", p[0], p[1], raw_h(*p) - height(*p), 1.0); PADS.append((p[0], p[1], 8.0))                             # base on the sea bed
 else: print("[extras] ! no shallow sea for the rig")
 p = sea(30, -195, lo=-12.0, hi=-4.0)
@@ -605,7 +605,7 @@ vil = camera("Village", (V[0] + 8, V[1] - 62, 46), (math.radians(50), 0, math.ra
 # the twelve region crops the review looks at, one per thing that must read
 REGION_CAMS = [("village", V), ("hamlet_steppe", H2), ("hamlet_fishing", h3), ("camp_mining", h4), ("bridge", BRIDGE), ("ford", FORD),
                ("mountain", (-130, 110)), ("volcano", VOLCANO), ("desert_oil", (150, -110)), ("salt", SALT), ("lake", LAKE), ("forest", (-110, -40)),
-               ("herd", (-90, -80)), ("steppe_horses", (150, 30)), ("rig", (150, -178)), ("geyser", (92, 62))]
+               ("herd", (-90, -80)), ("steppe_horses", (150, 30)), ("rig", (140, -184)), ("geyser", (92, 62))]
 crops = [(camera(f"R_{nm}", (cx + 6, cy - 70, 56), (math.radians(50), 0, math.radians(5)), lens=40), nm) for nm, (cx, cy) in REGION_CAMS] if REGIONS else []
 
 out = os.path.join(SCENE_DIR, "renders", "world_")
