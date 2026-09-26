@@ -32,6 +32,15 @@ SNOW = (0.92, 0.94, 0.97)
 ROCK = (0.46, 0.44, 0.41)
 
 
+def _math(nt, op, a, b, loc=(0, 0)):
+    """Math node whose inputs may be sockets OR numbers (nodeutils.math_node takes sockets only)."""
+    m = nt.nodes.new("ShaderNodeMath"); m.location = loc; m.operation = op
+    for i, v in enumerate((a, b)):
+        if isinstance(v, (int, float)): m.inputs[i].default_value = v
+        else: nt.links.new(v, m.inputs[i])
+    return m
+
+
 def _ramp(nt, fac, stops, loc):
     r = nt.nodes.new("ShaderNodeValToRGB"); r.location = loc; e = r.color_ramp.elements
     for _ in range(len(stops) - 2): e.new(0.5)
@@ -74,8 +83,8 @@ def material(new_mat, principled, noise_node, math_node, maprange):
     nt.links.new(P, vor.inputs["Vector"])
     peb = maprange(nt, vor.outputs["Distance"], 0.05, 0.11, 1.0, 0.0, (-1700, -350))          # small cells' centres = pebbles
     # pebbles only on land that is not snow or water: biome 0.1..0.9
-    pebband = maprange(nt, biome, 0.08, 0.16, 0.0, 1.0, (-1700, -450)); pebmask = math_node(nt, "MULTIPLY", peb.outputs["Result"], pebband.outputs["Result"], loc=(-1500, -400))
-    pebmask2 = math_node(nt, "MULTIPLY", pebmask.outputs[0], 0.55, loc=(-1350, -400))
+    pebband = maprange(nt, biome, 0.08, 0.16, 0.0, 1.0, (-1700, -450)); pebmask = _math(nt, "MULTIPLY", peb.outputs["Result"], pebband.outputs["Result"], loc=(-1500, -400))
+    pebmask2 = _math(nt, "MULTIPLY", pebmask.outputs[0], 0.55, loc=(-1350, -400))
     pebbled = _mix(nt, pebmask2.outputs[0], detailed.outputs["Color"], SCREE, (-1100, 400))
 
     # 3. roads: a worn shoulder band, then the road colour; cobbles get sett joints
@@ -93,37 +102,37 @@ def material(new_mat, principled, noise_node, math_node, maprange):
     roaded = _mix(nt, core.outputs["Result"], shouldered.outputs["Color"], kind_j.outputs["Color"], (-700, 500))
 
     # 4. sand ripples on the dunes (biome < 0.2), wet sand at the shore (z < 1.2), mud sheen in the marsh
-    rip = math_node(nt, "SINE", math_node(nt, "ADD", math_node(nt, "MULTIPLY", pos.outputs["X"], 1.3, loc=(-1900, -900)).outputs[0],
-                                                     math_node(nt, "MULTIPLY", pos.outputs["Y"], 0.5, loc=(-1900, -1000)).outputs[0], loc=(-1750, -950)).outputs[0], loc=(-1600, -950))
+    rip = _math(nt, "SINE", _math(nt, "ADD", _math(nt, "MULTIPLY", pos.outputs["X"], 1.3, loc=(-1900, -900)).outputs[0],
+                                                     _math(nt, "MULTIPLY", pos.outputs["Y"], 0.5, loc=(-1900, -1000)).outputs[0], loc=(-1750, -950)).outputs[0], loc=(-1600, -950))
     ripv = maprange(nt, rip.outputs[0], -1.0, 1.0, 0.90, 1.08, (-1450, -950))
     sandband = maprange(nt, biome, 0.24, 0.10, 0.0, 1.0, (-1450, -1100))
     ripm = _mix(nt, sandband.outputs["Result"], (1.0, 1.0, 1.0), ripv.outputs["Result"], (-1250, -1000))
     rippled = _mix(nt, 1.0, roaded.outputs["Color"], ripm.outputs["Color"], (-500, 500), blend="MULTIPLY")
-    wet = maprange(nt, pos.outputs["Z"], 1.4, 0.3, 0.0, 1.0, (-1450, -1250)); wetm = math_node(nt, "MULTIPLY", wet.outputs["Result"], sandband.outputs["Result"], loc=(-1250, -1250))
+    wet = maprange(nt, pos.outputs["Z"], 1.4, 0.3, 0.0, 1.0, (-1450, -1250)); wetm = _math(nt, "MULTIPLY", wet.outputs["Result"], sandband.outputs["Result"], loc=(-1250, -1250))
     wetc = _mix(nt, wetm.outputs[0], rippled.outputs["Color"], (0.40, 0.33, 0.22), (-300, 500))
 
     # 5. snow by aspect and rock on steep faces: north faces (+Y normal) and flats keep snow; sun-facing ridges blow clear
     snowband = maprange(nt, biome, 0.86, 0.96, 0.0, 1.0, (-1450, -1450))
-    aspect = math_node(nt, "ADD", math_node(nt, "MULTIPLY", nrm.outputs["Y"], 0.6, loc=(-1700, -1500)).outputs[0],
-                       math_node(nt, "MULTIPLY", nrm.outputs["Z"], 0.9, loc=(-1700, -1600)).outputs[0], loc=(-1550, -1550))
+    aspect = _math(nt, "ADD", _math(nt, "MULTIPLY", nrm.outputs["Y"], 0.6, loc=(-1700, -1500)).outputs[0],
+                       _math(nt, "MULTIPLY", nrm.outputs["Z"], 0.9, loc=(-1700, -1600)).outputs[0], loc=(-1550, -1550))
     snowk = maprange(nt, aspect.outputs[0], 0.35, 0.85, 0.0, 1.0, (-1400, -1550))
-    snowf = math_node(nt, "MULTIPLY", snowband.outputs["Result"], snowk.outputs["Result"], loc=(-1250, -1500))
+    snowf = _math(nt, "MULTIPLY", snowband.outputs["Result"], snowk.outputs["Result"], loc=(-1250, -1500))
     rocky = _mix(nt, snowband.outputs["Result"], wetc.outputs["Color"], ROCK, (-100, 500))              # the snow band's bare ground is rock
     snowed = _mix(nt, snowf.outputs[0], rocky.outputs["Color"], SNOW, (100, 500))
     steep = maprange(nt, nrm.outputs["Z"], 0.86, 0.58, 0.0, 1.0, (-1400, -1750))
-    notsnow = math_node(nt, "SUBTRACT", 1.0, snowf.outputs[0], loc=(-1250, -1750)); steepf = math_node(nt, "MULTIPLY", steep.outputs["Result"], notsnow.outputs[0], loc=(-1100, -1750))
+    notsnow = _math(nt, "SUBTRACT", 1.0, snowf.outputs[0], loc=(-1250, -1750)); steepf = _math(nt, "MULTIPLY", steep.outputs["Result"], notsnow.outputs[0], loc=(-1100, -1750))
     final = _mix(nt, steepf.outputs[0], snowed.outputs["Color"], ROCK, (300, 500))
     nt.links.new(final.outputs["Color"], p.inputs["Base Color"])
 
     # roughness: mud and wet sand shine a little, snow is matte-bright
     marsh = maprange(nt, biome, 0.47, 0.50, 0.0, 1.0, (-1450, -1900)); marsh2 = maprange(nt, biome, 0.53, 0.50, 0.0, 1.0, (-1450, -2000))
-    marshf = math_node(nt, "MULTIPLY", marsh.outputs["Result"], marsh2.outputs["Result"], loc=(-1250, -1950))
-    shine = math_node(nt, "MAXIMUM", marshf.outputs[0], wetm.outputs[0], loc=(-1100, -1950))
+    marshf = _math(nt, "MULTIPLY", marsh.outputs["Result"], marsh2.outputs["Result"], loc=(-1250, -1950))
+    shine = _math(nt, "MAXIMUM", marshf.outputs[0], wetm.outputs[0], loc=(-1100, -1950))
     rough = maprange(nt, shine.outputs[0], 0.0, 1.0, 0.92, 0.45, (-900, -1950)); nt.links.new(rough.outputs["Result"], p.inputs["Roughness"])
 
     # bump: blade / grain scale plus the pebbles
     bn = noise_node(nt, P, 38.0, 8.0, 0.65, (-900, -700)); bmp = nt.nodes.new("ShaderNodeBump"); bmp.location = (-200, -600)
     bmp.inputs["Strength"].default_value = 0.42; bmp.inputs["Distance"].default_value = 0.06
-    bsum = math_node(nt, "ADD", bn.outputs["Fac"], pebmask2.outputs[0], loc=(-500, -650))
+    bsum = _math(nt, "ADD", bn.outputs["Fac"], pebmask2.outputs[0], loc=(-500, -650))
     nt.links.new(bsum.outputs[0], bmp.inputs["Height"]); nt.links.new(bmp.outputs["Normal"], p.inputs["Normal"])
     return m
