@@ -46,3 +46,8 @@ __pycache__/
 .idea/
 .vscode/
 *.swp
+
+# world map renders live in art/ (the finals are copied there); the working renders are regenerated every build
+blender/base/map_world/renders/*_final.png
+blender/base/map_world/renders/*_preview.png
+blender/base/map_world/renders/PLACED.csv
