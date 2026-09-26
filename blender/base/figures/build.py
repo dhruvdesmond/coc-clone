@@ -102,10 +102,10 @@ def body(name, pose, helmet=False, mail=False, cloak=False, quiver=False, cap=Fa
 
     # ---- limbs. Joints are INSIDE the limb and in its material: they are pivots, not decoration.
     A = S if bare_arms else T
+    # no pauldrons: a sphere on the shoulder is the mannequin look again, even in steel. The mail chest + the sleeve cover the joint.
     for side, s in (("l", 1), ("r", -1)):
         sh, el, ha = J[side + "_shoulder"], J[side + "_elbow"], J[side + "_hand"]
         F.blob(m, P("Shoulder" + side), sh, 0.060 * u, CH, scale=(1.0, 1.0, 0.95))
-        if mail: F.blob(m, P("Pauldron" + side), sh + V((0, s * 0.020 * u, 0.030 * u)), 0.090 * u, MAT["mail"], scale=(1.05, 1.0, 0.70))
         F.seg(m, P("UpperArm" + side), sh, el, (0.112 * u, 0.112 * u), (0.092 * u, 0.092 * u), A, n=3, bevel=0.016)
         F.blob(m, P("Elbow" + side), el, 0.040 * u, A)
         F.seg(m, P("Forearm" + side), el, ha, (0.090 * u, 0.090 * u), (0.074 * u, 0.074 * u), S, n=3, bevel=0.014)
