@@ -174,8 +174,9 @@ def world_material():
     at = nt.nodes.new("ShaderNodeAttribute"); at.attribute_name = "map"; at.location = (-1600, 300)
     sep = nt.nodes.new("ShaderNodeSeparateXYZ"); sep.location = (-1400, 300); nt.links.new(at.outputs["Color"], sep.inputs[0])
     ramp = nt.nodes.new("ShaderNodeValToRGB"); ramp.location = (-1200, 300)
-    stops = [(0.00, (0.30, 0.27, 0.18)), (0.14, (0.52, 0.42, 0.22)), (0.28, (0.30, 0.30, 0.10)), (0.42, (0.10, 0.24, 0.05)),
-             (0.50, (0.07, 0.15, 0.05)), (0.56, (0.05, 0.14, 0.03)), (0.70, (0.16, 0.15, 0.14)), (0.84, (0.05, 0.045, 0.045)), (1.00, (0.70, 0.74, 0.80))]
+    # the palette of docs/16-look.md §3: seabed, SAND (ochre), steppe (dry/worn), MEADOW CREST, marsh, MEADOW DIP, scree, ash, snow
+    stops = [(0.00, (0.24, 0.20, 0.13)), (0.14, (0.62, 0.52, 0.34)), (0.28, (0.55, 0.47, 0.22)), (0.42, (0.42, 0.46, 0.12)),
+             (0.50, (0.26, 0.34, 0.10)), (0.56, (0.20, 0.30, 0.08)), (0.70, (0.50, 0.48, 0.45)), (0.84, (0.16, 0.14, 0.13)), (1.00, (0.92, 0.94, 0.97))]
     els = ramp.color_ramp.elements; els[0].position, els[0].color = stops[0][0], (*stops[0][1], 1); els[1].position, els[1].color = 1.0, (*stops[-1][1], 1)
     for pos, c in stops[1:-1]: e = els.new(pos); e.color = (*c, 1)
     nt.links.new(sep.outputs["X"], ramp.inputs["Fac"])
@@ -189,7 +190,7 @@ def world_material():
     rk = nt.nodes.new("ShaderNodeValToRGB"); rk.location = (-1200, 700); e = rk.color_ramp.elements
     e.new(1 / 3); e.new(2 / 3)
     for el, pos, c in zip(sorted(e, key=lambda s: s.position), (0.0, 1 / 3, 2 / 3, 1.0),
-                          [(0.22, 0.22, 0.09), (0.26, 0.19, 0.12), (0.10, 0.07, 0.045), (0.20, 0.19, 0.18)]):   # grass path, dirt, mud, cobbles
+                          [(0.55, 0.47, 0.22), (0.38, 0.27, 0.15), (0.16, 0.11, 0.07), (0.34, 0.33, 0.30)]):   # grass path (dry/worn), dirt, mud, cobbles -- docs/16-look.md §3
         el.position = pos; el.color = (*c, 1)
     nt.links.new(sep.outputs["Z"], rk.inputs["Fac"])
     rs = maprange(nt, sep.outputs["Y"], 0.25, 0.75, 0.0, 1.0, (-950, 700))
@@ -198,7 +199,7 @@ def world_material():
     # steep faces go rock (unless snow)
     geo = nt.nodes.new("ShaderNodeNewGeometry"); geo.location = (-1600, -600); nz = nt.nodes.new("ShaderNodeSeparateXYZ"); nz.location = (-1400, -600)
     nt.links.new(geo.outputs["Normal"], nz.inputs[0]); steep = maprange(nt, nz.outputs["Z"], 0.88, 0.60, 0.0, 1.0, (-1200, -600))
-    rock = nt.nodes.new("ShaderNodeMixRGB"); rock.location = (-450, 300); rock.inputs["Color2"].default_value = (0.13, 0.125, 0.12, 1)
+    rock = nt.nodes.new("ShaderNodeMixRGB"); rock.location = (-450, 300); rock.inputs["Color2"].default_value = (0.50, 0.48, 0.45, 1)
     snowy = maprange(nt, sep.outputs["X"], 0.9, 1.0, 1.0, 0.0, (-1200, -800))
     sf = math_node(nt, "MULTIPLY", steep.outputs["Result"], snowy.outputs["Result"], loc=(-950, -700))
     nt.links.new(sf.outputs[0], rock.inputs["Fac"]); nt.links.new(road.outputs["Color"], rock.inputs["Color1"])
@@ -590,10 +591,8 @@ import worldreview
 CTX = type("Ctx", (), {"region": staticmethod(region), "height": staticmethod(height), "raw_h": staticmethod(raw_h), "dry_flat": staticmethod(dry_flat), "SEA": SEA, "W": W, "D": Dp})
 REVIEW_OK = worldreview.run(PLACED, CTX, os.path.join(SCENE_DIR, "renders"), time.time() - T0, os.environ.get("BLENDER_GPU", "METAL"))
 
-# ============================================================================ light, cameras, render
-daylight(sun_energy=2.6, sky_strength=0.36, elevation=48.0, rotation=205.0)
-for o in D.objects:
-    if o.type == "LIGHT" and o.data.type == "SUN": o.data.angle = math.radians(4.0)
+# ============================================================================ light, cameras, render (docs/16-look.md §4: lighting.py is the one rig)
+import lighting
 
 
 def camera(name, loc, rot, lens=35, ortho=None):
@@ -603,7 +602,7 @@ def camera(name, loc, rot, lens=35, ortho=None):
     o = D.objects.new(name, cd); C.scene.collection.objects.link(o); o.location = loc; o.rotation_euler = rot; return o
 
 
-hero = camera("Hero", (16, -352, 300), (math.radians(50), 0, math.radians(-4)), lens=35)
+hero = camera("Hero", (16, -300, 330), (math.radians(56), 0, math.radians(-4)), lens=35)         # pitched down: the frame is land, not sky
 plan = camera("Plan", (0, 0, 500), (0, 0, 0), ortho=W + 10)
 vil = camera("Village", (V[0] + 8, V[1] - 62, 46), (math.radians(50), 0, math.radians(6)), lens=40)
 # the twelve region crops the review looks at, one per thing that must read
@@ -615,9 +614,9 @@ crops = [(camera(f"R_{nm}", (cx + 6, cy - 70, 56), (math.radians(50), 0, math.ra
 out = os.path.join(SCENE_DIR, "renders", "world_")
 final = QUALITY == "final"
 render_settings(scene, out, res=(3840, 2400) if final else (1200, 750), samples=1024 if final else 48, exposure=-1.6)
+lighting.rig(scene, W, Dp, wind=(1.0, 0.3), with_clouds=os.environ.get("CLOUDS", "1") == "1", with_haze=os.environ.get("HAZE", "1") == "1")   # after render_settings: the rig owns exposure
 try: scene.cycles.denoiser = "OPTIX" if os.environ.get("BLENDER_GPU", "METAL") == "OPTIX" else "OPENIMAGEDENOISE"
 except Exception as ex: print("[render] denoiser:", ex)
-scene.view_settings.look = "AgX - Medium High Contrast"
 scene.render.use_persistent_data = True                                  # sync the 100k-object scene ONCE for all 19 frames, not per frame
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(SCENE_DIR, "map_world.blend"))
 print("BUILT", len(D.objects), "objects", f"in {time.time() - T0:.0f} s", flush=True)
@@ -628,5 +627,20 @@ for cam, tag, res_f, spp in shots:
     else: scene.render.resolution_x, scene.render.resolution_y = (1400, 1400) if tag == "plan" else (960, 600) if tag.startswith("region") else (1200, 750)
     scene.cycles.samples = spp if final else 48
     t_r = time.time(); bpy.ops.render.render(write_still=True); print("RENDERED", scene.render.filepath, f"{time.time() - t_r:.0f} s", flush=True)
+# ---- the LOOK score (docs/16-look.md §5): measure the crops and append a look table to REVIEW.md. Informational until the
+#      standard is met; the batch rc stays with the placement review.
+import measure
+look_rows = []
+for cam, tag, res_f, spp in shots:
+    if not tag.startswith("region") and tag != "hero": continue
+    p = out + tag + ("_final" if final else "_preview") + ".png"
+    try: look_rows.append((tag, measure.score(measure.load(p))))
+    except Exception as ex: print("[look]", tag, ex)
+if look_rows:
+    with open(os.path.join(SCENE_DIR, "renders", "REVIEW.md"), "a") as f:
+        f.write("\n## look (docs/16-look.md §5)\n\n| crop | saturation | shadows | white pt | black | spread | median | verdict |\n|---|---|---|---|---|---|---|---|\n")
+        for tag, s in look_rows:
+            f.write(f"| {tag} | {s['sat']:.2f} {s['sat_ok']} | {s['sh_luma']:.3f} {s['sh_hue']:.0f}° {s['sh_ok']} | {s['white']:.2f}% {s['white_ok']} | {s['black']:.2f}% {s['black_ok']} | {s['spread']} {s['spread_ok']} | {s['p50']:.2f} {s['p50_ok']} | {s['passed']}/6 |\n")
+    print("LOOK " + " ".join(f"{tag}={s['passed']}/6" for tag, s in look_rows), flush=True)
 print(f"BUILD+RENDER {time.time() - T0:.0f} s")
 if not REVIEW_OK: raise RuntimeError("REVIEW FAILED -- see renders/REVIEW.md")
