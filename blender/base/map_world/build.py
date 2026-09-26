@@ -316,7 +316,8 @@ for v in bm.verts:
 for f in bm.faces:
     for l in f.loops: l[col] = vcol[l.vert.index]
 MESH_PADS = list(PADS)
-ground = obj_from_bm(world, "Terrain", bm, world_material(), bevel=0.0, smooth=True)
+import ground as G                                                       # the v2 ground material (docs/16-look.md); world_material() above is v1, kept for reference
+ground = obj_from_bm(world, "Terrain", bm, G.material(new_mat, principled, noise_node, math_node, maprange) if os.environ.get("GROUND", "2") == "2" else world_material(), bevel=0.0, smooth=True)
 # water: one plane at sea level covers the sea, the lake basin and the river bed
 wb = bmesh.new(); bm_box(wb, W + 40, Dp + 40, 0.06, (0, 0, SEA - 0.03)); obj_from_bm(world, "Sea", wb, TK["water"], bevel=0.0)
 # lava lake in the crater, and a glow
