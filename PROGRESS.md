@@ -475,6 +475,52 @@ Every one of these cost real time on a previous project.
 
 Append one block per session. Newest at the top.
 
+### 2026-09-26 — Session 13: everything on the cloud — the 420 m map, the asserting review, the horse and the rider (PENDING B21–B23)
+**Cost line, start:** credit \$4.64, one box running (the Last Mile session's 3090). *(end line at the bottom of this entry)*
+
+The approved plan (`~/.claude/plans/sharded-honking-hennessy.md`): Standard 420 × 420 m, everything built on a rented
+4090, an asserting review, rider-and-horse first, the axe as a document, Unity headless where it can be.
+
+**Phase 0 — the bench.** `tools/cloud/vast.sh` for this repo (named box `coa`, two read-only deploy keys, `batch`/`wait`/
+`sync`/`cost`, GPU sampling per job); `BLENDER_LIB` replaces every hard-coded library path (8 files); `meshkit.render_settings`
+takes the device from `BLENDER_GPU` and prints it (the one approved edit inside `~/blender/lib`, pushed). Two rentals
+failed before one worked (offer ids vanish; the tool fed two ids as one; 150 s was too short to wait for SSH). The box:
+RTX 4090, 64 cores, driver 595 → OptiX works, \$0.458/h with 80 GB disk.
+
+**Phase 1a — instancing.** `protos.py`: 36 kinds built once (pure bmesh, noise-displaced icospheres, material slots per
+part), placed with `obj.copy()`. The 260 m map: 108 s instead of 6 min, same picture (gate passed).
+
+**Phase 2 — the review.** `worldreview.py` checks every placement (count, biome, buried/floating, overlaps) and writes
+`renders/REVIEW.md` + `PLACED.csv`, raising after the renders so the batch rc says FAIL. Its first three runs on the old
+map found what two rounds of looking had not: a shoal on the beach, berries in the stable yard and on top of each other, the
+salt flat outside the desert, and the stable itself on 0.47 m of marsh because `site()` had "placed anyway".
+
+**Phase 1b — 420 × 420 m.** Two ridge lines, a volcano rim, a river from the massif to the sea with two sand-bar fords and a
+timber bridge, cliffs at both mountain feet, four settlements (village on the east bank, steppe hamlet, fishing hamlet with
+a pier, mining camp), roads of four kinds incl. cobbles, 16 region cameras. First 420 m build: 103k objects in 346 s,
+15 previews at 22 s each on the 4090. Found in the crops: the cobbled square rendered WHITE (colour-ramp stops re-sort after
+`new()`), the river head cut a black gorge into the mountain, a node pad sat in the lake as an island, the fishing hamlet
+stood 35 m from its shore. All fixed in the next build. Terrain colouring per vertex: 148 s → 45 s.
+
+**Phase 1c — the extras** (`extras.py`): nine rares as markers, three deer herds, a wild horse herd (the library horse
+without its saddle), a rubber grove, an offshore rig, a whale, a geyser.
+
+**Phase 3 — the horse and the rider.** `rig_quadruped.py`: the library horse's 33 loose parts → one skinned mesh, 20 bones,
+pivots measured from the parts, five clips (Idle, Walk, Gallop, Rear, Death), `horse.fbx` + meta with the saddle point;
+the sheet looked at (`art/rig/horse_sheet.png`). Six mounted clips added to the humanoid library (RideIdle, Ride,
+AttackMounted, AttackLance, ShootMounted, DeathFall) — the seat is a pose, so every rider shares the one library;
+`art/rig/rider_sheet.png`. Unity assembly (rider Root under the Saddle bone) is the next step, local.
+
+**The axe plan** is `docs/15-axe.md` (P1c): six of B4's seven findings were already fixed in session 10; what remains is
+the sound — a mixer, low-pass and reverb by focus distance, bite/body/chip synthesis, a 4-voice cap.
+
+**Phase 4 — Unity.** `tools/u.sh` and `tools/test.sh` take `UE`/`P`/`LOGDIR` from the environment; `tools/cloud/unity-bootstrap.sh`
+installs the editor + Windows Mono module on the box. Not run this session (Blender came first). The honest split stands:
+sim tests, compile, asset asserts and the Windows build can go to the box; `DemoVerify`'s screenshots cannot.
+
+**GPU (B23):** the build is single-threaded Python — GPU 0 % for ~5 min, 100 % for each 22 s render. The sampler now
+reports every batch's average; the lever is heavier renders (the 4K finals) and a render process running beside a build.
+
 ### 2026-09-26 — Session 12c: the world inventory doc, and what a cloud GPU costs (PENDING B18, B19)
 Dhruv listed everything the map must hold (RoN size, resources, tanks/planes/helicopters/airport/silo, woodcutter, roads and
 highways, oil, bullets/missiles/tanks exploding, walls, watchtower) and asked whether a document already stores it. **No single

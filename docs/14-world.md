@@ -62,7 +62,7 @@ scales with the map.
 | Resource | Map object | Biome / where | Age | In `map_world` v2 | Node model |
 |---|---|---|---|---|---|
 | Food | berry bushes | grassland edges | I | ✅ berries | `node_food` ✅ |
-| Food | deer / game herds | forest clearings | I | 📄 (no deer model, no herd) | 🆕 `node_deer` + Deer rig |
+| Food | deer / game herds | forest clearings | I | ✅ 3 herds (v3, `extras.deer`, static) | 📄 Deer rig |
 | Food | farmland | flat grass by the village | I | ✅ 3 farms + hamlet | `farm` ✅ (age1_demo) |
 | Food | fish shoals | lake and sea | I | ✅ shoals (discs) | 📄 `node_fish` |
 | Wood | trees | forest W; scattered | I | ✅ 553 | library trees; chopped + stump variants 📄 |
@@ -71,7 +71,7 @@ scales with the map.
 | Knowledge | — generated, never on the map | — | I | — | — |
 | Gold | — markets, caravans, trade routes | — | II | — | 🆕 optional **gold vein** as a rare (§2c) |
 | Coal | coal seam → colliery | mountain flank, badlands | IV | ✅ seam (black discs) | 📄 seam mesh + colliery |
-| Oil | oil seep → land derrick; **offshore rig** | desert SE; shallow sea | V | ✅ 3 derricks, seep | 📄 derrick model; 🆕 offshore rig |
+| Oil | oil seep → land derrick; **offshore rig** | desert SE; shallow sea | V | ✅ 3 derricks, seep, ✅ offshore rig (v3) | 📄 derrick as a library asset |
 | Uranium | 2–3 deposits, glowing | volcano flank | VI | ✅ deposits (green) | 📄 `node_uranium` + refinery |
 
 ### 2b. Landscape features that are resources in disguise (doc 08)
@@ -80,19 +80,19 @@ scales with the map.
 |---|---|---|
 | Lake | fish, water for the mud road, a border you cannot walk across | ✅ |
 | Sea + coast | fish, ports, offshore oil, naval | ✅ |
-| River + fords + bridges | the classic chokepoint map; bridges are a Feudal build and a target | 📄 not in v2 — the biggest missing landform |
-| Mountains + snow | stone / iron / coal at the feet, cliffs as walls | ✅ one blob; needs ridges |
-| Volcano + lava lake + ash | uranium lives here; ash fall cuts vision map-wide | ✅ cone + lava; crater flat |
+| River + fords + bridges | the classic chokepoint map; bridges are a Feudal build and a target | ✅ v3: a river from the massif to the sea, two sand-bar fords, a timber bridge |
+| Mountains + snow | stone / iron / coal at the feet, cliffs as walls | ✅ v3: two ridge lines, cliff clusters at the feet |
+| Volcano + lava lake + ash | uranium lives here; ash fall cuts vision map-wide | ✅ v3: cone, crater, raised rim, obsidian cliffs |
 | Forest with edges and clearings | wood, hides units, blocks vehicles | ✅ |
 | Desert, dunes, salt flat | oil, open ground for armour | ✅ |
 | Marsh / bog | slows everything; the muddy road runs through it | ✅ mud road only |
-| Cliffs and outcrops (V10) | a landmass you path around; where the ore is | 📄 |
+| Cliffs and outcrops (V10) | a landmass you path around; where the ore is | ✅ v3: eight clusters of stacked slabs |
 
 ### 2c. Extras — RoN-style rares and flavour (doc 12 has the rares list)
 
 Doc 12 already defines nine rares (furs, amber, bog iron, horses, salt, saltpetre, rich coal, rubber, pitchblende),
 6–10 per Standard map, each needing a Market or Trading Post to activate. Each one needs a **small map object** so
-the player can see what they are fighting over. Nothing below is modelled.
+the player can see what they are fighting over. **v3 (2026-09-26): every marker below exists in `map_world/extras.py` and stands on the map** — furs rack, amber, bog-iron pool, salt flat, saltpetre cave, rich coal seam, rubber grove, pitchblende, gold vein, geyser, obsidian field, whale, plus the wild horse herd and three deer herds.
 
 | Rare / extra | Map object | Note |
 |---|---|---|
