@@ -102,8 +102,10 @@ def raw_h(x, y):
     # sea floor
     sea = -R["sea"] * (3.0 + 4.0 * sm((COAST_Y(x) - y) / 30.0))
     # lake basin
-    lake = -6.0 * falloff(x, y, *LAKE, 20.0, 14.0) * (0.6 + 0.4 * fbm(x, y, 6, octaves=2, freq=0.06))
+    lk = falloff(x, y, *LAKE, 20.0, 14.0)
+    lake = -6.0 * lk * (0.6 + 0.4 * fbm(x, y, 6, octaves=2, freq=0.06))
     h = base + mount + volc + dunes + sea + lake
+    if lk > 0.55: h = min(h, -1.5 - (lk - 0.55) * 6.0)                      # the lake core is always under water (an island once surfaced on its west side)
     # the river: a channel cut to a bed BELOW the sea level (the one water plane), gravel bars at the fords. It fades out inside
     # the mountain (a full-depth cut through 20 m of rock was a black gorge in the first render).
     d = poly_dist(x, y, RIVER)
@@ -115,12 +117,14 @@ def raw_h(x, y):
     return h
 
 
-PADS = []       # (x, y, r) flattened sites, registered before the mesh is built
+PADS = []       # (x, y, r) flattened sites; only those registered BEFORE the terrain mesh is built flatten the ground
+MESH_PADS = None   # frozen copy of PADS at mesh time -- pads added later (nodes, salt, rig) only keep things apart. Reviewing with
+                   # the live list once "buried" rocks that the MESH had never raised.
 
 
 def height(x, y):
     h = raw_h(x, y); w = 0.0; ph = h
-    for (sx, sy, r) in PADS:
+    for (sx, sy, r) in (PADS if MESH_PADS is None else MESH_PADS):
         d = math.hypot(x - sx, y - sy); k = 1.0 - sm((d - r) / (r * 0.8))
         if k > w: w = k; ph = raw_h(sx, sy)
     return h * (1 - w) + ph * w
@@ -310,6 +314,7 @@ for v in bm.verts:
     rs, rk = road_at(v.co.x, v.co.y); vcol[v.index] = (biome(v.co.x, v.co.y), rs, rk / 3.0, 1.0)
 for f in bm.faces:
     for l in f.loops: l[col] = vcol[l.vert.index]
+MESH_PADS = list(PADS)
 ground = obj_from_bm(world, "Terrain", bm, world_material(), bevel=0.0, smooth=True)
 # water: one plane at sea level covers the sea, the lake basin and the river bed
 wb = bmesh.new(); bm_box(wb, W + 40, Dp + 40, 0.06, (0, 0, SEA - 0.03)); obj_from_bm(world, "Sea", wb, TK["water"], bevel=0.0)
@@ -609,6 +614,7 @@ render_settings(scene, out, res=(3840, 2400) if final else (1200, 750), samples=
 try: scene.cycles.denoiser = "OPTIX" if os.environ.get("BLENDER_GPU", "METAL") == "OPTIX" else "OPENIMAGEDENOISE"
 except Exception as ex: print("[render] denoiser:", ex)
 scene.view_settings.look = "AgX - Medium High Contrast"
+scene.render.use_persistent_data = True                                  # sync the 100k-object scene ONCE for all 19 frames, not per frame
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(SCENE_DIR, "map_world.blend"))
 print("BUILT", len(D.objects), "objects", f"in {time.time() - T0:.0f} s", flush=True)
 shots = [(hero, "hero", (3840, 2400), 1024), (plan, "plan", (4200, 4200), 512), (vil, "village", (3840, 2400), 1024)] + [(c, f"region_{nm}", (1920, 1200), 256) for c, nm in crops]
