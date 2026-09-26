@@ -86,14 +86,16 @@ try_offer() {  # rent one offer; returns 0 once SSH is reachable, else destroys 
   done
   [[ $st == running ]] || { echo "  did not start ($st) — destroying"; down; return 1; }
   printf 'ID=%s\nHOST=%s\nPORT=%s\n' $id $host $port > $STATE
-  for i in {1..30}; do sshx true 2>/dev/null && return 0; sleep 5; done
-  echo "  SSH never answered — destroying"; down; return 1
+  for i in {1..60}; do sshx true 2>/dev/null && return 0; (( i % 12 == 0 )) && echo "  …waiting for SSH ($((i * 10)) s)"; sleep 10; done
+  echo "  SSH never answered in 10 min — destroying"; down; return 1
 }
 
 up() {
   [[ -f $STATE ]] && { echo "instance already recorded in $STATE (run 'down' first)"; exit 1; }
   echo "credit before: \$$(credit)   other boxes on the account:"; list | sed 's/^/  /'
-  local offers=(${1:-$(search "RTX 4090" | awk '{print $1}' | head -${VAST_TRY:-3}) $(search "RTX 3090" | awk '{print $1}' | head -2)})
+  local offers
+  if [[ -n $1 ]]; then offers=($1); else offers=($(search "RTX 4090" | awk '{print $1}' | head -${VAST_TRY:-3}) $(search "RTX 3090" | awk '{print $1}' | head -2)); fi
+  echo "offers to try: $offers"
   local ok=0
   for o in $offers; do try_offer $o && { ok=1; break; }; done
   (( ok )) || { echo "no offer came up"; exit 1; }
@@ -130,7 +132,7 @@ batch() {
 #!/bin/bash
 $GPUENV cd /work/repo
 echo \"=== START \$(date -u +%FT%TZ) $s $*\"
-/work/blender/blender -b --factory-startup --python $s $*
+/work/blender/blender -b --factory-startup --python-exit-code 1 --python $s $*
 echo \"=== END rc=\$? \$(date -u +%FT%TZ)\"
 EOS
 chmod +x /work/batch.sh; nohup /work/batch.sh > $log 2>&1 &

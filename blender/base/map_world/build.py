@@ -14,10 +14,12 @@ marsh by the lake. All written into the ground's colour attribute so they follow
     blender -b --factory-startup --python blender/base/map_world/build.py           # build + preview hero + plan
     QUALITY=final blender -b --factory-startup --python blender/base/map_world/build.py
 """
-import bpy, bmesh, math, random, sys, os
+import bpy, bmesh, math, random, sys, os, time
+T0 = time.time()
 from mathutils import Vector
 
 SCENE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, SCENE_DIR)                                          # protos.py, worldreview.py
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(SCENE_DIR)))   # clash-of-clans/
 sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))
 from nodeutils import new_mat, principled, noise_node, math_node, maprange   # noqa: E402
@@ -267,14 +269,54 @@ wb = bmesh.new(); bm_box(wb, W + 40, Dp + 40, 0.06, (0, 0, SEA - 0.03)); obj_fro
 lb = bmesh.new(); bm_cyl(lb, 7.5, 0.3, 24, (0, 0, 0)); obj_from_bm(world, "Lava", lb, MAT["lava"], bevel=0.0, loc=(VOLCANO[0], VOLCANO[1], raw_h(*VOLCANO) + 0.4))
 print(f"TERRAIN {nx}x{ny}", flush=True)
 
-# ============================================================================ placements
-placements = []
-for key, x, y, yaw in sites:
-    objs = lib.place(key, (x, y, height(x, y)), rot_z=yaw, name=f"{key}@{int(x)},{int(y)}"); placements.append({"name": key, "objs": objs, "x": x, "y": y})
-print(f"SITES {len(sites)}", flush=True)
+# ============================================================================ prototypes: every scatter kind built ONCE, instanced many
+import protos as P
+t_protos = time.time()
+PROTO = {}
 
-flora = Model("Flora"); res_m = Model("Resources")
-n = dict(tree=0, rock=0, berry=0, stone=0, iron=0, coal=0, uranium=0, oil=0, fish=0, bush=0, dead=0, snowrock=0)
+
+def proto(key, mats, build, *a, **kw):
+    bm = bmesh.new(); build(bm, *a, **kw); o = P.make_object(f"proto_{key}", bm, mats)
+    lib.register(key, [o]); lib.offset[key] = Vector((0, 0, 0)); PROTO.setdefault(key.split(":")[0], []).append(key)
+
+
+for i in range(4): proto(f"fir:{i}", [TK["bark"], TK["needle_dark"]], P.fir, 6.5, rnd.randint(4, 6), rnd)
+for i in range(2): proto(f"firlight:{i}", [TK["bark"], TK["needle"]], P.fir, 6.5, rnd.randint(4, 6), rnd)
+for i in range(2): proto(f"firsnow:{i}", [TK["bark"], TK["needle_snow"]], P.fir, 5.5, 5, rnd)
+for i in range(2): proto(f"mfir:{i}", [TK["bark"], TK["needle_dark"]], P.fir, 5.5, 5, rnd)
+for i, leaf in enumerate(["leaf_green", "leaf_green", "leaf_green", "leaf_lime", "leaf_autumn", "leaf_autumn", "leaf_gold"]): proto(f"broad:{i}", [TK["bark"], TK[leaf]], P.broadleaf, 5.5, 8, rnd)
+for i in range(3): proto(f"bare:{i}", [TK["bark"]], P.bare, 5.0, rnd.randint(4, 6), rnd)
+for i in range(3): proto(f"bush:{i}", [TK["leafy"]], P.bush, 1.0, rnd)
+for i in range(3): proto(f"rock:{i}", [TK["rock"]], P.boulder, rnd, flat=i == 2)
+for i in range(2): proto(f"rocksnow:{i}", [TK["rock_snow"]], P.boulder, rnd)
+for i in range(2): proto(f"rocksand:{i}", [TK["sand"]], P.boulder, rnd, flat=True)
+for i in range(2): proto(f"obsidian:{i}", [MAT["obsidian"]], P.boulder, rnd)
+for i in range(2): proto(f"coal:{i}", [MAT["coal"]], P.boulder, rnd, flat=i == 0)
+for i in range(2): proto(f"uran:{i}", [MAT["uranium"]], P.boulder, rnd)
+print(f"PROTOS {sum(len(v) for v in PROTO.values())} kinds in {time.time() - t_protos:.1f} s", flush=True)
+
+# ============================================================================ placements
+PLACED = []      # {kind, x, y, objs, name} -- everything the review checks
+ids = {}
+n = {}
+
+
+def put(kind, key, x, y, dz, s, tag=None, yaw=None):
+    """Instance a prototype or a library asset at (x, y) on the ground. `tag` is the name prefix export_nature reads (tree, rock, ...)."""
+    tag = tag or kind; i = ids.get(tag, 0); ids[tag] = i + 1
+    objs = lib.place(key, (x, y, height(x, y) + dz), rot_z=rnd.uniform(0, math.tau) if yaw is None else yaw, scale=s, name=f"{tag}{i}")
+    PLACED.append({"kind": kind, "x": x, "y": y, "objs": objs, "name": f"{tag}{i}"}); n[kind] = n.get(kind, 0) + 1
+    return objs
+
+
+def pick(group): return rnd.choice(PROTO[group])
+
+
+for key, x, y, yaw in sites:
+    objs = lib.place(key, (x, y, height(x, y)), rot_z=yaw, name=f"{key}@{int(x)},{int(y)}")
+    PLACED.append({"kind": "building", "x": x, "y": y, "objs": objs, "name": f"{key}@{int(x)},{int(y)}"})
+print(f"SITES {len(sites)}", flush=True)
+res_m = Model("Resources")
 
 
 def clear(x, y, extra=0.0):
@@ -286,36 +328,36 @@ def forest_density(x, y):
     return (0.12 + 0.88 * R["forest"]) * max(0.0, min(1.0, (v - 0.40) * 3.0)) * (1 - R["desert"]) * (1 - R["volc"]) * (1 - R["sea"])
 
 
-for _ in range(17000):                                            # ~900 trees. 26k tries made thousands, and bpy.ops slows as the scene grows
+t_scatter = time.time()
+for _ in range(int(os.environ.get("TRIES", 17000))):                 # ~900 trees at the current density; instancing makes tries cheap
     x, y = rnd.uniform(-W / 2 + 3, W / 2 - 3), rnd.uniform(-Dp / 2 + 3, Dp / 2 - 3)
     h = raw_h(x, y); R = region(x, y); s = slope(x, y)
     if h < SEA + 0.8 or not clear(x, y): continue
     r = rnd.random()
     if R["mount"] > 0.3 and h > 12:
-        if r < 0.10 and s > 0.25:
-            T.boulder(flora, (x, y, height(x, y) - 0.3), rnd.uniform(0.8, 2.6), TK["rock_snow"] if h > 24 else TK["rock"], rnd, f"mrock{n['rock']}"); n["rock"] += 1
-        elif r < 0.16 and h < 20 and s < 0.5:
-            T.conifer(flora, (x, y, height(x, y) - 0.2), rnd.uniform(4.0, 7.0), TK["bark"], TK["needle_snow"] if h > 16 else TK["needle_dark"], rnd, f"mfir{n['tree']}", tiers=5); n["tree"] += 1
+        if r < 0.10 and s > 0.25: put("rock", pick("rocksnow" if h > 24 else "rock"), x, y, -0.3, rnd.uniform(0.8, 2.6))
+        elif r < 0.16 and h < 20 and s < 0.5: put("tree", pick("firsnow" if h > 16 else "mfir"), x, y, -0.2, rnd.uniform(0.73, 1.27))
         continue
     if R["volc"] > 0.3:
-        if r < 0.08: T.boulder(flora, (x, y, height(x, y) - 0.3), rnd.uniform(0.6, 2.0), MAT["obsidian"], rnd, f"vrock{n['rock']}"); n["rock"] += 1
-        elif r < 0.10: T.bare_tree(flora, (x, y, height(x, y)), rnd.uniform(4, 6), TK["bark"], rnd, f"vdead{n['dead']}", branches=5); n["dead"] += 1
+        if r < 0.08: put("rock", pick("obsidian"), x, y, -0.3, rnd.uniform(0.6, 2.0))
+        elif r < 0.10: put("dead", pick("bare"), x, y, 0.0, rnd.uniform(0.8, 1.2), tag="tree")
         continue
     if R["desert"] > 0.5:
-        if r < 0.02: T.boulder(flora, (x, y, height(x, y) - 0.2), rnd.uniform(0.5, 1.6), TK["sand"], rnd, f"drock{n['rock']}", flat=True); n["rock"] += 1
-        elif r < 0.03: T.bare_tree(flora, (x, y, height(x, y)), rnd.uniform(3, 5), TK["bark"], rnd, f"ddead{n['dead']}", branches=4); n["dead"] += 1
+        if r < 0.02: put("rock", pick("rocksand"), x, y, -0.2, rnd.uniform(0.5, 1.6))
+        elif r < 0.03: put("dead", pick("bare"), x, y, 0.0, rnd.uniform(0.6, 1.0), tag="tree")
         continue
     fd = forest_density(x, y)
     if r < 0.55 * fd and s < 0.45:
-        if rnd.random() < 0.72: T.conifer(flora, (x, y, height(x, y) - 0.15), rnd.uniform(5.0, 8.5), TK["bark"], TK["needle_dark"] if rnd.random() < 0.6 else TK["needle"], rnd, f"fir{n['tree']}", tiers=rnd.randint(4, 6))
-        else: T.broadleaf(flora, (x, y, height(x, y) - 0.15), rnd.uniform(4.5, 6.5), TK["bark"], TK[rnd.choice(["leaf_green", "leaf_lime", "leaf_autumn", "leaf_gold"])], rnd, f"broad{n['tree']}")
-        n["tree"] += 1
-    elif r < 0.55 * fd + 0.012: T.bush(flora, (x, y, height(x, y) - 0.1), rnd.uniform(0.6, 1.1), TK["leafy"], rnd, f"bush{n['bush']}"); n["bush"] += 1
-    elif r < 0.55 * fd + 0.02 and s > 0.2: T.boulder(flora, (x, y, height(x, y) - 0.2), rnd.uniform(0.5, 1.4), TK["rock"], rnd, f"rock{n['rock']}"); n["rock"] += 1
+        if rnd.random() < 0.72: put("tree", pick("fir" if rnd.random() < 0.6 else "firlight"), x, y, -0.15, rnd.uniform(0.77, 1.31))
+        else: put("tree", pick("broad"), x, y, -0.15, rnd.uniform(0.82, 1.18))
+    elif r < 0.55 * fd + 0.012: put("bush", pick("bush"), x, y, -0.1, rnd.uniform(0.6, 1.1))
+    elif r < 0.55 * fd + 0.02 and s > 0.2: put("rock", pick("rock"), x, y, -0.2, rnd.uniform(0.5, 1.4))
+print(f"SCATTER {time.time() - t_scatter:.1f} s", flush=True)
+
 
 # ---- resources, each where you would look for it
-def node(key, x, y, tag):
-    PADS.append((x, y, 3.0)); lib.place(key, (x, y, height(x, y)), rot_z=rnd.uniform(0, math.tau), name=f"{tag}{n[tag]}"); n[tag] += 1
+def node(key, x, y, kind):
+    PADS.append((x, y, 3.0)); put(kind, key, x, y, 0.0, 1.0)
 
 
 for (x, y) in [(-8, 22), (-36, 8), (2, 10), (-46, -22), (40, 14), (62, -22), (90, 12)]:         # berries near the village and the hamlet
@@ -324,32 +366,35 @@ for (x, y) in [MINE, (-70, 26), (-50, 52), (12, 46)]:                           
     for k in range(2): node("node_stone", x + rnd.gauss(0, 4), y + rnd.gauss(0, 4), "stone")
     for k in range(2): node("node_iron", x + rnd.gauss(0, 5), y + rnd.gauss(0, 5), "iron")
 for (x, y) in [(-78, 34), (-104, 40), (-56, 66)]:                                                 # coal seams: black rock clusters, higher up
-    for k in range(6): px, py = x + rnd.gauss(0, 2.5), y + rnd.gauss(0, 2.5); T.boulder(res_m, (px, py, height(px, py) - 0.2), rnd.uniform(0.5, 1.3), MAT["coal"], rnd, f"coal{n['coal']}", flat=k % 2 == 0); n["coal"] += 1
+    for k in range(6): put("coal", pick("coal"), x + rnd.gauss(0, 2.5), y + rnd.gauss(0, 2.5), -0.2, rnd.uniform(0.5, 1.3))
 for (x, y) in [(64, 74), (110, 46), (84, 30)]:                                                    # uranium in the badlands: faintly glowing green rock
-    for k in range(5): px, py = x + rnd.gauss(0, 2.0), y + rnd.gauss(0, 2.0); T.boulder(res_m, (px, py, height(px, py) - 0.2), rnd.uniform(0.4, 1.0), MAT["uranium"], rnd, f"uran{n['uranium']}"); n["uranium"] += 1
+    for k in range(5): put("uran", pick("uran"), x + rnd.gauss(0, 2.0), y + rnd.gauss(0, 2.0), -0.2, rnd.uniform(0.4, 1.0))
 for (x, y) in [(70, -60), (96, -44), (112, -70)]:                                                 # oil in the desert: a black seep and a timber derrick
-    z = height(x, y); PADS.append((x, y, 6.0))
-    ob = bmesh.new(); bm_cyl(ob, rnd.uniform(3.0, 4.5), 0.1, 18, (0, 0, 0.05)); obj_from_bm(res_m, f"oil{n['oil']}", ob, MAT["oil"], bevel=0.0, loc=(x, y, z))
+    z = height(x, y); PADS.append((x, y, 6.0)); i = ids.get("oil", 0); ids["oil"] = i + 1
+    ob = bmesh.new(); bm_cyl(ob, rnd.uniform(3.0, 4.5), 0.1, 18, (0, 0, 0.05)); objs = [obj_from_bm(res_m, f"oil{i}", ob, MAT["oil"], bevel=0.0, loc=(x, y, z))]
     top = Vector((x + 5.5, y, z + 9.0))
     for k in range(4):
-        a = k * math.tau / 4 + 0.4; beam_between(res_m, f"derrick{n['oil']}_{k}", (x + 5.5 + math.cos(a) * 2.6, y + math.sin(a) * 2.6, z), top, 0.22, 0.22, MAT["derrick"], bevel=0.0)
+        a = k * math.tau / 4 + 0.4; objs.append(beam_between(res_m, f"derrick{i}_{k}", (x + 5.5 + math.cos(a) * 2.6, y + math.sin(a) * 2.6, z), top, 0.22, 0.22, MAT["derrick"], bevel=0.0))
     for zz in (3.0, 6.0):
         for k in range(4):
             a0 = k * math.tau / 4 + 0.4; a1 = a0 + math.tau / 4; rr = 2.6 * (1 - zz / 9.0)
-            beam_between(res_m, f"derrick{n['oil']}_r{k}{int(zz)}", (x + 5.5 + math.cos(a0) * rr, y + math.sin(a0) * rr, z + zz), (x + 5.5 + math.cos(a1) * rr, y + math.sin(a1) * rr, z + zz), 0.14, 0.14, MAT["derrick"], bevel=0.0)
-    n["oil"] += 1
-sb = bmesh.new(); bm_cyl(sb, 14.0, 0.12, 24, (0, 0, 0.06)); obj_from_bm(res_m, "SaltFlat", sb, MAT["salt"], bevel=0.0, loc=(92, -30, height(92, -30) + 0.02))   # a salt flat
+            objs.append(beam_between(res_m, f"derrick{i}_r{k}{int(zz)}", (x + 5.5 + math.cos(a0) * rr, y + math.sin(a0) * rr, z + zz), (x + 5.5 + math.cos(a1) * rr, y + math.sin(a1) * rr, z + zz), 0.14, 0.14, MAT["derrick"], bevel=0.0))
+    PLACED.append({"kind": "oil", "x": x, "y": y, "objs": objs, "name": f"oil{i}"}); n["oil"] = n.get("oil", 0) + 1
+sb = bmesh.new(); bm_cyl(sb, 14.0, 0.12, 24, (0, 0, 0.06)); salt = obj_from_bm(res_m, "SaltFlat", sb, MAT["salt"], bevel=0.0, loc=(92, -30, height(92, -30) + 0.02))   # a salt flat
+PLACED.append({"kind": "salt", "x": 92, "y": -30, "objs": [salt], "name": "SaltFlat"}); n["salt"] = 1
 for (x, y) in [(-60, -80), (-20, -84), (10, -78), (LAKE[0] + 3, LAKE[1] - 2), (LAKE[0] - 5, LAKE[1] + 3)]:                            # fish: shoals in the sea and the lake
     for k in range(2):
-        fb = bmesh.new(); bm_cyl(fb, rnd.uniform(0.9, 1.4), 0.04, 14, (0, 0, 0)); o = obj_from_bm(res_m, f"shoal{n['fish']}", fb, MAT["ripple"], bevel=0.0, loc=(x + rnd.gauss(0, 3), y + rnd.gauss(0, 3), SEA + 0.02))
+        i = ids.get("shoal", 0); ids["shoal"] = i + 1
+        fb = bmesh.new(); bm_cyl(fb, rnd.uniform(0.9, 1.4), 0.04, 14, (0, 0, 0)); o = obj_from_bm(res_m, f"shoal{i}", fb, MAT["ripple"], bevel=0.0, loc=(x + rnd.gauss(0, 3), y + rnd.gauss(0, 3), SEA + 0.02))
+        objs = [o]
         for j in range(5):
-            f = bmesh.new(); bm_box(f, 0.5, 0.12, 0.12, (rnd.uniform(-1, 1), rnd.uniform(-1, 1), 0)); obj_from_bm(res_m, f"fish{n['fish']}_{j}", f, MAT["fish"], bevel=0.0, loc=(o.location.x, o.location.y, SEA - 0.25)).rotation_euler.z = rnd.uniform(0, math.tau)
-        n["fish"] += 1
+            f = bmesh.new(); bm_box(f, 0.5, 0.12, 0.12, (rnd.uniform(-1, 1), rnd.uniform(-1, 1), 0)); fo = obj_from_bm(res_m, f"fish{i}_{j}", f, MAT["fish"], bevel=0.0, loc=(o.location.x, o.location.y, SEA - 0.25)); fo.rotation_euler.z = rnd.uniform(0, math.tau); objs.append(fo)
+        PLACED.append({"kind": "shoal", "x": o.location.x, "y": o.location.y, "objs": objs, "name": f"shoal{i}"}); n["shoal"] = n.get("shoal", 0) + 1
 # people: a few villagers and a patrol
 for i, (k, x, y) in enumerate([("citizen", V[0] + 6, V[1] + 4), ("citizen", V[0] - 10, V[1] + 6), ("citizen", V[0] + 4, V[1] - 12), ("citizen", H2[0] + 4, H2[1] + 4),
                                ("swordsman", V[0] + 20, V[1] + 20), ("spearman", V[0] + 22, V[1] + 22), ("archer", V[0] + 24, V[1] + 19), ("standard", V[0] + 22, V[1] + 25), ("horseman", -50, -34)]):
-    lib.place(k, (x, y, height(x, y)), rot_z=rnd.uniform(0, math.tau), scale=1.4, name=f"p{i}_{k}")
-print("PLACED " + " ".join(f"{k}={v}" for k, v in n.items()), flush=True)
+    put("people", k, x, y, 0.0, 1.4, tag=f"p{i}_{k}")
+print("PLACED " + " ".join(f"{k}={v}" for k, v in sorted(n.items())), flush=True)
 
 # ---- grass on grass, straw on the steppe
 GRASS = grass_material(new_mat, principled, maprange, green=(0.06, 0.15, 0.03, 1), olive=(0.13, 0.16, 0.04, 1), straw=(0.24, 0.20, 0.07, 1))
@@ -364,10 +409,10 @@ for _ in range(60000):
     o.location = (x, y, height(x, y) - 0.04); s_ = rnd.uniform(1.1, 2.4); o.scale = (s_, s_, s_ * rnd.uniform(0.9, 1.7)); o.rotation_euler = (0, 0, rnd.uniform(0, math.tau)); nt_ += 1
 print(f"GRASS {nt_}", flush=True)
 
-# ---- review before pixels
-rep = MG.review(placements, type("L", (), {"height": staticmethod(height), "w": W, "d": Dp})) if hasattr(MG, "review") else None
-try: MG.print_report(rep)
-except Exception as ex: print("[review] skipped:", ex)
+# ---- review before pixels: worldreview writes renders/REVIEW.md; a FAIL raises AFTER the renders below so the pictures exist
+import worldreview
+CTX = type("Ctx", (), {"region": staticmethod(region), "height": staticmethod(height), "raw_h": staticmethod(raw_h), "dry_flat": staticmethod(dry_flat), "SEA": SEA, "W": W, "D": Dp})
+REVIEW_OK = worldreview.run(PLACED, CTX, os.path.join(SCENE_DIR, "renders"), time.time() - T0, os.environ.get("BLENDER_GPU", "METAL"))
 
 # ============================================================================ light, cameras, render
 daylight(sun_energy=2.6, sky_strength=0.36, elevation=48.0, rotation=205.0)
@@ -389,3 +434,5 @@ for cam, tag in ((hero, "hero"), (plan, "plan"), (vil, "village")):
     scene.camera = cam; scene.render.filepath = out + tag + ("_final" if final else "_preview") + ".png"
     scene.render.resolution_x, scene.render.resolution_y = ((2600, 1900) if final else (1300, 950)) if tag == "plan" else ((1920, 1200) if final else (1200, 750))
     bpy.ops.render.render(write_still=True); print("RENDERED", scene.render.filepath)
+print(f"BUILD+RENDER {time.time() - T0:.0f} s")
+if not REVIEW_OK: raise RuntimeError("REVIEW FAILED -- see renders/REVIEW.md")
