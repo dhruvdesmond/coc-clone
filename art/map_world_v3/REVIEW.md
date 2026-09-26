@@ -1,6 +1,6 @@
-# REVIEW — world map build 2026-09-26 11:55 UTC
+# REVIEW — world map build 2026-09-26 12:19 UTC
 
-**FAIL: rig** · 103650 objects · build 243 s · review 1 s · device OPTIX
+**PASS** · 103651 objects · build 242 s · review 1 s · device OPTIX
 
 | kind | expected | found | status | detail |
 |---|---|---|---|---|
@@ -24,9 +24,9 @@
 | rubber | 6 | 8 | PASS | - |
 | deer | 12 | 15 | PASS | - |
 | horse_wild | 5 | 6 | PASS | - |
-| rig | 1 | 0 | FAIL | only 0 of 1 |
+| rig | 1 | 1 | PASS | - |
 | whale | 1 | 1 | PASS | - |
 | overlap | 0 | 0 | PASS | - |
 
-**Since the last review:** rig: 1 → 0
+**Since the last review:** rig: 0 → 1
 

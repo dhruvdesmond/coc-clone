@@ -518,8 +518,26 @@ the sound — a mixer, low-pass and reverb by focus distance, bite/body/chip syn
 installs the editor + Windows Mono module on the box. Not run this session (Blender came first). The honest split stands:
 sim tests, compile, asset asserts and the Windows build can go to the box; `DemoVerify`'s screenshots cannot.
 
-**GPU (B23):** the build is single-threaded Python — GPU 0 % for ~5 min, 100 % for each 22 s render. The sampler now
-reports every batch's average; the lever is heavier renders (the 4K finals) and a render process running beside a build.
+**GPU (B23):** measured, not guessed: a build+preview batch averages 2 % (the build is single-threaded Python; a 48-spp
+preview frame of 103k objects is CPU scene-sync, the GPU finishes it in a second); the finals batch (4K hero and village at
+1024 spp in 80–100 s, the 4200-px plan in 101 s, 16 crops at 23 s) averaged 25 %, above 70 % for a quarter of its 891 s.
+Persistent render data is on. Every batch prints its `=== GPU avg` line. Honest lever from here: a second Blender process
+rendering beside a build, and heavier final frames.
+
+**Result.** `art/map_world_v3_hero_final.png`, `art/map_world_v3_village_final.png` (4K), `art/map_world_v3_plan_2100.png`,
+`art/map_world_v3/` (16 region crops + `REVIEW.md`). Eight cloud builds in the session; the last one **REVIEW PASS** on every
+kind: 2,676 trees · 891 rocks · 466 bushes · 27 berry, 12 stone, 12 iron nodes · 24 coal · 15 uranium · 3 derricks · salt ·
+20 shoals · 32 buildings · bridge · pier · 20 rare markers · 15 deer · 6 wild horses · 8 rubber trees · rig · whale — 103,651
+objects, 242 s build. The region crops of the rig at its final place were not re-rendered (a preview-only confirmation run).
+
+**Next passes the crops asked for:** the hero camera wastes the top third on sky; the massif's two ridges cross into an X;
+the rubber grove and the amber/furs markers have not been looked at in a crop yet; deer are ~10 px at crop scale — a closer
+"herd" camera; the Unity export of this map (`export_nature.py` names are ready) is the next real job, then the rider in
+Unity (Root under the Saddle bone).
+
+**Cost line, end:** credit **\$3.65** · this session's credit drop **\$0.99**, of which our 4090 box ~\$0.70 (1 h 32 min at
+\$0.458/h) and the other session's 3090 the rest · zero instances left on the account (the other session downed theirs too).
+
 
 ### 2026-09-26 — Session 12c: the world inventory doc, and what a cloud GPU costs (PENDING B18, B19)
 Dhruv listed everything the map must hold (RoN size, resources, tanks/planes/helicopters/airport/silo, woodcutter, roads and
