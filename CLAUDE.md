@@ -31,6 +31,7 @@ clash-of-clans/                     ← this repo
 ├── docs/01-concept … 13-demo.html
 ├── tools/                          ← u.sh (guarded Unity runner) · test.sh · export_all.sh
 ├── art/unit_sheet.png              ← the units, their pivots and their poses, rendered in Blender
+├── blender/HOW-WE-BUILD.md         ← THE HANDBOOK: how assets, figures and maps are made, and every trap paid for
 ├── blender/scripts/                ← AUTHORITATIVE pipeline scripts: export_palette · export_assets ·
 │                                      rig_figure (skeleton + THE shared clip library) · export_figure (flat fallback) ·
 │                                      export_nature · figure_sheet
@@ -49,7 +50,7 @@ clash-of-clans/                     ← this repo
         ├── Models/    FBX from Blender, generated
         └── Resources/palette.json  generated from lib/materials.py
 
-~/blender/                          ← THE ASSET LIBRARY (shared, outside this repo)
+~/blender/                          ← THE ASSET LIBRARY (shared; git: dhruvdesmond/blender-lib, private, since 2026-09-26)
 ├── CLAUDE.md                       ← read before authoring any asset
 ├── lib/                            ← nodeutils meshkit materials norse modern
 │                                      terrain figure mapgen vegetation
@@ -140,8 +141,9 @@ to look before Unity) is the tool, and it is better than anything found.
    one material. Asset-level assertions are still valid there; the image is not.
 
 ### This repo and `~/blender`
-**Never write inside `~/blender`.** It is not under version control, a live mobile session edits it, and its
-rules make `lib/` and `scripts/` integrator-owned. Pipeline scripts live in **this repo's** `blender/scripts/` and
+**Do not write inside `~/blender` without asking.** It is shared with a live mobile session and its rules make `lib/` and
+`scripts/` integrator-owned. (It IS under git now — `dhruvdesmond/blender-lib` — so a slip is recoverable, but the rule stands.
+`HOW-WE-BUILD.md` is the one file we maintain there, copied from `blender/HOW-WE-BUILD.md` here.) Pipeline scripts live in **this repo's** `blender/scripts/` and
 are authoritative; new models are authored in `blender/base/<name>/build.py` here, importing `~/blender/lib`
 read-only by absolute path.
 

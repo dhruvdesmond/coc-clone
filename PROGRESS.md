@@ -475,6 +475,13 @@ Every one of these cost real time on a previous project.
 
 Append one block per session. Newest at the top.
 
+### 2026-09-26 — Session 12b: the handbook, and the library under git
+Dhruv asked for everything about how we build in Blender to be written down in both folders, and pushed. `blender/HOW-WE-BUILD.md`
+(canonical) mirrors to `~/blender/HOW-WE-BUILD.md`; the week's traps went into the two skills' reference files. `~/blender`
+(293 MB, 50 asset files, no file over 50 MB) is now a git repo pushed to **private `dhruvdesmond/blender-lib`** — the first backup
+it has ever had, and the prerequisite for rendering in the cloud (B13/B14). The "never write inside ~/blender" rule is softened
+to "not without asking".
+
 ### 2026-09-26 — Session 12: the world map, from what we already have (PENDING B12)
 Dhruv: "we have so many things already created. why don't we use it and just create the map first?" — so the Northgard imitation
 stops and the library's own style is the style. `blender/base/map_world/build.py`: one 260 × 190 m land with six regions (grass
