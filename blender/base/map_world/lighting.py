@@ -12,11 +12,11 @@ from mathutils import Vector
 
 D, C = bpy.data, bpy.context
 
-SUN_ELEV, SUN_AZ, SUN_ENERGY, SUN_ANGLE = 62.0, 205.0, 3.2, 6.0
-SKY_STRENGTH = 0.7
-FILL_ENERGY, FILL_COLOR = 0.35, (0.75, 0.85, 1.0)
-HAZE_DENSITY, HAZE_COLOR = 0.0007, (0.60, 0.72, 0.85)      # 0.0035 in a 260 m box washed every crop grey (saturation 0.16)
-EXPOSURE = -1.25
+SUN_ELEV, SUN_AZ, SUN_ENERGY, SUN_ANGLE = 62.0, 205.0, 4.5, 6.0     # sun over sky: shadows must exist (sky 0.7 + fill 0.35 flattened everything)
+SKY_STRENGTH = 0.45
+FILL_ENERGY, FILL_COLOR = 0.15, (0.75, 0.85, 1.0)
+HAZE_DENSITY, HAZE_COLOR = 0.0004, (0.60, 0.72, 0.85)      # 0.0035 in a 260 m box washed every crop grey (saturation 0.16); 0.0007 still paled the far half
+EXPOSURE = -2.0                                            # -1.25 pushed sand and meadow into AgX's desaturated top (desert saturation 0.05)
 
 
 def _sun(name, elev, az, energy, angle, color=(1.0, 0.94, 0.82), shadow=True):
