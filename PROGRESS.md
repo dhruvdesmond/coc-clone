@@ -301,6 +301,11 @@ Every one of these cost real time on a previous project.
   would not needs an explicit assertion (`CheckFootprints`), and its first run found a second bug (the tower in the trees).
 
 ### Blender
+- **A byte colour attribute is sRGB-encoded.** Write 0.42 into `bm.loops.layers.color`, read back 0.15 in the shader. Masks of 0/1
+  survive; a biome INDEX does not — the world map's grassland rendered as beach. Use `bm.loops.layers.float_color`.
+- **`bpy.ops` object creation slows as the scene grows.** 26k scatter tries made thousands of trees and the build ran 21 minutes
+  without reaching the save; 17k tries → 553 trees builds in ~6. Cap the count, print progress with `flush=True`, and run with
+  stdout to a file — a `| grep` pipeline buffers everything until the end.
 - **A world Volume Scatter renders NIGHT.** The sun is attenuated over an infinite path. Haze is a bounded box over the map with
   the volume material; at a 55 m camera path, density 0.001 is a breath and 0.005 is milk.
 - **`mapgen.AssetLibrary.load()` merges `Foo.001` into `Foo` and REMOVES it.** Any material of yours whose name a library kit
@@ -469,6 +474,17 @@ Every one of these cost real time on a previous project.
 ## 11. Session log
 
 Append one block per session. Newest at the top.
+
+### 2026-09-26 — Session 12: the world map, from what we already have (PENDING B12)
+Dhruv: "we have so many things already created. why don't we use it and just create the map first?" — so the Northgard imitation
+stops and the library's own style is the style. `blender/base/map_world/build.py`: one 260 × 190 m land with six regions (grass
+centre, forest W, mountains + snow NW, volcano + badlands NE, desert SE, coast SW) and every resource where you would look for
+it — trees, stone, iron, coal, oil derricks, uranium, fish shoals, berries, farms, a salt flat, a lava lake — plus the village
+and a hamlet from the library (27 assets loaded, instanced), three road kinds written into the ground, 553 trees, 32k grass.
+Three renders: hero (the whole land), plan (top-down — the review view), village (close). **Two bugs found by looking, both
+recorded as gotchas:** the biome index went through a byte colour layer and came back gamma-encoded (grassland rendered as
+beach); and siting never checked water, so two buildings stood in the lake — the same class of bug as PENDING B1, now fixed at
+the source with a dry-flat search. Build takes ~6 min; 26k scatter tries had made it 21+ (bpy.ops slows as the scene grows).
 
 ### 2026-09-25 — Session 11c: "keep trying / show me" — trees and building detail
 Spruces and autumn trees are now authored in this repo (`fir()`, `autumn()` in `map_ref/build.py`): 8–10 jagged tiers, dark
