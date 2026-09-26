@@ -79,6 +79,21 @@ basin; `biome(x, y)` is one index along a ramp (seabed → desert → steppe →
 blend; roads are polylines with a kind (grass path / dirt / mud) written into the ground's colour attribute; `site()` searches
 outward for **dry, flat** ground; scatter is capped and region-aware; resources are placed where you would look for them.
 
+**Instancing (2026-09-26).** Every tree, bush and rock kind is built ONCE in `map_world/protos.py` -- pure bmesh, one joined
+mesh per prototype with material slots, canopy blobs displaced by `mathutils.noise` instead of a Displace modifier + texture
+per object -- and registered with `AssetLibrary.register()`; the scatter loops then `place()` copies (shared mesh). 36
+prototypes, 526 trees + 300 rocks + 214 bushes placed in 10 s; the whole build 108 s where it was 6 min. The prototype
+objects live in the hidden `_assets` collection; `lib.offset[key]` is zeroed because they are authored at the origin with
+the base on z = 0 (rocks: centre on the origin, so a placement z of `height - 0.3` half-buries them as before). Names follow
+what `export_nature.py` classifies: `tree{n}_…`, `rock{n}_…`, `Tuft_…`.
+
+**The review is an assertion (`map_world/worldreview.py`).** Everything placed is recorded in `PLACED` (kind, x, y, objs); the
+review checks each kind against `EXPECTED` (minimum count, allowed regions or water or dry ground), floating/sunken (buried,
+for rock-like kinds), off-map and building/node overlaps, writes `renders/REVIEW.md` with a "since the last review" diff, and
+the build **raises after the renders** so the batch rc is 1 while the pictures still exist to look at. First run found three
+real faults the eye had missed: a fish shoal on the beach, berry bushes in the stable yard and on top of each other, the salt
+flat outside the desert.
+
 ## 5. To Unity
 
 - `export_palette.py` reads `lib/materials.py` + `--scan` of asset `.blend`s → `palette.json`. Unity applies `pow(v, 0.62)` once.
@@ -123,8 +138,19 @@ outward for **dry, flat** ground; scatter is capped and region-aware; resources 
 - When a measurement disagrees with the thing it measures, add a control before changing the thing (the red quad; the old
   villager failing the same normals test).
 
-## 7. Running it somewhere cooler
+## 7. Running it on the cloud (Vast.ai) -- done 2026-09-26
 
-Everything here is headless. The plan (PENDING B13/B14): a rented RTX 3090 (Vast.ai or RunPod, ~$0.15–0.30/hr), a plain
-CUDA Ubuntu template, Blender 5.2.1 Linux fetched on start, and `tools/remote.sh up | sync | run | pull | down`. The library
-being under git is the prerequisite — done 2026-09-26.
+`tools/cloud/vast.sh` in the game repo: `up` rents a verified 1x RTX 4090 (3090 fallback, >= 16 cores, 80 GB disk), installs
+Blender 5.2.1 Linux, clones BOTH repos with read-only deploy keys (`/work/repo`, `/work/blender-lib`); `batch <script>` runs a
+build detached under nohup with `--python-exit-code 1`; `wait` polls it; `pull` brings renders back; `down` destroys; `cost start|end`
+prints the credit and the session's spend (Dhruv's standing direction). Rules for the shared account are in the `vast-ai` skill:
+our box is always `VAST_NAME=coa`, `down` only touches our own state file, another session's box is never a "stray".
+
+What made the scripts portable: `BLENDER_LIB` (default `/Users/dhruv/blender`) replaces every hard-coded library path in this
+repo, and `meshkit.render_settings` takes the Cycles device from `BLENDER_GPU` (METAL on macOS, OPTIX/CUDA elsewhere) and PRINTS
+it -- the old `try/except` around `'METAL'` would have fallen back to the CPU in silence. Measured on the first 4090 box (driver
+595): OptiX works; build 108 s + three previews = 161 s; the box costs $0.46/h including its disk.
+
+What stays on the Mac: nothing in Blender. Unity's visual verification (`DemoVerify`, play mode + `ScreenCapture`) needs a GUI
+editor on a real GPU display and a Vast container has none; the 13 sim tests, the compile check and the Windows build can run
+headless there (`tools/cloud/unity-bootstrap.sh`).

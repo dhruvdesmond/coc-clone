@@ -335,15 +335,15 @@ for _ in range(int(os.environ.get("TRIES", 17000))):                 # ~900 tree
     if h < SEA + 0.8 or not clear(x, y): continue
     r = rnd.random()
     if R["mount"] > 0.3 and h > 12:
-        if r < 0.10 and s > 0.25: put("rock", pick("rocksnow" if h > 24 else "rock"), x, y, -0.3, rnd.uniform(0.8, 2.6))
+        if r < 0.10 and s > 0.25: sz = rnd.uniform(0.8, 2.6); put("rock", pick("rocksnow" if h > 24 else "rock"), x, y, -0.15 * sz, sz)
         elif r < 0.16 and h < 20 and s < 0.5: put("tree", pick("firsnow" if h > 16 else "mfir"), x, y, -0.2, rnd.uniform(0.73, 1.27))
         continue
     if R["volc"] > 0.3:
-        if r < 0.08: put("rock", pick("obsidian"), x, y, -0.3, rnd.uniform(0.6, 2.0))
+        if r < 0.08: sz = rnd.uniform(0.6, 2.0); put("rock", pick("obsidian"), x, y, -0.15 * sz, sz)
         elif r < 0.10: put("dead", pick("bare"), x, y, 0.0, rnd.uniform(0.8, 1.2), tag="tree")
         continue
     if R["desert"] > 0.5:
-        if r < 0.02: put("rock", pick("rocksand"), x, y, -0.2, rnd.uniform(0.5, 1.6))
+        if r < 0.02: sz = rnd.uniform(0.5, 1.6); put("rock", pick("rocksand"), x, y, -0.15 * sz, sz)
         elif r < 0.03: put("dead", pick("bare"), x, y, 0.0, rnd.uniform(0.6, 1.0), tag="tree")
         continue
     fd = forest_density(x, y)
@@ -351,7 +351,7 @@ for _ in range(int(os.environ.get("TRIES", 17000))):                 # ~900 tree
         if rnd.random() < 0.72: put("tree", pick("fir" if rnd.random() < 0.6 else "firlight"), x, y, -0.15, rnd.uniform(0.77, 1.31))
         else: put("tree", pick("broad"), x, y, -0.15, rnd.uniform(0.82, 1.18))
     elif r < 0.55 * fd + 0.012: put("bush", pick("bush"), x, y, -0.1, rnd.uniform(0.6, 1.1))
-    elif r < 0.55 * fd + 0.02 and s > 0.2: put("rock", pick("rock"), x, y, -0.2, rnd.uniform(0.5, 1.4))
+    elif r < 0.55 * fd + 0.02 and s > 0.2: sz = rnd.uniform(0.5, 1.4); put("rock", pick("rock"), x, y, -0.15 * sz, sz)
 print(f"SCATTER {time.time() - t_scatter:.1f} s", flush=True)
 
 
@@ -366,15 +366,15 @@ def node(key, x, y, kind, r=2.2):
     PADS.append((px, py, r)); put(kind, key, px, py, 0.0, 1.0)
 
 
-for (x, y) in [(-8, 22), (-36, 8), (2, 10), (-46, -22), (40, 14), (62, -22), (90, 12)]:         # berries near the village and the hamlet
+for (x, y) in [(-8, 22), (-36, 8), (2, 10), (-58, -12), (40, 14), (62, -22), (90, 12)]:         # berries near the village and the hamlet
     for k in range(3): node("node_food", x, y, "berry")
 for (x, y) in [MINE, (-70, 26), (-50, 52), (12, 46)]:                                             # stone and iron at the mountain foot
     for k in range(2): node("node_stone", x, y, "stone")
     for k in range(2): node("node_iron", x, y, "iron")
 for (x, y) in [(-78, 34), (-104, 40), (-56, 66)]:                                                 # coal seams: black rock clusters, higher up
-    for k in range(6): put("coal", pick("coal"), x + rnd.gauss(0, 2.5), y + rnd.gauss(0, 2.5), -0.2, rnd.uniform(0.5, 1.3))
+    for k in range(6): sz = rnd.uniform(0.5, 1.3); put("coal", pick("coal"), x + rnd.gauss(0, 2.5), y + rnd.gauss(0, 2.5), -0.15 * sz, sz)
 for (x, y) in [(64, 74), (110, 46), (84, 30)]:                                                    # uranium in the badlands: faintly glowing green rock
-    for k in range(5): put("uran", pick("uran"), x + rnd.gauss(0, 2.0), y + rnd.gauss(0, 2.0), -0.2, rnd.uniform(0.4, 1.0))
+    for k in range(5): sz = rnd.uniform(0.4, 1.0); put("uran", pick("uran"), x + rnd.gauss(0, 2.0), y + rnd.gauss(0, 2.0), -0.15 * sz, sz)
 for (x, y) in [(70, -60), (96, -44), (112, -70)]:                                                 # oil in the desert: a black seep and a timber derrick
     z = height(x, y); PADS.append((x, y, 6.0)); i = ids.get("oil", 0); ids["oil"] = i + 1
     ob = bmesh.new(); bm_cyl(ob, rnd.uniform(3.0, 4.5), 0.1, 18, (0, 0, 0.05)); objs = [obj_from_bm(res_m, f"oil{i}", ob, MAT["oil"], bevel=0.0, loc=(x, y, z))]

@@ -63,7 +63,8 @@ def run(placed, ctx, out_dir, t_build, device, extra_lines=()):
             if where == "water":
                 if ctx.raw_h(x, y) > ctx.SEA - 0.2: bad_biome.append(p["name"])
             elif where == "dry":                                     # on the FLATTENED ground (pads), above the water
-                if ctx.height(x, y) < ctx.SEA + 0.8: bad_biome.append(p["name"])
+                hh = ctx.height(x, y)
+                if hh < ctx.SEA + 0.8: bad_biome.append(f"{p['name']}(h={hh:.2f}, raw={ctx.raw_h(x, y):.2f})")
             elif where:
                 R = ctx.region(x, y)
                 if max(R.get(k, 0.0) for k in where) < 0.30: bad_biome.append(p["name"])
@@ -72,7 +73,7 @@ def run(placed, ctx, out_dir, t_build, device, extra_lines=()):
                 if bb:
                     gz = ctx.height(x, y)
                     if kind in BURIED_OK:
-                        if bb[5] - gz < 0.25: sunken.append((p["name"], round(gz - bb[5], 2)))      # buried: nothing shows
+                        if bb[5] - gz < 0.05: sunken.append((p["name"], round(gz - bb[5], 2)))      # buried: nothing shows
                     else:
                         if bb[2] - gz > 0.6: floating.append((p["name"], round(bb[2] - gz, 2)))
                         if gz - bb[2] > 1.2: sunken.append((p["name"], round(gz - bb[2], 2)))

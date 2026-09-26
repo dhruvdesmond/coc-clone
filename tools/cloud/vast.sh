@@ -148,7 +148,7 @@ wait() {
   done
 }
 log() { sshx "tail -n ${1:-40} \$(cat /work/logs/latest)"; }
-pull() { need_instance; for p in "$@"; do rsync -az --info=stats1 -e "ssh -i $KEY -p $PORT -o LogLevel=ERROR" "root@$HOST:/work/repo/$p" "$ROOT/${p:h}/"; done; }
+pull() { need_instance; for p in "$@"; do rsync -azv -e "ssh -i $KEY -p $PORT -o LogLevel=ERROR" "root@$HOST:/work/repo/$p" "$ROOT/${p:h}/"; done; }
 push() { need_instance; for p in "$@"; do rsync -az -e "ssh -i $KEY -p $PORT -o LogLevel=ERROR" "$ROOT/$p" "root@$HOST:/work/repo/${p:h}/"; done; }
 status() { need_instance; api GET "/v0/instances/$ID/" | py "
 import sys,json
