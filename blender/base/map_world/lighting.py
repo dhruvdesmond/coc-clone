@@ -42,13 +42,28 @@ def sky(scene):
     return w, nt, out
 
 
-def haze(nt, out):
-    """A thin world volume: distance reads as depth (V14). Height falloff keeps the sky itself clear."""
+def haze(scene, W, Dp, top=260.0):
+    """Distance reads as depth (V14). A BOUNDED box of scattering volume over the land, thinning with height -- NOT a world
+    volume: in Cycles a world volume attenuates the sun over an infinite path and the land goes black (measured: 98 % of
+    pixels under 12/255 with a 0.0035 world haze)."""
+    import bmesh
+    me = D.meshes.new("HazeBox"); bm = bmesh.new()
+    hx, hy = W * 1.4, Dp * 1.4
+    vs = [bm.verts.new((x, y, z)) for x in (-hx, hx) for y in (-hy, hy) for z in (-20.0, top)]
+    for f in [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]: bm.faces.new([vs[i] for i in f])
+    bm.to_mesh(me); bm.free()
+    o = D.objects.new("Haze", me); C.scene.collection.objects.link(o)
+    m = D.materials.new("HazeVolume"); m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
     vol = nt.nodes.new("ShaderNodeVolumeScatter"); vol.inputs["Color"].default_value = (*HAZE_COLOR, 1.0)
-    vol.inputs["Density"].default_value = HAZE_DENSITY
     try: vol.inputs["Anisotropy"].default_value = 0.35
     except Exception: pass
-    nt.links.new(vol.outputs["Volume"], out.inputs["Volume"])
+    co = nt.nodes.new("ShaderNodeTexCoord"); sep = nt.nodes.new("ShaderNodeSeparateXYZ"); nt.links.new(co.outputs["Object"], sep.inputs[0])
+    fall = nt.nodes.new("ShaderNodeMapRange"); fall.inputs["From Min"].default_value = 0.0; fall.inputs["From Max"].default_value = top
+    fall.inputs["To Min"].default_value = HAZE_DENSITY; fall.inputs["To Max"].default_value = HAZE_DENSITY * 0.15; fall.clamp = True
+    nt.links.new(sep.outputs["Z"], fall.inputs["Value"]); nt.links.new(fall.outputs["Result"], vol.inputs["Density"])
+    nt.links.new(vol.outputs["Volume"], out.inputs["Volume"]); me.materials.append(m)
+    return o
 
 
 def clouds(scene, W, Dp, wind, base=420.0, thick=160.0, density=0.06, cover=0.42, seed=7):
@@ -103,7 +118,7 @@ def rig(scene, W, Dp, wind=(1.0, 0.3), with_clouds=True, with_haze=True):
     _sun("Sun", SUN_ELEV, SUN_AZ, SUN_ENERGY, SUN_ANGLE)
     _sun("SkyFill", 55.0, SUN_AZ + 180.0, FILL_ENERGY, 40.0, color=FILL_COLOR, shadow=False)
     w, nt, out = sky(scene)
-    if with_haze: haze(nt, out)
+    if with_haze: haze(scene, W, Dp)
     if with_clouds: clouds(scene, W, Dp, wind)
     scene.view_settings.view_transform = "AgX"; scene.view_settings.look = "AgX - Medium High Contrast"
     scene.view_settings.exposure = EXPOSURE
