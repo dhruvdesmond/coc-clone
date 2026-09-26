@@ -537,10 +537,14 @@ def land(x, y, r=2.5, tries=30):
 
 
 def sea(x, y, lo=-6.0, hi=-1.5, tries=40):
-    """A point of sea bed between lo and hi metres near (x, y) -- where an offshore rig can stand."""
-    for k in range(tries):
-        px, py = (x, y) if k == 0 else (x + rnd.gauss(0, 4.0 + k), y + rnd.gauss(0, 4.0 + k))
-        if abs(px) < W / 2 - 14 and abs(py) < Dp / 2 - 14 and lo < raw_h(px, py) < hi: return (px, py)     # on the map, in the shallows
+    """A point of sea bed between lo and hi metres off the shore at x: walk out from the coast until the bed is in range
+    (a random search missed the band twice). Stays 14 m inside the map edge."""
+    for dx in (0, 6, -6, 12, -12, 18, -18):
+        px = x + dx
+        for step in range(0, 60):
+            py = COAST_Y(px) - 2.0 - step * 1.5
+            if abs(py) > Dp / 2 - 14: break
+            if lo < raw_h(px, py) < hi: return (px, py)
     return None
 
 
@@ -555,7 +559,7 @@ for k in range(8):                                                              
 p = sea(140, -184)
 if p: put("rig", "rig", p[0], p[1], raw_h(*p) - height(*p), 1.0); PADS.append((p[0], p[1], 8.0))                             # base on the sea bed
 else: print("[extras] ! no shallow sea for the rig")
-p = sea(30, -195, lo=-12.0, hi=-4.0)
+p = sea(30, -195, lo=-12.0, hi=-3.0)
 if p: put("whale", "whale", p[0], p[1], SEA - height(*p), 1.0)
 for (hx, hy) in [(-90, -80), (-130, -20), (56, 86)]:                                                                        # deer herds in forest clearings
     for k in range(5):
