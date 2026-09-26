@@ -475,6 +475,48 @@ Every one of these cost real time on a previous project.
 
 Append one block per session. Newest at the top.
 
+### 2026-09-26 — Session 14: the look (PENDING B24–B27) — a standard, a light rig, ground v2, dressing, water v2, storms, figures v2
+**Cost line, start:** credit \$3.64, 0 boxes. *(end line at the bottom of this entry)*
+
+Dhruv on the 4K village crop next to a Rise of Nations shot: "it's not that good, right? .. not that 4k .. where is this gap
+coming from?" The honest answer: the gap is materials, light and dressing, and no written standard existed. His direction:
+"best ui/ux should be our motive .. water animations, clouds, sandstorm, snowstorm .. just imagine once and then try to
+replicate", then "the humans have a circle on the shoulder .. it should look seamless".
+
+**A. The standard — `docs/16-look.md`.** Four references (RoN, Northgard, Kargil's Nubra frame, a weather frame to pick),
+a binding 13-row palette, the light rig, a pass/fail table with MEASURED thresholds (`map_world/measure.py`: saturation,
+shadow luma/hue, white point, black floor, tone spread, median), the three weather states with Unity counterparts, and §8
+the asset/figure style (chunky, no visible skeleton, seamless, team colour on the body, the 40-px test). Measured before:
+our village 0.33 saturation, green-black shadows at luma 0.011, no white point; RoN 0.58, neutral shadows; the desert a
+beige sheet at 0.15.
+
+**B. Light — `lighting.py`.** Sun 62° with a wide disc, a multiple-scattering sky, one shadowless cool fill (Kargil's rig),
+a cloud SLAB that casts real shadows and drifts by a frame driver, a HAZE BOX. Three traps, each measured in a crop:
+(1) haze as a WORLD volume attenuates the sun over an infinite path — 98 % of pixels black; a bounded box fixes it;
+(2) 0.0035/m haze in a 260 m box washed every crop grey (saturation 0.16) — 0.0004 now; (3) AgX Punchy drops the median a
+stop — exposure re-set after it. Sun 4.5 over sky 0.45 + fill 0.15 gives the blue-grey shadows the table asks for.
+
+**C. Ground v2 — `ground.py`.** Crest/dip ramps mixed by a 20 m moisture noise, road shoulders and sett joints, pebbles,
+blade bump, sand ripples, wet sand, mud sheen, snow by aspect. The cobbled square now reads as stone; roads have edges.
+
+**D. Dressing — `extras.py` + `build.py`.** Fence, cart, barrels, rack, woodpile, haystack, smoke, sheep; 72 props placed
+by building class round every pad; smoke on halls and forges.
+
+**E. Water v2 — `water.py`.** A grid carrying bed depth: shallow-to-deep ramp, foam at fords/shores/crests, two animated
+wave sets, glitter. **F. Storms** in `lighting.py`: wind-sheared drifting volumes over the desert and the massif; 0.06 and
+0.018/m were white-outs over a 100 m view ray, 0.005 is the working figure. **G. `showcase.py`**: the 30-second flythrough
+(a keyed camera path over the saved map; `--every 24` for a contact check) — written, not yet rendered.
+
+**H. Figures v2 — `blender/base/figures/build.py`.** Swordsman, spearman, archer, axeman, standard bearer, rider in the
+citizen's chunky kit: joints buried inside the limbs, sleeves/cuffs/skirt/boot cuffs over every joint line, team-blue tunic,
+helm/mail/cloak/quiver as body parts, weapons as held props; rigged with the unchanged `rig_figure.py` (35 clips each) and
+looked at (`art/rig/fig_v2/*_sheet.png`): no joint spheres anywhere. The pauldrons I first added were "circles on the
+shoulder" in steel and came off. Unity import is next (local).
+
+**Cloud tooling learned:** `sync` (a hard reset) restored TRACKED previews and the tracked `map_world.blend` over fresh
+renders — every build artifact is untracked now; a 4090 host on driver 565 fails OptiX, `up` now picks CUDA/OptiX by driver;
+the `=== GPU` line reached 34 % on a full-crop preview once the volumes made frames heavier.
+
 ### 2026-09-26 — Session 13: everything on the cloud — the 420 m map, the asserting review, the horse and the rider (PENDING B21–B23)
 **Cost line, start:** credit \$4.64, one box running (the Last Mile session's 3090). *(end line at the bottom of this entry)*
 

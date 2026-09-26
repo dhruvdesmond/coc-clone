@@ -94,6 +94,16 @@ the build **raises after the renders** so the batch rc is 1 while the pictures s
 real faults the eye had missed: a fish shoal on the beach, berry bushes in the stable yard and on top of each other, the salt
 flat outside the desert.
 
+## 4b. The look — a standard, then numbers
+
+`docs/16-look.md` is the standard every world-map render is scored against: `map_world/measure.py` prints saturation, shadow
+luma and hue, white point, black floor, tone spread and median for every crop, and the build appends a `look` table to
+`renders/REVIEW.md`. The rig is `map_world/lighting.py` (sun + sky + fill + cloud slab + haze box + storms), the ground is
+`ground.py`, the water `water.py`, the dressing kit in `extras.py`. Iterate with the FAST build (`TRIES=6000 GRASS=6000
+REGIONS=1`, ~3 min on the box) and change ONE thing per run; the three traps paid for on 2026-09-26 are in the
+`blender-procedural` skill's `references/shading.md` (world-volume haze kills the sun; storm density × path; AgX looks move
+the exposure).
+
 ## 5. To Unity
 
 - `export_palette.py` reads `lib/materials.py` + `--scan` of asset `.blend`s → `palette.json`. Unity applies `pow(v, 0.62)` once.
