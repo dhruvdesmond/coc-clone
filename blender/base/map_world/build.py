@@ -356,15 +356,21 @@ print(f"SCATTER {time.time() - t_scatter:.1f} s", flush=True)
 
 
 # ---- resources, each where you would look for it
-def node(key, x, y, kind):
-    PADS.append((x, y, 3.0)); put(kind, key, x, y, 0.0, 1.0)
+def node(key, x, y, kind, r=2.2):
+    """A resource node near (x, y): jittered until it stands clear of every pad and every other node (berries once grew in
+    the stable yard and on top of each other)."""
+    for k in range(24):
+        px, py = (x, y) if k == 0 else (x + rnd.gauss(0, 4.0 + k * 0.3), y + rnd.gauss(0, 4.0 + k * 0.3))
+        if raw_h(px, py) > SEA + 1.0 and all(math.hypot(px - sx, py - sy) > r + sr + 1.0 for (sx, sy, sr) in PADS) and road_at(px, py)[0] < 0.3: break
+    else: print(f"[node] ! no clear ground for {kind} near {x:.0f},{y:.0f}")
+    PADS.append((px, py, r)); put(kind, key, px, py, 0.0, 1.0)
 
 
 for (x, y) in [(-8, 22), (-36, 8), (2, 10), (-46, -22), (40, 14), (62, -22), (90, 12)]:         # berries near the village and the hamlet
-    for k in range(3): node("node_food", x + rnd.gauss(0, 3), y + rnd.gauss(0, 3), "berry")
+    for k in range(3): node("node_food", x, y, "berry")
 for (x, y) in [MINE, (-70, 26), (-50, 52), (12, 46)]:                                             # stone and iron at the mountain foot
-    for k in range(2): node("node_stone", x + rnd.gauss(0, 4), y + rnd.gauss(0, 4), "stone")
-    for k in range(2): node("node_iron", x + rnd.gauss(0, 5), y + rnd.gauss(0, 5), "iron")
+    for k in range(2): node("node_stone", x, y, "stone")
+    for k in range(2): node("node_iron", x, y, "iron")
 for (x, y) in [(-78, 34), (-104, 40), (-56, 66)]:                                                 # coal seams: black rock clusters, higher up
     for k in range(6): put("coal", pick("coal"), x + rnd.gauss(0, 2.5), y + rnd.gauss(0, 2.5), -0.2, rnd.uniform(0.5, 1.3))
 for (x, y) in [(64, 74), (110, 46), (84, 30)]:                                                    # uranium in the badlands: faintly glowing green rock
@@ -380,12 +386,15 @@ for (x, y) in [(70, -60), (96, -44), (112, -70)]:                               
             a0 = k * math.tau / 4 + 0.4; a1 = a0 + math.tau / 4; rr = 2.6 * (1 - zz / 9.0)
             objs.append(beam_between(res_m, f"derrick{i}_r{k}{int(zz)}", (x + 5.5 + math.cos(a0) * rr, y + math.sin(a0) * rr, z + zz), (x + 5.5 + math.cos(a1) * rr, y + math.sin(a1) * rr, z + zz), 0.14, 0.14, MAT["derrick"], bevel=0.0))
     PLACED.append({"kind": "oil", "x": x, "y": y, "objs": objs, "name": f"oil{i}"}); n["oil"] = n.get("oil", 0) + 1
-sb = bmesh.new(); bm_cyl(sb, 14.0, 0.12, 24, (0, 0, 0.06)); salt = obj_from_bm(res_m, "SaltFlat", sb, MAT["salt"], bevel=0.0, loc=(92, -30, height(92, -30) + 0.02))   # a salt flat
-PLACED.append({"kind": "salt", "x": 92, "y": -30, "objs": [salt], "name": "SaltFlat"}); n["salt"] = 1
+sb = bmesh.new(); bm_cyl(sb, 14.0, 0.12, 24, (0, 0, 0.06)); salt = obj_from_bm(res_m, "SaltFlat", sb, MAT["salt"], bevel=0.0, loc=(118, -36, height(118, -36) + 0.02))   # a salt flat, well inside the desert
+PLACED.append({"kind": "salt", "x": 118, "y": -36, "objs": [salt], "name": "SaltFlat"}); n["salt"] = 1
 for (x, y) in [(-60, -80), (-20, -84), (10, -78), (LAKE[0] + 3, LAKE[1] - 2), (LAKE[0] - 5, LAKE[1] + 3)]:                            # fish: shoals in the sea and the lake
     for k in range(2):
         i = ids.get("shoal", 0); ids["shoal"] = i + 1
-        fb = bmesh.new(); bm_cyl(fb, rnd.uniform(0.9, 1.4), 0.04, 14, (0, 0, 0)); o = obj_from_bm(res_m, f"shoal{i}", fb, MAT["ripple"], bevel=0.0, loc=(x + rnd.gauss(0, 3), y + rnd.gauss(0, 3), SEA + 0.02))
+        for _t in range(30):                                                                  # in the WATER, not on the beach
+            sx, sy = x + rnd.gauss(0, 3), y + rnd.gauss(0, 3)
+            if raw_h(sx, sy) < SEA - 0.6: break
+        fb = bmesh.new(); bm_cyl(fb, rnd.uniform(0.9, 1.4), 0.04, 14, (0, 0, 0)); o = obj_from_bm(res_m, f"shoal{i}", fb, MAT["ripple"], bevel=0.0, loc=(sx, sy, SEA + 0.02))
         objs = [o]
         for j in range(5):
             f = bmesh.new(); bm_box(f, 0.5, 0.12, 0.12, (rnd.uniform(-1, 1), rnd.uniform(-1, 1), 0)); fo = obj_from_bm(res_m, f"fish{i}_{j}", f, MAT["fish"], bevel=0.0, loc=(o.location.x, o.location.y, SEA - 0.25)); fo.rotation_euler.z = rnd.uniform(0, math.tau); objs.append(fo)

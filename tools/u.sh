@@ -5,13 +5,15 @@
 #   tools/u.sh batch <Class.Method> batchmode run (fine for anything that does not render)
 # WHY: in GUI mode a compile error opens a "Safe Mode?" dialog and Unity never exits -- a run once
 # hung for 10 minutes on it. So `gui` always compile-checks in batchmode first.
-UE=/Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app/Contents/MacOS/Unity
-P=/Users/dhruv/clash-of-clans/unity/ClashOfAges
-LOG=/tmp/coa_$1.log
+# UE / P / LOGDIR come from the environment so the same script runs on a Linux box (tools/cloud/unity-bootstrap.sh sets them).
+UE=${UE:-/Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app/Contents/MacOS/Unity}
+P=${P:-${0:A:h:h}/unity/ClashOfAges}
+LOGDIR=${LOGDIR:-/tmp}
+LOG=$LOGDIR/coa_$1.log
 compile() {
-  $UE -batchmode -projectPath $P -logFile /tmp/coa_compile.log -quit >/dev/null 2>&1
-  if grep -qE "error CS[0-9]+" /tmp/coa_compile.log; then
-    grep -E "error CS[0-9]+" /tmp/coa_compile.log | sort -u | head -20; return 1; fi
+  $UE -batchmode -projectPath $P -logFile $LOGDIR/coa_compile.log -quit >/dev/null 2>&1
+  if grep -qE "error CS[0-9]+" $LOGDIR/coa_compile.log; then
+    grep -E "error CS[0-9]+" $LOGDIR/coa_compile.log | sort -u | head -20; return 1; fi
   echo "compile OK"
 }
 case $1 in

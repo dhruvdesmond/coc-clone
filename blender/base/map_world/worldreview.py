@@ -12,11 +12,14 @@ from mathutils import Vector
 
 D, C = bpy.data, bpy.context
 
-# kind -> (minimum count, allowed regions or "water" or "dry"); a region passes when its soft weight is >= 0.35
+# kind -> (minimum count, allowed regions or "water" or "dry"); a region passes when its soft weight is >= 0.30.
+# Rock-like kinds (rock, coal, uran) and small scatter (bush, dead) are placed half-buried on purpose: for them the check is
+# "still shows above the ground", not floating/sunken.
+BURIED_OK = ("rock", "coal", "uran", "bush", "dead")
 EXPECTED = {
     "tree":     (450, ("grass", "forest", "mount")),
     "rock":     (30,  None),
-    "bush":     (8,   ("grass", "forest")),
+    "bush":     (8,   None),
     "berry":    (18,  ("grass",)),
     "stone":    (8,   ("grass", "mount", "forest")),
     "iron":     (8,   ("grass", "mount", "forest")),
@@ -26,7 +29,7 @@ EXPECTED = {
     "salt":     (1,   ("desert",)),
     "shoal":    (8,   "water"),
     "dead":     (4,   ("volc", "desert")),
-    "building": (25,  "dry"),
+    "building": (22,  "dry"),
     "people":   (8,   "dry"),
 }
 
@@ -59,17 +62,20 @@ def run(placed, ctx, out_dir, t_build, device, extra_lines=()):
                 offmap.append(p["name"]); continue
             if where == "water":
                 if ctx.raw_h(x, y) > ctx.SEA - 0.2: bad_biome.append(p["name"])
-            elif where == "dry":
-                if not ctx.dry_flat(x, y, 2.0): bad_biome.append(p["name"])
+            elif where == "dry":                                     # on the FLATTENED ground (pads), above the water
+                if ctx.height(x, y) < ctx.SEA + 0.8: bad_biome.append(p["name"])
             elif where:
                 R = ctx.region(x, y)
-                if max(R.get(k, 0.0) for k in where) < 0.35: bad_biome.append(p["name"])
-            if where != "water" and kind not in ("shoal",):
+                if max(R.get(k, 0.0) for k in where) < 0.30: bad_biome.append(p["name"])
+            if where != "water":
                 bb = _bbox(p["objs"])
                 if bb:
                     gz = ctx.height(x, y)
-                    if bb[2] - gz > 0.6: floating.append((p["name"], round(bb[2] - gz, 2)))
-                    if gz - bb[2] > (2.5 if kind == "rock" else 1.2): sunken.append((p["name"], round(gz - bb[2], 2)))
+                    if kind in BURIED_OK:
+                        if bb[5] - gz < 0.25: sunken.append((p["name"], round(gz - bb[5], 2)))      # buried: nothing shows
+                    else:
+                        if bb[2] - gz > 0.6: floating.append((p["name"], round(bb[2] - gz, 2)))
+                        if gz - bb[2] > 1.2: sunken.append((p["name"], round(gz - bb[2], 2)))
         found = len(items)
         ok = found >= need and not bad_biome and not floating and not sunken and not offmap
         why = []

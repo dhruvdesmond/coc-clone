@@ -344,6 +344,44 @@ def clip_bannerwalk(f, n):
     return _gait(f, n, 25, 3, lambda s: {"ArmL": (-s * 20, 0, -6), "ForeL": (-20, 0, 0), **BANNER_ARM})
 
 
+# ---------------------------------------------------------------- mounted (the rider on the library horse: animation Tier 2)
+# The rest pose stays canonical; the SEAT is a pose, so every rider shares the humanoid library. Unity parents the rider's
+# Root to the horse's Saddle bone, so these clips run with ground-lock OFF and carry no bob of their own beyond the seat.
+SEAT = {"LegL": (-68, 0, -26), "ShinL": (78, 0, 0), "LegR": (-68, 0, 26), "ShinR": (78, 0, 0)}
+REINS_L = {"ArmL": (-28, 0, -6), "ForeL": (-72, 0, 14)}
+
+
+def _mounted(base, extra=None):
+    """A standing clip ridden: its arms and body over the seated legs."""
+    def fn(f, n):
+        r = base(f, n); pose, bob = r if isinstance(r, tuple) else (r, 0.0)
+        return ({**pose, **SEAT, **(extra or {})}, bob)
+    return fn
+
+
+def clip_rideidle(f, n):
+    s = wave(f, n)
+    return ({"Body": (5 + s * 1.0, 0, 0), "Head": (s * -1.5, wave(f, n, 1.3) * 7, 0), **REINS_L, "ArmR": (-24, 0, 8), "ForeR": (-70, 0, -12), **SEAT}, 0.0)
+
+
+def clip_ride(f, n):          # the gallop seat: forward lean, the body rising and falling with the stride
+    s = wave(f, n)
+    return ({"Body": (14 + s * 3, 0, 0), "Head": (-8, 0, 0), **REINS_L, "ArmR": (-26 + s * 2, 0, 8), "ForeR": (-72, 0, -12), **SEAT}, 0.03 * s)
+
+
+def clip_attacklance(f, n):   # couched under the right arm; the thrust is the whole torso turning into it. LINEAR: no ease.
+    k = snap(f / FPS, [(0, 0), (0.30, 0), (0.42, 1), (0.60, 1), (1.0, 0)])
+    return ({"Body": (10 + 8 * k, -22 * k, 0), "Head": (-6, 12 * k, 0), **REINS_L,
+             "ArmR": (-30 + 20 * k, 0, 12), "ForeR": (-45 + 30 * k, 0, -18), **SEAT}, 0.0)
+
+
+def clip_deathfall(f, n):     # thrown from the saddle over the left side, arms flung
+    k = min(1.0, (f / FPS) / 0.6); k *= k
+    return ({"Body": (-25 * k, 0, 80 * k), "Head": (-15 * k, 0, 0), "ArmL": (-120 * k, 0, -40 * k), "ArmR": (-60 * k, 0, 70 * k),
+             "ForeL": (-30 * k, 0, 0), "ForeR": (-40 * k, 0, 0),
+             "LegL": (-68 + 40 * k, 0, -26 + 10 * k), "ShinL": (78 - 50 * k, 0, 0), "LegR": (-68 + 50 * k, 0, 26 - 10 * k), "ShinR": (78 - 40 * k, 0, 0)}, -0.95 * k)
+
+
 #         name           frames loop   fn                ground-lock
 CLIPS = [("Idle",         72, True,  clip_idle,        True),  ("Walk",        24, True,  clip_walk,       True),
          ("Run",          20, True,  clip_run,         True),  ("HitReact",    14, False, clip_hitreact,   True),
@@ -359,7 +397,10 @@ CLIPS = [("Idle",         72, True,  clip_idle,        True),  ("Walk",        2
          ("Thrust",       24, False, clip_thrust,      True),  ("Brace",       60, True,  clip_brace,      True),
          ("Shoot",        36, False, clip_shoot,       True),  ("AimIdle",     60, True,  clip_aimidle,    True),
          ("BannerIdle",   72, True,  clip_banneridle,  True),  ("BannerWalk",  24, True,  clip_bannerwalk, True),
-         ("RunShield",    20, True,  clip_runshield,   True)]
+         ("RunShield",    20, True,  clip_runshield,   True),
+         ("RideIdle",     72, True,  clip_rideidle,    False), ("Ride",        16, True,  clip_ride,       False),
+         ("AttackMounted", 27, False, _mounted(clip_attack, REINS_L), False), ("AttackLance", 30, False, clip_attacklance, False),
+         ("ShootMounted", 36, False, _mounted(clip_shoot), False), ("DeathFall",  33, False, clip_deathfall,  False)]
 
 
 # ====================================================================================== maths
@@ -625,7 +666,7 @@ def main():
     print("[rig] OK")
 
 
-def render_sheet(scene, arm, mesh, path, shots, turn=0.0):
+def render_sheet(scene, arm, mesh, path, shots, turn=0.0, spacing=2.3):
     """Freeze the SKINNED mesh at chosen frames of chosen actions and lay the copies out in a row. What this
     shows is the armature deforming the mesh -- the real thing, not a re-implementation of the pose maths."""
     sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))
@@ -639,7 +680,7 @@ def render_sheet(scene, arm, mesh, path, shots, turn=0.0):
         me = bpy.data.meshes.new_from_object(mesh.evaluated_get(dg))
         o = bpy.data.objects.new(f"shot_{clip}_{frame}", me)
         scene.collection.objects.link(o)
-        o.location = ((i - (len(shots) - 1) / 2) * 2.3, 0, 0)
+        o.location = ((i - (len(shots) - 1) / 2) * spacing, 0, 0)
         o.rotation_euler = (0, 0, math.radians(turn))
         dg_objs.append(o)
     arm.animation_data.action = bpy.data.actions["Idle"]; scene.frame_set(0)
@@ -649,7 +690,7 @@ def render_sheet(scene, arm, mesh, path, shots, turn=0.0):
     nt = stick.node_tree; nt.nodes.clear()
     e = nt.nodes.new("ShaderNodeEmission"); e.inputs[0].default_value = (1.0, 0.25, 0.05, 1); e.inputs[1].default_value = 5.0
     nt.links.new(e.outputs[0], nt.nodes.new("ShaderNodeOutputMaterial").inputs[0])
-    x0 = dg_objs[0].location.x - 2.3
+    x0 = dg_objs[0].location.x - spacing
     for b in arm.data.bones:
         if b.name == "Root": continue
         h, t = b.head_local, b.tail_local
@@ -661,7 +702,7 @@ def render_sheet(scene, arm, mesh, path, shots, turn=0.0):
     bpy.context.object.data.materials.append(N.turf_material(new_mat, principled, noise_node, math_node, maprange,
                                              lush=(0.05, 0.11, 0.03, 1), dry=(0.09, 0.12, 0.04, 1)))
     N.daylight(sun_energy=2.8, sky_strength=0.32, elevation=44.0, rotation=150.0)
-    cd = bpy.data.cameras.new("Cam"); cd.type = "ORTHO"; cd.ortho_scale = 2.3 * (len(shots) + 1.4)
+    cd = bpy.data.cameras.new("Cam"); cd.type = "ORTHO"; cd.ortho_scale = spacing * (len(shots) + 1.4)
     cam = bpy.data.objects.new("Cam", cd); scene.collection.objects.link(cam); scene.camera = cam
     cam.location = (-1.15, -16, 5.4); cam.rotation_euler = (math.radians(76), 0, 0)
     N.render_settings(scene, path.replace(".png", "_"), res=(2600, 640), samples=96, exposure=-1.3)
