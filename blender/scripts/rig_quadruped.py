@@ -158,12 +158,15 @@ def main():
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces); flipped += sum(1 for f, b in zip(bm.faces, before) if f.normal.dot(b) < 0)
         bm.to_mesh(o.data); bm.free(); o.data.update()
     print(f"[quad] normals: {flipped} inside-out faces turned outward")
-    # recentre: hooves on the ground, the barrel's centre over the origin, turned to face Blender -Y (= Unity +Z)
+    # recentre: hooves on the ground, the barrel's centre over the origin, turned to face Blender -Y (= Unity +Z). The facing is
+    # MEASURED from head to rump -- the troops lineup rotates each mount, so a fixed turn faced the first horse away from the camera.
     part = {o: o.name[len(prefix) + 1:] for o in meshes}
     barrel = next(o for o in meshes if part[o] == "Barrel")
+    fwd = centre(next(o for o in meshes if part[o] == "Head")) - centre(next(o for o in meshes if part[o] == "Rump")); fwd.z = 0
     pts = [o.matrix_world @ Vector(c) for o in meshes for c in o.bound_box]
     c = centre(barrel); zmin = min(p.z for p in pts)
-    fix = Matrix.Rotation(math.radians(-90.0), 4, "Z") @ Matrix.Translation((-c.x, -c.y, -zmin))
+    fix = Matrix.Rotation(math.radians(-90.0) - math.atan2(fwd.y, fwd.x), 4, "Z") @ Matrix.Translation((-c.x, -c.y, -zmin))
+    print(f"[quad] authored facing {math.degrees(math.atan2(fwd.y, fwd.x)):.0f} deg -> turned to -Y")
     for o in meshes: o.data.transform(fix); o.data.update()
     bpy.context.view_layer.update()
 

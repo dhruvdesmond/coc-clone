@@ -17,20 +17,22 @@ D, C = bpy.data, bpy.context
 # "still shows above the ground", not floating/sunken.
 BURIED_OK = ("rock", "coal", "uran", "bush", "dead")
 EXPECTED = {
-    "tree":     (450, ("grass", "forest", "mount")),
-    "rock":     (30,  None),
-    "bush":     (8,   None),
-    "berry":    (18,  ("grass",)),
-    "stone":    (8,   ("grass", "mount", "forest")),
-    "iron":     (8,   ("grass", "mount", "forest")),
-    "coal":     (15,  ("mount",)),
+    "tree":     (1200, ("grass", "forest", "mount")),
+    "rock":     (80,  None),
+    "bush":     (30,  None),
+    "berry":    (24,  ("grass", "forest", "desert")),
+    "stone":    (12,  ("grass", "mount", "forest", "volc")),
+    "iron":     (12,  ("grass", "mount", "forest", "volc")),
+    "coal":     (20,  ("mount",)),
     "uran":     (12,  ("volc",)),
     "oil":      (3,   ("desert",)),
     "salt":     (1,   ("desert",)),
-    "shoal":    (8,   "water"),
-    "dead":     (4,   ("volc", "desert")),
-    "building": (22,  "dry"),
-    "people":   (8,   "dry"),
+    "shoal":    (16,  "water"),
+    "dead":     (8,   ("volc", "desert")),
+    "building": (28,  "dry"),
+    "people":   (10,  "dry"),
+    "bridge":   (1,   None),
+    "pier":     (1,   None),
 }
 
 
@@ -68,7 +70,7 @@ def run(placed, ctx, out_dir, t_build, device, extra_lines=()):
             elif where:
                 R = ctx.region(x, y)
                 if max(R.get(k, 0.0) for k in where) < 0.30: bad_biome.append(p["name"])
-            if where != "water":
+            if where != "water" and kind not in ("bridge", "pier"):
                 bb = _bbox(p["objs"])
                 if bb:
                     gz = ctx.height(x, y)
@@ -88,7 +90,7 @@ def run(placed, ctx, out_dir, t_build, device, extra_lines=()):
         rows.append((kind, need, found, "PASS" if ok else "FAIL", "; ".join(why) or "-"))
         if not ok: fails.append(kind)
     # overlaps between buildings and between buildings and resource nodes (the B1 / B12 class of bug)
-    solid = [p for p in placed if p["kind"] in ("building", "berry", "stone", "iron", "oil")]
+    solid = [p for p in placed if p["kind"] in ("building", "berry", "stone", "iron", "oil", "bridge", "pier")]
     boxes = [(p["name"], _bbox(p["objs"])) for p in solid]
     boxes = [(n, b) for n, b in boxes if b]
     overlaps = []
