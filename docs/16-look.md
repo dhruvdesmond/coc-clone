@@ -101,3 +101,24 @@ A this standard → **B light + sky** (every pixel) → **C ground** (every pixe
 30-second flythrough on the cloud (the one job that loads the GPU near 100 %). Each phase ends with the 16 crops scored.
 
 Clash of Ages — a Rise of Nations clone. Changes here must be mirrored in the Decisions log in `PROGRESS.md`. 2026-09-26.
+
+## 8. Assets and figures — the style (B27, 2026-09-26)
+
+The map's look and the things on it must be one style. From the references (R2 Northgard, the plateau-island shot) and the
+citizen rebuild of session 10, the rules every new or rebuilt asset follows:
+
+| rule | what it means in the build script | why |
+|---|---|---|
+| **Chunky** (V8) | roofs oversized and steep, walls short, posts thick, limbs tapered and fat, heads ~1/4.5 of height, big boots, mitten hands | it is seen from 60 m; real proportions go thin at distance |
+| **No visible skeleton** | joint spheres sit INSIDE the limb, in the limb's material, smaller than the limb; sleeves, cuffs, a tunic skirt and boot cuffs cover every joint line; the rig still reads its pivots from the spheres | the soldiers' pale ball joints read as a mannequin ("a circle on the shoulder") |
+| **Seamless** | adjacent parts overlap by 10–20 % of their width and share a material; bevels on every box | no gaps at the elbow or the knee when a clip bends it |
+| **Team colour on the body** | the tunic in the player's colour (`0.15, 0.30, 0.75` blue), not only the disc under the feet | units must read against every ground tone |
+| **A face** | eyes, brow, nose, beard or cap — three dark marks are enough at 40 px | a head with no face is a helmet on a stick |
+| **The 40-pixel test** | every figure renders at 40 px tall and must still show head / tunic / legs as three tones | the game's real viewing size |
+| **Gear is a prop** | weapons, shields, tools are separate objects at the grip; helmets, mail and cloaks are body parts | one clip library for every humanoid (DL44) |
+| **Warm buildings, cool ground** | timber and thatch warmer than every ground tone; roofs the darkest cool tone | roofs are the readable part (V7) |
+| **Pads and life** | every building on trodden earth with ≥ 3 props (§5 Dressing) | settled, not placed |
+
+**Order for figures (plan B25, Phase H):** the four soldiers and the rider are rebuilt in this repo in the citizen's kit
+(`blender/base/figures/`), joints buried, sleeves and mail as body parts; then the sheets at 40 px and 3/4 view; then the
+existing `rig_figure.py` pipeline rigs them — nothing in the clip library changes.
