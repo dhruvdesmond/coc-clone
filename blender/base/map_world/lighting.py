@@ -6,7 +6,7 @@ Sun high (62°) with a wide disc, a multiple-scattering sky as the fill that tur
 fill lamp from behind (Kargil's sky-fill rig, in Cycles), a cloud slab that casts real shadows and drifts with the wind,
 and a thin world volume so far land goes pale and blue. Exposure is set for a white point of 0.5-2 % (measure.py checks).
 """
-import math
+import math, os
 import bpy
 from mathutils import Vector
 
