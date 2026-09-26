@@ -16,7 +16,7 @@ SUN_ELEV, SUN_AZ, SUN_ENERGY, SUN_ANGLE = 62.0, 205.0, 4.5, 6.0     # sun over s
 SKY_STRENGTH = 0.45
 FILL_ENERGY, FILL_COLOR = 0.15, (0.75, 0.85, 1.0)
 HAZE_DENSITY, HAZE_COLOR = 0.0004, (0.60, 0.72, 0.85)      # 0.0035 in a 260 m box washed every crop grey (saturation 0.16); 0.0007 still paled the far half
-EXPOSURE = -2.0                                            # -1.25 pushed sand and meadow into AgX's desaturated top (desert saturation 0.05)
+EXPOSURE = -1.75                                           # -1.25 pushed sand and meadow into AgX's desaturated top (desert saturation 0.05)
 
 
 def _sun(name, elev, az, energy, angle, color=(1.0, 0.94, 0.82), shadow=True):
@@ -121,7 +121,7 @@ def rig(scene, W, Dp, wind=(1.0, 0.3), with_clouds=True, with_haze=True):
     if with_haze: haze(scene, W, Dp)
     if with_clouds: clouds(scene, W, Dp, wind)
     if os.environ.get("STORMS", "1") == "1": storms(scene, wind)
-    scene.view_settings.view_transform = "AgX"; scene.view_settings.look = "AgX - Medium High Contrast"
+    scene.view_settings.view_transform = "AgX"; scene.view_settings.look = "AgX - Punchy"     # the saturation row: Medium High Contrast measured 0.33 on the meadow
     scene.view_settings.exposure = EXPOSURE
     try:
         scene.cycles.volume_step_rate = 1.0; scene.cycles.volume_max_steps = 256; scene.cycles.volume_bounces = 1
@@ -174,24 +174,24 @@ def _height_fade(nt, coord, z0, z1):
     nt.links.new(sep.outputs["Z"], r.inputs["Value"]); return r.outputs["Result"]
 
 
-def storms(scene, wind=(1.0, 0.3), sand_centre=(140.0, -120.0), sand_size=(180.0, 180.0, 50.0), snow_centre=(-140.0, 120.0), snow_size=(180.0, 170.0, 90.0), snow_base=14.0):
+def storms(scene, wind=(1.0, 0.3), sand_centre=(140.0, -120.0), sand_size=(180.0, 180.0, 34.0), snow_centre=(-140.0, 120.0), snow_size=(180.0, 170.0, 90.0), snow_base=14.0):
     """docs/16-look.md §6: a SANDSTORM over the desert (amber, wind-sheared, dense near the ground) and a SNOWSTORM over the
     massif (white, fine, streaking off the ridges). Both drift with the shared wind so the whole sky moves one way."""
     def sand_density(nt, coord):
-        f = _drifting_noise(nt, coord, wind, 0.6, 0.012, 5.0, shear=0.8)
-        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.42; r.inputs["From Max"].default_value = 0.72
-        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.06; r.clamp = True; nt.links.new(f, r.inputs["Value"])
+        f = _drifting_noise(nt, coord, wind, 0.6, 0.010, 5.0, shear=1.6)                 # 0.06 dense and gapless was a white-out, not a storm
+        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.56; r.inputs["From Max"].default_value = 0.74
+        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.018; r.clamp = True; nt.links.new(f, r.inputs["Value"])
         fade = _height_fade(nt, coord, 6.0, sand_size[2] / 2)
         m = nt.nodes.new("ShaderNodeMath"); m.operation = "MULTIPLY"; nt.links.new(r.outputs["Result"], m.inputs[0]); nt.links.new(fade, m.inputs[1]); return m.outputs[0]
 
     def snow_density(nt, coord):
-        f = _drifting_noise(nt, coord, wind, 1.1, 0.05, 6.0, shear=1.4)
-        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.48; r.inputs["From Max"].default_value = 0.70
-        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.05; r.clamp = True; nt.links.new(f, r.inputs["Value"])
+        f = _drifting_noise(nt, coord, wind, 1.1, 0.04, 6.0, shear=2.2)
+        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.58; r.inputs["From Max"].default_value = 0.74
+        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.014; r.clamp = True; nt.links.new(f, r.inputs["Value"])
         fade = _height_fade(nt, coord, 10.0, snow_size[2] / 2)
         m = nt.nodes.new("ShaderNodeMath"); m.operation = "MULTIPLY"; nt.links.new(r.outputs["Result"], m.inputs[0]); nt.links.new(fade, m.inputs[1]); return m.outputs[0]
 
-    s = _volume_box("Sandstorm", (sand_centre[0], sand_centre[1], sand_size[2] / 2 + 2.0), sand_size, (0.78, 0.60, 0.34), sand_density)
+    s = _volume_box("Sandstorm", (sand_centre[0], sand_centre[1], sand_size[2] / 2 + 2.0), sand_size, (0.88, 0.56, 0.22), sand_density)
     n = _volume_box("Snowstorm", (snow_centre[0], snow_centre[1], snow_base + snow_size[2] / 2), snow_size, (0.92, 0.94, 0.98), snow_density)
     print("[light] storms: sandstorm over the desert, snowstorm over the massif, wind", wind)
     return s, n
