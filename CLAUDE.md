@@ -30,14 +30,16 @@ clash-of-clans/                     ← this repo
 ├── style.css
 ├── docs/01-concept … 13-demo.html
 ├── docs/14-world.md               ← THE WORLD INVENTORY: map size vs RoN, every resource, building, unit, road and effect the map needs
+├── docs/15-axe.md                 ← THE AXE PLAN (P1c): what the chop sounds like today, the SFX spec sheet, six changes in order
 ├── tools/                          ← u.sh (guarded Unity runner) · test.sh · export_all.sh
+├── tools/cloud/                    ← vast.sh (THE CLOUD BOX: up · batch · wait · pull · cost · down) · unity-bootstrap.sh
 ├── art/unit_sheet.png              ← the units, their pivots and their poses, rendered in Blender
 ├── blender/HOW-WE-BUILD.md         ← THE HANDBOOK: how assets, figures and maps are made, and every trap paid for
 ├── blender/scripts/                ← AUTHORITATIVE pipeline scripts: export_palette · export_assets ·
-│                                      rig_figure (skeleton + THE shared clip library) · export_figure (flat fallback) ·
-│                                      export_nature · figure_sheet
+│                                      rig_figure (skeleton + THE shared clip library, incl. the 6 mounted clips) · rig_quadruped (THE HORSE: 20 bones, 5 clips) ·
+│                                      export_figure (flat fallback) · export_nature · figure_sheet
 ├── blender/base/age1_demo/         ← models authored HERE (Rune Hall, Muster Hall, Farm)
-├── blender/base/map_world/         ← THE WORLD MAP (Blender only, PENDING B12): 260 x 190 m, biomes + every resource, from the library
+├── blender/base/map_world/         ← THE WORLD MAP (Blender only, B12/B21): 420 x 420 m; build.py · protos.py (instanced kinds) · extras.py (rares, deer, rig) · worldreview.py (the asserting review → renders/REVIEW.md)
 ├── blender/base/map_ref/           ← THE MAP (Blender only, PENDING P0): build.py renders straight to renders/; QUALITY=final for the full render
 ├── blender/base/citizen/           ← THE CITIZEN and his four tools, authored HERE (the library's villager is retired from the game)
 └── unity/ClashOfAges/              ← the game
@@ -173,6 +175,14 @@ P=/Users/dhruv/clash-of-clans/unity/ClashOfAges
 tools/test.sh                        # 13 headless sim tests. Batchmode is safe: no pixels.
 tools/u.sh play DemoVerify.Full      # a bot plays the whole demo in the Editor: 8 screenshots, asserts, exits
 tools/u.sh compile                   # ALWAYS before a GUI run -- a compile error in GUI mode hangs on a dialog
+
+# THE CLOUD BOX (all Blender work runs here, not on the Mac; rules in the vast-ai skill)
+tools/cloud/vast.sh cost start      # credit + running boxes, at the start of every session
+tools/cloud/vast.sh up               # rent a 4090, clone both repos (3-6 min)
+tools/cloud/vast.sh sync             # after every push
+VAST_ENV="REGIONS=1" BLENDER_GPU=OPTIX tools/cloud/vast.sh batch blender/base/map_world/build.py && tools/cloud/vast.sh wait
+tools/cloud/vast.sh pull blender/base/map_world/renders/REVIEW.md   # then LOOK at the pulled PNGs
+tools/cloud/vast.sh down && tools/cloud/vast.sh cost end
 
 tools/export_all.sh [figures|buildings|new|nodes|all]   # re-export every Blender asset the demo uses
 

@@ -69,7 +69,7 @@ MOUNT = (-140.0, 105.0)         # NW, the massif's centre
 RIDGES = [((-200.0, 60.0), (-96.0, 168.0)), ((-178.0, 158.0), (-104.0, 62.0))]      # two ridge lines through the massif
 LAKE = (62.0, 4.0)              # centre-east, clear of the village
 COAST_Y = lambda x: -150.0 + fbm(x, 0.0, 9, octaves=2, freq=0.012) * 22.0           # the shoreline along the south
-RIVER = [(-124.0, 72.0), (-100.0, 40.0), (-78.0, 16.0), (-62.0, -18.0), (-48.0, -56.0), (-40.0, -94.0), (-30.0, -128.0), (-22.0, -176.0)]
+RIVER = [(-112.0, 58.0), (-100.0, 40.0), (-78.0, 16.0), (-62.0, -18.0), (-48.0, -56.0), (-40.0, -94.0), (-30.0, -128.0), (-22.0, -176.0)]
 BRIDGE = RIVER[2]                                # the road to the mining camp crosses here
 FORDS = [RIVER[4], RIVER[6]]                     # shallow gravel bars: the road to the fishing hamlet crosses the first
 
@@ -104,10 +104,11 @@ def raw_h(x, y):
     # lake basin
     lake = -6.0 * falloff(x, y, *LAKE, 20.0, 14.0) * (0.6 + 0.4 * fbm(x, y, 6, octaves=2, freq=0.06))
     h = base + mount + volc + dunes + sea + lake
-    # the river: a channel cut to a bed BELOW the sea level (the one water plane), gravel bars at the fords
+    # the river: a channel cut to a bed BELOW the sea level (the one water plane), gravel bars at the fords. It fades out inside
+    # the mountain (a full-depth cut through 20 m of rock was a black gorge in the first render).
     d = poly_dist(x, y, RIVER)
     if d < 12.0:
-        k = 1.0 - sm((d - 4.0) / 7.0)
+        k = (1.0 - sm((d - 4.0) / 7.0)) * (1.0 - sm((R["mount"] - 0.25) / 0.35))
         ford = max(falloff(x, y, fx, fy, 4.0, 5.0) for fx, fy in FORDS)
         bed = -2.6 * (1.0 - ford) + 0.35 * ford
         if h > bed: h = h * (1.0 - k) + bed * k
@@ -179,11 +180,13 @@ def world_material():
     mul = nt.nodes.new("ShaderNodeMixRGB"); mul.location = (-950, 200); mul.blend_type = "MULTIPLY"; mul.inputs["Fac"].default_value = 1
     nt.links.new(ramp.outputs["Color"], mul.inputs["Color1"]); nt.links.new(v.outputs["Result"], mul.inputs["Color2"])
     # roads: four tones picked by B, applied by G
+    # NOTE: color_ramp.elements re-sorts by position after every new(), so index by SORTED order at the end -- indexing e[1]
+    # after two new() calls coloured the dirt stop and left the last stop at its default WHITE (the cobbled square rendered white).
     rk = nt.nodes.new("ShaderNodeValToRGB"); rk.location = (-1200, 700); e = rk.color_ramp.elements
-    e[0].position, e[0].color = 0.0, (0.22, 0.22, 0.09, 1)                # grass path: worn pale straw
-    d1 = e.new(1 / 3); d1.color = (0.26, 0.19, 0.12, 1)                   # dirt road
-    d2 = e.new(2 / 3); d2.color = (0.10, 0.07, 0.045, 1)                  # mud
-    e[1].position, e[1].color = 1.0, (0.30, 0.29, 0.27, 1)                # cobbles
+    e.new(1 / 3); e.new(2 / 3)
+    for el, pos, c in zip(sorted(e, key=lambda s: s.position), (0.0, 1 / 3, 2 / 3, 1.0),
+                          [(0.22, 0.22, 0.09), (0.26, 0.19, 0.12), (0.10, 0.07, 0.045), (0.20, 0.19, 0.18)]):   # grass path, dirt, mud, cobbles
+        el.position = pos; el.color = (*c, 1)
     nt.links.new(sep.outputs["Z"], rk.inputs["Fac"])
     rs = maprange(nt, sep.outputs["Y"], 0.25, 0.75, 0.0, 1.0, (-950, 700))
     road = nt.nodes.new("ShaderNodeMixRGB"); road.location = (-700, 300)
@@ -301,9 +304,12 @@ for j in range(ny):
 # FLOAT colour, not byte: a byte colour attribute is stored sRGB-encoded, so a biome index of 0.42 (grass) came back as 0.15
 # (desert sand) and the whole grassland rendered as beach. 0 and 1 survive that; anything in between does not.
 col = bm.loops.layers.float_color.new("map")
+bm.verts.index_update()
+vcol = {}                                                              # per VERTEX once, not per loop (4x fewer biome/road calls: 148 s -> ~40 s)
+for v in bm.verts:
+    rs, rk = road_at(v.co.x, v.co.y); vcol[v.index] = (biome(v.co.x, v.co.y), rs, rk / 3.0, 1.0)
 for f in bm.faces:
-    for l in f.loops:
-        v = l.vert.co; rs, rk = road_at(v.x, v.y); l[col] = (biome(v.x, v.y), rs, rk / 3.0, 1.0)
+    for l in f.loops: l[col] = vcol[l.vert.index]
 ground = obj_from_bm(world, "Terrain", bm, world_material(), bevel=0.0, smooth=True)
 # water: one plane at sea level covers the sea, the lake basin and the river bed
 wb = bmesh.new(); bm_box(wb, W + 40, Dp + 40, 0.06, (0, 0, SEA - 0.03)); obj_from_bm(world, "Sea", wb, TK["water"], bevel=0.0)
@@ -317,9 +323,18 @@ t_protos = time.time()
 PROTO = {}
 
 
+PZ = {}          # key -> (zmin, zmax) of the prototype mesh, so a rock can be sunk by a fraction of ITS height and always show
+
+
 def proto(key, mats, build, *a, **kw):
     bm = bmesh.new(); build(bm, *a, **kw); o = P.make_object(f"proto_{key}", bm, mats)
+    zs = [v.co.z for v in o.data.vertices]; PZ[key] = (min(zs), max(zs))
     lib.register(key, [o]); lib.offset[key] = Vector((0, 0, 0)); PROTO.setdefault(key.split(":")[0], []).append(key)
+
+
+def rock(kind, key, x, y, s, k=0):
+    """A rock-like prototype sunk so that 45 % of its height still shows (plus k steps for stacked cliff slabs)."""
+    return put(kind, key, x, y, -0.55 * PZ[key][1] * s + k * 0.3, s)
 
 
 for i in range(4): proto(f"fir:{i}", [TK["bark"], TK["needle_dark"]], P.fir, 6.5, rnd.randint(4, 6), rnd)
@@ -396,7 +411,7 @@ for (cx, cy, key, cnt) in [(-96, 52, "cliff", 9), (-70, 96, "cliff", 8), (-120, 
     for k in range(cnt):
         a = rnd.uniform(0, math.tau); d = rnd.uniform(0, 9.0); x, y = cx + math.cos(a) * d, cy + math.sin(a) * d
         if raw_h(x, y) < SEA + 1.0 or not all(math.hypot(x - sx, y - sy) > r + 1.0 for (sx, sy, r) in PADS): continue
-        sz = rnd.uniform(2.6, 5.0); put("rock", pick(key), x, y, -0.35 * sz + k * 0.15, sz)
+        rock("rock", pick(key), x, y, rnd.uniform(2.6, 5.0), k)
 
 t_scatter = time.time()
 for _ in range(int(os.environ.get("TRIES", 60000))):                 # ~1,800 trees at the current density; instancing makes tries cheap
@@ -405,15 +420,15 @@ for _ in range(int(os.environ.get("TRIES", 60000))):                 # ~1,800 tr
     if h < SEA + 0.8 or not clear(x, y): continue
     r = rnd.random()
     if R["mount"] > 0.3 and h > 12:
-        if r < 0.10 and s > 0.25: sz = rnd.uniform(0.8, 2.6); put("rock", pick("rocksnow" if h > 26 else "rock"), x, y, -0.15 * sz, sz)
+        if r < 0.10 and s > 0.25: rock("rock", pick("rocksnow" if h > 26 else "rock"), x, y, rnd.uniform(0.8, 2.6))
         elif r < 0.16 and h < 22 and s < 0.5: put("tree", pick("firsnow" if h > 17 else "mfir"), x, y, -0.2, rnd.uniform(0.73, 1.27))
         continue
     if R["volc"] > 0.3:
-        if r < 0.08: sz = rnd.uniform(0.6, 2.0); put("rock", pick("obsidian"), x, y, -0.15 * sz, sz)
+        if r < 0.08: rock("rock", pick("obsidian"), x, y, rnd.uniform(0.6, 2.0))
         elif r < 0.10: put("dead", pick("bare"), x, y, 0.0, rnd.uniform(0.8, 1.2), tag="tree")
         continue
     if R["desert"] > 0.5:
-        if r < 0.02: sz = rnd.uniform(0.5, 1.6); put("rock", pick("rocksand"), x, y, -0.15 * sz, sz)
+        if r < 0.02: rock("rock", pick("rocksand"), x, y, rnd.uniform(0.5, 1.6))
         elif r < 0.03: put("dead", pick("bare"), x, y, 0.0, rnd.uniform(0.6, 1.0), tag="tree")
         continue
     fd = forest_density(x, y)
@@ -421,7 +436,7 @@ for _ in range(int(os.environ.get("TRIES", 60000))):                 # ~1,800 tr
         if rnd.random() < 0.72: put("tree", pick("fir" if rnd.random() < 0.6 else "firlight"), x, y, -0.15, rnd.uniform(0.77, 1.31))
         else: put("tree", pick("broad"), x, y, -0.15, rnd.uniform(0.82, 1.18))
     elif r < 0.55 * fd + 0.012: put("bush", pick("bush"), x, y, -0.1, rnd.uniform(0.6, 1.1))
-    elif r < 0.55 * fd + 0.02 and s > 0.2: sz = rnd.uniform(0.5, 1.4); put("rock", pick("rock"), x, y, -0.15 * sz, sz)
+    elif r < 0.55 * fd + 0.02 and s > 0.2: rock("rock", pick("rock"), x, y, rnd.uniform(0.5, 1.4))
 print(f"SCATTER {time.time() - t_scatter:.1f} s", flush=True)
 
 
@@ -432,7 +447,7 @@ def node(key, x, y, kind, r=2.2):
     for k in range(24):
         px, py = (x, y) if k == 0 else (x + rnd.gauss(0, 4.0 + k * 0.3), y + rnd.gauss(0, 4.0 + k * 0.3))
         if raw_h(px, py) > SEA + 1.0 and all(math.hypot(px - sx, py - sy) > r + sr + 1.0 for (sx, sy, sr) in PADS) and road_at(px, py)[0] < 0.3: break
-    else: print(f"[node] ! no clear ground for {kind} near {x:.0f},{y:.0f}")
+    else: print(f"[node] ! no clear ground for {kind} near {x:.0f},{y:.0f} -- NOT placed (the review counts it)"); return
     PADS.append((px, py, r)); put(kind, key, px, py, 0.0, 1.0)
 
 
@@ -442,9 +457,9 @@ for (x, y) in [(-88, 82), (-62, 100), (-116, 44), (-44, 124), (104, 72), (-140, 
     for k in range(2): node("node_stone", x, y, "stone")
     for k in range(2): node("node_iron", x, y, "iron")
 for (x, y) in [(-152, 58), (-176, 126), (-118, 154), (-84, 140)]:                                 # coal seams: black rock clusters, higher up
-    for k in range(6): sz = rnd.uniform(0.5, 1.3); put("coal", pick("coal"), x + rnd.gauss(0, 2.5), y + rnd.gauss(0, 2.5), -0.15 * sz, sz)
+    for k in range(6): rock("coal", pick("coal"), x + rnd.gauss(0, 2.5), y + rnd.gauss(0, 2.5), rnd.uniform(0.5, 1.3))
 for (x, y) in [(122, 154), (172, 102), (150, 78)]:                                                # uranium in the badlands: faintly glowing green rock, 3 deposits only
-    for k in range(5): sz = rnd.uniform(0.4, 1.0); put("uran", pick("uran"), x + rnd.gauss(0, 2.0), y + rnd.gauss(0, 2.0), -0.15 * sz, sz)
+    for k in range(5): rock("uran", pick("uran"), x + rnd.gauss(0, 2.0), y + rnd.gauss(0, 2.0), rnd.uniform(0.4, 1.0))
 for (x, y) in [(110, -120), (152, -88), (178, -140)]:                                             # oil in the desert: a black seep and a timber derrick
     z = height(x, y); PADS.append((x, y, 6.0)); i = ids.get("oil", 0); ids["oil"] = i + 1
     ob = bmesh.new(); bm_cyl(ob, rnd.uniform(3.0, 4.5), 0.1, 18, (0, 0, 0.05)); objs = [obj_from_bm(res_m, f"oil{i}", ob, MAT["oil"], bevel=0.0, loc=(x, y, z))]

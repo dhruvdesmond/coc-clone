@@ -75,7 +75,7 @@ def run(placed, ctx, out_dir, t_build, device, extra_lines=()):
                 if bb:
                     gz = ctx.height(x, y)
                     if kind in BURIED_OK:
-                        if bb[5] - gz < 0.05: sunken.append((p["name"], round(gz - bb[5], 2)))      # buried: nothing shows
+                        if bb[5] - gz < 0.05: sunken.append((p["name"], round(gz - bb[5], 2), "top", round(bb[5], 2), "ground", round(gz, 2), "at", round(x), round(y)))      # buried: nothing shows
                     else:
                         if bb[2] - gz > 0.6: floating.append((p["name"], round(bb[2] - gz, 2)))
                         if gz - bb[2] > 1.2: sunken.append((p["name"], round(gz - bb[2], 2)))
@@ -124,6 +124,8 @@ def run(placed, ctx, out_dir, t_build, device, extra_lines=()):
     lines += ["", "**Since the last review:** " + ("; ".join(changed) if changed else "no count changed" if prev else "first review"), ""]
     lines += list(extra_lines)
     os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "PLACED.csv"), "w") as f:                    # every placement, for "what is THAT at (x, y)?"
+        f.write("name,kind,x,y\n"); f.writelines(f"{p['name']},{p['kind']},{p['x']:.1f},{p['y']:.1f}\n" for p in placed)
     open(path, "w").write("\n".join(lines) + "\n")
     print("\n".join(lines[2:3] + lines[6:]), flush=True)
     print("REVIEW", "PASS" if ok else "FAIL", flush=True)

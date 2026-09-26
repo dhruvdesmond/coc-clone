@@ -128,12 +128,18 @@ sync() { sshx "cd /work/repo && GIT_SSH_COMMAND='ssh -i /root/.ssh/deploy_repo' 
 blender() { local s=$1; shift; sshx "$GPUENV cd /work/repo && /work/blender/blender -b --factory-startup --python $s $*"; }
 batch() {
   local s=$1; shift; local name=$(basename ${s:h}); local log=/work/logs/$name-$(date -u +%H%M%S).log
+  # nvidia-smi samples the GPU every 5 s for the life of the job; the END line reports the average (PENDING B23)
   sshx "cat > /work/batch.sh <<'EOS'
 #!/bin/bash
 $GPUENV cd /work/repo
 echo \"=== START \$(date -u +%FT%TZ) $s $*\"
+nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader,nounits -l 5 > $log.gpu 2>/dev/null &
+SMI=\$!
 /work/blender/blender -b --factory-startup --python-exit-code 1 --python $s $*
-echo \"=== END rc=\$? \$(date -u +%FT%TZ)\"
+RC=\$?
+kill \$SMI 2>/dev/null
+awk -F, '{s+=\$1; n++; if (\$1>=70) b++} END {if (n) printf(\"=== GPU avg %.0f%% over %d samples (%d s), >=70%% for %.0f%% of the time\\n\", s/n, n, n*5, 100*b/n)}' $log.gpu
+echo \"=== END rc=\$RC \$(date -u +%FT%TZ)\"
 EOS
 chmod +x /work/batch.sh; nohup /work/batch.sh > $log 2>&1 &
 echo $log > /work/logs/latest; echo $log"
@@ -141,7 +147,7 @@ echo $log > /work/logs/latest; echo $log"
 wait() {
   need_instance; local log=${1:-$(sshx cat /work/logs/latest)}; local seen=0
   while true; do
-    local out=$(sshx "grep -n -E '=== END|BUILT|REVIEW|Saved:|Fra:.*Time:|Error|Traceback' $log | tail -n +$((seen+1))" || true)
+    local out=$(sshx "grep -n -E '=== END|=== GPU|BUILT|REVIEW|RENDERED|Error|Traceback' $log | tail -n +$((seen+1))" || true)
     [[ -n $out ]] && { print -r -- "$out"; seen=$((seen + $(print -r -- "$out" | wc -l))); }
     if sshx "grep -q '=== END' $log"; then local rc=$(sshx "grep -o 'rc=[0-9]*' $log | tail -1 | cut -d= -f2"); echo "batch finished rc=$rc ($log)"; return $rc; fi
     sleep ${VAST_POLL:-30}
