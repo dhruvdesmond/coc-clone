@@ -16,9 +16,9 @@ import math
 
 PAL = {  # docs/16-look.md §3 -- (crest, dip) per ramp stop; the dip is the cooler, wetter, darker twin
     0.00: ((0.24, 0.20, 0.13), (0.18, 0.16, 0.11)),        # seabed
-    0.14: ((0.62, 0.52, 0.34), (0.54, 0.44, 0.28)),        # sand, ochre
+    0.14: ((0.70, 0.52, 0.24), (0.58, 0.42, 0.20)),        # sand, ochre -- warmer than §3's 0.62,0.52,0.34 to survive the sky's blue
     0.28: ((0.55, 0.47, 0.22), (0.44, 0.40, 0.18)),        # dry steppe / worn
-    0.42: ((0.42, 0.46, 0.12), (0.30, 0.38, 0.10)),        # meadow crest / dip
+    0.42: ((0.46, 0.50, 0.09), (0.28, 0.38, 0.07)),        # meadow crest / dip, a touch more saturated than §3 for the same reason
     0.50: ((0.26, 0.34, 0.10), (0.18, 0.26, 0.08)),        # marsh
     0.56: ((0.22, 0.32, 0.08), (0.14, 0.24, 0.06)),        # forest floor
     0.70: ((0.50, 0.48, 0.45), (0.40, 0.39, 0.37)),        # scree

@@ -13,9 +13,9 @@ from mathutils import Vector
 D, C = bpy.data, bpy.context
 
 SUN_ELEV, SUN_AZ, SUN_ENERGY, SUN_ANGLE = 62.0, 205.0, 4.5, 6.0     # sun over sky: shadows must exist (sky 0.7 + fill 0.35 flattened everything)
-SKY_STRENGTH = 0.45
-FILL_ENERGY, FILL_COLOR = 0.15, (0.75, 0.85, 1.0)
-HAZE_DENSITY, HAZE_COLOR = 0.0004, (0.60, 0.72, 0.85)      # 0.0035 in a 260 m box washed every crop grey (saturation 0.16); 0.0007 still paled the far half
+SKY_STRENGTH = 0.32                                        # blue sky light + ochre sand = grey: the desert measured 0.07 saturation at 0.45
+FILL_ENERGY, FILL_COLOR = 0.10, (0.80, 0.88, 1.0)
+HAZE_DENSITY, HAZE_COLOR = 0.0004, (0.74, 0.78, 0.84)      # 0.0035 in a 260 m box washed every crop grey (saturation 0.16); 0.0007 still paled the far half
 EXPOSURE = -1.4                                            # -1.25 pushed sand and meadow into AgX's desaturated top (desert saturation 0.05)
 
 
@@ -66,7 +66,7 @@ def haze(scene, W, Dp, top=150.0):
     return o
 
 
-def clouds(scene, W, Dp, wind, base=420.0, thick=160.0, density=0.06, cover=0.42, seed=7):
+def clouds(scene, W, Dp, wind, base=420.0, thick=160.0, density=0.007, cover=0.30, seed=7):   # 0.06 made a cloud shadow a blackout (a forest crop at median 0.02)
     """A cloud slab: a box of scattering volume whose density is a wind-drifted noise. It casts shadows on the land,
     which is most of why a map reads as outdoors. `cover` 0..1 is roughly the sky fraction under cloud."""
     me = D.meshes.new("CloudSlab")
