@@ -115,13 +115,18 @@ up() {
     /work/blender/blender -b --factory-startup --python-expr 'import bpy; p=bpy.context.preferences.addons[\"cycles\"].preferences; p.compute_device_type=\"CUDA\"; p.get_devices(); print(\"GPU:\", [d.name for d in p.devices if d.type==\"CUDA\"])' 2>/dev/null | grep GPU:
     nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
     nproc; git -C /work/repo log --oneline -1; git -C /work/blender-lib log --oneline -1"
+  # OptiX on Blender 5.2 needs a driver >= 570 (565.77 fails with OPTIX_ERROR_INTERNAL_COMPILER_ERROR; 595.71 works): pick per box
+  local drv=$(sshx "nvidia-smi --query-gpu=driver_version --format=csv,noheader" 2>/dev/null | cut -d. -f1)
+  local gpu=CUDA; [[ -n $drv && $drv -ge 570 ]] && gpu=OPTIX
+  echo "GPU=$gpu" >> $STATE; echo "driver $drv -> BLENDER_GPU=$gpu for this box"
   echo "ready. billing is running — 'tools/cloud/vast.sh down' when finished"
 }
 
 # Blender 5.2's OptiX kernels need a newer NVIDIA driver than many hosts run (565 failed with
 # OPTIX_ERROR_INTERNAL_COMPILER_ERROR), so default to CUDA; BLENDER_GPU=OPTIX to try it.
 # BLENDER_LIB points every build script at the library clone (the scripts default to /Users/dhruv/blender on the Mac).
-GPUENV="export BLENDER_GPU=${BLENDER_GPU:-CUDA} BLENDER_LIB=/work/blender-lib ${VAST_ENV:-};"
+GPUENV="export BLENDER_GPU=${BLENDER_GPU:-$(sed -n 's/^GPU=//p' $STATE 2>/dev/null || true)} BLENDER_LIB=/work/blender-lib ${VAST_ENV:-};"
+GPUENV=${GPUENV/BLENDER_GPU= /BLENDER_GPU=CUDA }
 run() { sshx "$GPUENV cd /work/repo && $*"; }
 sync() { sshx "cd /work/repo && GIT_SSH_COMMAND='ssh -i /root/.ssh/deploy_repo' git fetch -q --depth 1 origin main && git reset -q --hard origin/main && git log --oneline -1
              cd /work/blender-lib && GIT_SSH_COMMAND='ssh -i /root/.ssh/deploy_lib' git fetch -q --depth 1 origin main && git reset -q --hard origin/main && git log --oneline -1"; }
