@@ -475,6 +475,24 @@ Every one of these cost real time on a previous project.
 
 Append one block per session. Newest at the top.
 
+### 2026-09-26 — Session 12c: the world inventory doc, and what a cloud GPU costs (PENDING B18, B19)
+Dhruv listed everything the map must hold (RoN size, resources, tanks/planes/helicopters/airport/silo, woodcutter, roads and
+highways, oil, bullets/missiles/tanks exploding, walls, watchtower) and asked whether a document already stores it. **No single
+one did**: the pieces were in docs 03/04/05/08/09 and §5b, and roads, helicopters, vehicle deaths and the RoN comparison were
+nowhere. Written: `docs/14-world.md` — pointers to the owning docs, the size comparison (our 260 × 190 m ≈ 1/16–1/20 of RoN's
+Big Huge), every resource with its map object and status, buildings and units by age with the four things he named that the
+roster lacks (helicopter + heliport, woodcutter's lodge — `hut_woodcutter` exists in the library —, sawmill, offshore rig), a
+road table (grass path · dirt · mud · cobbles · paved highway · rail · bridge · pier), and an effects table marking what doc 09
+specifies and what is new (vehicle death + burning wreck, small missiles + ABM intercept, wall breach/garrison/repair, tower
+garrison/collapse, oil fire, an explosion size ladder). Nothing in Blender was touched. Library census while looking: it now
+holds 50 asset files, not 35 — age1 (campfire, hut_woodcutter), age4 (field_hospital, musketeer, powder_mill, wall_bastion),
+age5 (artillery, bunker, depot, radio_post) and the starter nodes are extra to doc 05's list.
+**Cloud GPU (B19):** live Vast.ai search 2026-09-26 — a verified 1× RTX 3090 (24 GB) is \$0.16–0.27/h GPU+host, disk
+\$0.07–0.87/GB/month (typ. \$0.20 → 50 GB ≈ \$0.014/h, billed while stopped too), network \$0.003–0.04/GB (a bootstrap is ~3 GB).
+All-in ≈ \$0.18–0.28/h. RTX 4090 ≈ \$0.45–0.55/h all-in, ~1.7–2× faster in Cycles, so about the same cost per frame in half the
+wall time. A100/L40S/6000 Ada are 3–4× the price for no Cycles gain. The other Claude session's box (`lastmile-day`, 3090,
+\$0.161/h incl. 50 GB disk, Hungary) was left untouched. Account credit at the time: \$4.71.
+
 ### 2026-09-26 — Session 12b: the handbook, and the library under git
 Dhruv asked for everything about how we build in Blender to be written down in both folders, and pushed. `blender/HOW-WE-BUILD.md`
 (canonical) mirrors to `~/blender/HOW-WE-BUILD.md`; the week's traps went into the two skills' reference files. `~/blender`

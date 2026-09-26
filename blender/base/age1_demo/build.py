@@ -11,7 +11,7 @@ import bpy, bmesh, math, random, sys, os
 from mathutils import Vector
 
 SCENE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, "/Users/dhruv/blender/lib")
+sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))
 
 from nodeutils import new_mat, principled, noise_node, math_node, maprange  # noqa: E402
 import materials, norse as N                                               # noqa: E402

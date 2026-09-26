@@ -6,7 +6,7 @@ the game does. Input: the *.rig.blend files written by export_figure.py --save-b
 """
 import bpy, sys, math, os
 from mathutils import Matrix, Vector
-sys.path.insert(0, "/Users/dhruv/blender/lib")
+sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))
 import norse as N
 from nodeutils import new_mat, principled, noise_node, math_node, maprange
 

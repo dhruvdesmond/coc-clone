@@ -18,7 +18,7 @@ import bpy, bmesh, math, random, sys, os
 from mathutils import Vector
 
 SCENE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, "/Users/dhruv/blender/lib")
+sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))
 from nodeutils import new_mat, principled, noise_node, math_node, maprange     # noqa: E402
 from meshkit import Model, obj_from_bm, bm_box, bm_cyl, beam_between, crate, fence_run, daylight, render_settings  # noqa: E402
 import mapgen as MG                                                             # noqa: E402
@@ -375,7 +375,7 @@ build_tent(town, *SITES["tent"][:3]); build_fire(town, *SITES["fire"][:2])
 print(f"TOWN {len(town.objects)} objects")
 
 # ---- the library we already have: people, a well, crates, fences (PENDING B10 -- "why not use them also?")
-lib = MG.AssetLibrary("/Users/dhruv/blender")
+lib = MG.AssetLibrary(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"))
 for k, p in {"swordsman": "base/troops/models/swordsman.blend", "archer": "base/troops/models/archer.blend", "axeman": "base/troops/models/axeman.blend",
              "horseman": "base/troops/models/horseman.blend", "standard": "base/troops/models/standard.blend", "spearman": "base/troops/models/spearman.blend",
              "citizen": os.path.join(SCENE_DIR, "..", "citizen", "models", "citizen.blend"), "well": "base/outbuildings/models/well.blend"}.items():

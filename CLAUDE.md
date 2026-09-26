@@ -29,6 +29,7 @@ clash-of-clans/                     ← this repo
 ├── index.html                      ← design hub, opens the 13 docs
 ├── style.css
 ├── docs/01-concept … 13-demo.html
+├── docs/14-world.md               ← THE WORLD INVENTORY: map size vs RoN, every resource, building, unit, road and effect the map needs
 ├── tools/                          ← u.sh (guarded Unity runner) · test.sh · export_all.sh
 ├── art/unit_sheet.png              ← the units, their pivots and their poses, rendered in Blender
 ├── blender/HOW-WE-BUILD.md         ← THE HANDBOOK: how assets, figures and maps are made, and every trap paid for

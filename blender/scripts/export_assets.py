@@ -48,7 +48,7 @@ def _tris(objs):
 def main():
     args = _argv()
     name = _opt(args, "--name")
-    out = _opt(args, "--out", "/Users/dhruv/blender/export")
+    out = _opt(args, "--out", os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "export"))
     if not name:
         print("[asset] ! --name is required"); sys.exit(1)
     pathlib.Path(out).mkdir(parents=True, exist_ok=True)

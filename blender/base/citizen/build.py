@@ -20,7 +20,7 @@ import bpy, bmesh, math, random, sys, os
 from mathutils import Vector
 
 SCENE_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, "/Users/dhruv/blender/lib")
+sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))
 import materials as M, figure as F                                          # noqa: E402  (read-only)
 
 random.seed(417)

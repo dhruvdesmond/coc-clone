@@ -19,7 +19,7 @@ from mathutils import Vector
 
 SCENE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(SCENE_DIR)))   # clash-of-clans/
-sys.path.insert(0, "/Users/dhruv/blender/lib")
+sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))
 from nodeutils import new_mat, principled, noise_node, math_node, maprange   # noqa: E402
 from meshkit import Model, obj_from_bm, bm_box, bm_cyl, beam_between, daylight, render_settings  # noqa: E402
 from vegetation import make_tuft_mesh, grass_material                        # noqa: E402
@@ -184,7 +184,7 @@ MAT = {"lava": emissive("WLava", (1.0, 0.28, 0.03), 18.0), "coal": flat("WCoal",
 
 
 # ============================================================================ the library
-lib = MG.AssetLibrary("/Users/dhruv/blender")
+lib = MG.AssetLibrary(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"))
 LIB = {"hall": "base/hall/models/hall.blend", "hut_a": "base/huts/models/hut_a.blend", "hut_b": "base/huts/models/hut_b.blend", "hut_c": "base/huts/models/hut_c.blend",
        "hut_d": "base/huts/models/hut_d.blend", "hut_e": "base/huts/models/hut_e.blend", "stabbur": "base/outbuildings/models/stabbur.blend",
        "forge": "base/outbuildings/models/forge.blend", "stable": "base/outbuildings/models/stable.blend", "well": "base/outbuildings/models/well.blend",

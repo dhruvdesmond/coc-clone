@@ -628,7 +628,7 @@ def main():
 def render_sheet(scene, arm, mesh, path, shots, turn=0.0):
     """Freeze the SKINNED mesh at chosen frames of chosen actions and lay the copies out in a row. What this
     shows is the armature deforming the mesh -- the real thing, not a re-implementation of the pose maths."""
-    sys.path.insert(0, "/Users/dhruv/blender/lib")
+    sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))
     import norse as N
     from nodeutils import new_mat, principled, noise_node, math_node, maprange
     dg_objs = []

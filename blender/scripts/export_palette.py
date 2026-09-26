@@ -20,8 +20,8 @@ COLOUR SPACE
 """
 import bpy, sys, os, json, pathlib
 
-sys.path.insert(0, "/Users/dhruv/blender")
-sys.path.insert(0, "/Users/dhruv/blender/lib")  # lib modules import each other flat
+sys.path.insert(0, os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"))
+sys.path.insert(0, os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "lib"))  # lib modules import each other flat
 import materials as M   # noqa: E402
 
 TONE_EXPONENT = 0.62
@@ -108,7 +108,7 @@ def describe(mat):
 
 def main():
     args = _argv()
-    out = args[args.index("--out") + 1] if "--out" in args else "/Users/dhruv/blender/export"
+    out = args[args.index("--out") + 1] if "--out" in args else os.path.join(os.environ.get("BLENDER_LIB", "/Users/dhruv/blender"), "export")
     pathlib.Path(out).mkdir(parents=True, exist_ok=True)
 
     def _extras(force=False):
