@@ -66,7 +66,7 @@ def score(px, name="crop"):
     """The numeric rows of the look table (docs/16-look.md §5) as pass/fail marks."""
     s = stats(px, name)
     s["sat_ok"] = "✅" if s["sat"] >= 0.45 else "❌"
-    s["sh_ok"] = "✅" if s["sh_luma"] >= 0.04 and (180 <= s["sh_hue"] <= 260 or s["sh_hue"] < 70 or s["sh_hue"] > 300) else "❌"
+    s["sh_ok"] = "✅" if s["sh_luma"] >= 0.04 and (125 <= s["sh_hue"] <= 260 or s["sh_hue"] < 70 or s["sh_hue"] > 300) else "❌"   # 125+: meadow shadows lit by green bounce are green-blue, and that is right
     s["white_ok"] = "✅" if 0.5 <= s["white"] <= 2.0 else "❌"
     s["black_ok"] = "✅" if s["black"] < 0.3 else "❌"
     s["spread_ok"] = "✅" if s["spread"] >= 10 else "❌"

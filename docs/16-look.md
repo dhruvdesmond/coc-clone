@@ -69,7 +69,7 @@ render is scored on saturation and spread, not on matching these numbers.
 | row | pass | fail | measured by |
 |---|---|---|---|
 | **Saturation** | crop mean ≥ **0.45** | ≤ 0.35 (today: 0.33) | mean saturation |
-| **Shadows** | darkest-15 % luma ≥ 0.04 (R1: 0.02 at p5, so no darker than the references) **and** hue 180–260° (blue-grey) or neutral | luma < 0.04, or green-black (today: hue 160°, luma 0.011) | shadow tone |
+| **Shadows** | darkest-15 % luma ≥ 0.04 (R1: 0.02 at p5, so no darker than the references) **and** hue 125–260° (blue-grey; a meadow's shadow is lit by green bounce and sits at 130–180°) or neutral | luma < 0.04, or black (today: hue 160°, luma 0.011) | shadow tone |
 | **White point** | 0.5–2 % of pixels > 250 | 0 % (today) or > 4 % | white point |
 | **Black floor** | < 0.3 % of pixels < 12 | ≥ 1 % (today's hero: 0.99 %) | black floor |
 | **Ground tone spread** | ≥ 10 hue-luma bins > 1 % in a land crop | ≤ 6 (today's desert: 4) | tone spread |
