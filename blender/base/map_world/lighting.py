@@ -120,9 +120,78 @@ def rig(scene, W, Dp, wind=(1.0, 0.3), with_clouds=True, with_haze=True):
     w, nt, out = sky(scene)
     if with_haze: haze(scene, W, Dp)
     if with_clouds: clouds(scene, W, Dp, wind)
+    if os.environ.get("STORMS", "1") == "1": storms(scene, wind)
     scene.view_settings.view_transform = "AgX"; scene.view_settings.look = "AgX - Medium High Contrast"
     scene.view_settings.exposure = EXPOSURE
     try:
         scene.cycles.volume_step_rate = 1.0; scene.cycles.volume_max_steps = 256; scene.cycles.volume_bounces = 1
     except Exception as ex: print("[light] volume settings:", ex)
     print(f"[light] sun {SUN_ELEV}° az {SUN_AZ}° e{SUN_ENERGY} · sky {SKY_STRENGTH} · fill {FILL_ENERGY} · haze {HAZE_DENSITY if with_haze else 0} · clouds {with_clouds} · exposure {EXPOSURE}")
+
+
+def _volume_box(name, centre, size, color, density_socket_fn):
+    """A box of scattering volume; `density_socket_fn(nt, coord_socket)` returns the density socket."""
+    import bmesh
+    me = D.meshes.new(name); bm = bmesh.new()
+    hx, hy, hz = size[0] / 2, size[1] / 2, size[2] / 2
+    vs = [bm.verts.new((x, y, z)) for x in (-hx, hx) for y in (-hy, hy) for z in (-hz, hz)]
+    for f in [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]: bm.faces.new([vs[i] for i in f])
+    bm.to_mesh(me); bm.free()
+    o = D.objects.new(name, me); C.scene.collection.objects.link(o); o.location = centre
+    m = D.materials.new(name + "Vol"); m.use_nodes = True; nt = m.node_tree; nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    vol = nt.nodes.new("ShaderNodeVolumeScatter"); vol.inputs["Color"].default_value = (*color, 1.0)
+    try: vol.inputs["Anisotropy"].default_value = 0.3
+    except Exception: pass
+    co = nt.nodes.new("ShaderNodeTexCoord")
+    nt.links.new(density_socket_fn(nt, co.outputs["Object"]), vol.inputs["Density"])
+    nt.links.new(vol.outputs["Volume"], out.inputs["Volume"]); me.materials.append(m)
+    return o
+
+
+def _drifting_noise(nt, coord, wind, speed, scale, detail, shear=0.0):
+    """Noise pushed along the wind by the frame, optionally sheared so streaks lean downwind with height."""
+    off = nt.nodes.new("ShaderNodeCombineXYZ")
+    for sock, v in (("X", wind[0]), ("Y", wind[1])):
+        drv = off.inputs[sock].driver_add("default_value").driver; drv.expression = f"frame * {v * speed:.4f}"
+    add = nt.nodes.new("ShaderNodeVectorMath"); add.operation = "ADD"; nt.links.new(coord, add.inputs[0]); nt.links.new(off.outputs["Vector"], add.inputs[1])
+    src = add.outputs["Vector"]
+    if shear:
+        sep = nt.nodes.new("ShaderNodeSeparateXYZ"); nt.links.new(src, sep.inputs[0])
+        sx = nt.nodes.new("ShaderNodeMath"); sx.operation = "MULTIPLY_ADD"; nt.links.new(sep.outputs["Z"], sx.inputs[0]); sx.inputs[1].default_value = shear * wind[0]; nt.links.new(sep.outputs["X"], sx.inputs[2])
+        sy = nt.nodes.new("ShaderNodeMath"); sy.operation = "MULTIPLY_ADD"; nt.links.new(sep.outputs["Z"], sy.inputs[0]); sy.inputs[1].default_value = shear * wind[1]; nt.links.new(sep.outputs["Y"], sy.inputs[2])
+        cmb = nt.nodes.new("ShaderNodeCombineXYZ"); nt.links.new(sx.outputs[0], cmb.inputs["X"]); nt.links.new(sy.outputs[0], cmb.inputs["Y"]); nt.links.new(sep.outputs["Z"], cmb.inputs["Z"])
+        src = cmb.outputs["Vector"]
+    n = nt.nodes.new("ShaderNodeTexNoise"); n.inputs["Scale"].default_value = scale; n.inputs["Detail"].default_value = detail; n.noise_dimensions = "3D"
+    nt.links.new(src, n.inputs["Vector"])
+    return n.outputs["Fac"]
+
+
+def _height_fade(nt, coord, z0, z1):
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ"); nt.links.new(coord, sep.inputs[0])
+    r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = z0; r.inputs["From Max"].default_value = z1
+    r.inputs["To Min"].default_value = 1.0; r.inputs["To Max"].default_value = 0.0; r.clamp = True
+    nt.links.new(sep.outputs["Z"], r.inputs["Value"]); return r.outputs["Result"]
+
+
+def storms(scene, wind=(1.0, 0.3), sand_centre=(140.0, -120.0), sand_size=(180.0, 180.0, 50.0), snow_centre=(-140.0, 120.0), snow_size=(180.0, 170.0, 90.0), snow_base=14.0):
+    """docs/16-look.md §6: a SANDSTORM over the desert (amber, wind-sheared, dense near the ground) and a SNOWSTORM over the
+    massif (white, fine, streaking off the ridges). Both drift with the shared wind so the whole sky moves one way."""
+    def sand_density(nt, coord):
+        f = _drifting_noise(nt, coord, wind, 0.6, 0.012, 5.0, shear=0.8)
+        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.42; r.inputs["From Max"].default_value = 0.72
+        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.06; r.clamp = True; nt.links.new(f, r.inputs["Value"])
+        fade = _height_fade(nt, coord, 6.0, sand_size[2] / 2)
+        m = nt.nodes.new("ShaderNodeMath"); m.operation = "MULTIPLY"; nt.links.new(r.outputs["Result"], m.inputs[0]); nt.links.new(fade, m.inputs[1]); return m.outputs[0]
+
+    def snow_density(nt, coord):
+        f = _drifting_noise(nt, coord, wind, 1.1, 0.05, 6.0, shear=1.4)
+        r = nt.nodes.new("ShaderNodeMapRange"); r.inputs["From Min"].default_value = 0.48; r.inputs["From Max"].default_value = 0.70
+        r.inputs["To Min"].default_value = 0.0; r.inputs["To Max"].default_value = 0.05; r.clamp = True; nt.links.new(f, r.inputs["Value"])
+        fade = _height_fade(nt, coord, 10.0, snow_size[2] / 2)
+        m = nt.nodes.new("ShaderNodeMath"); m.operation = "MULTIPLY"; nt.links.new(r.outputs["Result"], m.inputs[0]); nt.links.new(fade, m.inputs[1]); return m.outputs[0]
+
+    s = _volume_box("Sandstorm", (sand_centre[0], sand_centre[1], sand_size[2] / 2 + 2.0), sand_size, (0.78, 0.60, 0.34), sand_density)
+    n = _volume_box("Snowstorm", (snow_centre[0], snow_centre[1], snow_base + snow_size[2] / 2), snow_size, (0.92, 0.94, 0.98), snow_density)
+    print("[light] storms: sandstorm over the desert, snowstorm over the massif, wind", wind)
+    return s, n
