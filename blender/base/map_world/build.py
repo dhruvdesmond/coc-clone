@@ -638,7 +638,7 @@ def camera(name, loc, rot, lens=35, ortho=None):
     o = D.objects.new(name, cd); C.scene.collection.objects.link(o); o.location = loc; o.rotation_euler = rot; return o
 
 
-hero = camera("Hero", (10, -240, 340), (math.radians(60), 0, math.radians(-3)), lens=28)         # 60° at lens 28 spans y -194..182: the frame is land, not sky
+hero = camera("Hero", (10, -250, 300), (math.radians(38), 0, math.radians(-3)), lens=30)         # rotation X is measured from straight DOWN: 38° = 52° below the horizon; lens 30 spans y -155..240
 plan = camera("Plan", (0, 0, 500), (0, 0, 0), ortho=W + 10)
 vil = camera("Village", (V[0] + 8, V[1] - 62, 46), (math.radians(50), 0, math.radians(6)), lens=40)
 # the twelve region crops the review looks at, one per thing that must read
