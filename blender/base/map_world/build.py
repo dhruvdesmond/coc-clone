@@ -572,6 +572,39 @@ for k in range(6):                                                              
     if p: put("horse_wild", "horse_wild", p[0], p[1], 0.0, 1.0)
 print("EXTRAS " + " ".join(f"{k}={n.get(k, 0)}" for k in ("rare", "rubber", "rig", "whale", "deer", "horse_wild")), flush=True)
 
+# ============================================================================ dressing: life around every pad (V9, docs/16-look.md §5)
+XM["hay"] = flat("WHay", (0.72, 0.58, 0.22)); XM["cloth"] = flat("WCloth", (0.62, 0.56, 0.44)); XM["wool"] = flat("WWool", (0.86, 0.84, 0.78)); XM["dark"] = flat("WDark", (0.16, 0.13, 0.11))
+smk = D.materials.new("WSmoke"); smk.use_nodes = True; _nt = smk.node_tree; _nt.nodes.clear()
+_o = _nt.nodes.new("ShaderNodeOutputMaterial"); _v = _nt.nodes.new("ShaderNodeVolumeScatter"); _v.inputs["Color"].default_value = (0.75, 0.75, 0.78, 1)
+_n = _nt.nodes.new("ShaderNodeTexNoise"); _n.inputs["Scale"].default_value = 0.9; _n.inputs["Detail"].default_value = 4.0
+_m = _nt.nodes.new("ShaderNodeMapRange"); _m.inputs["From Min"].default_value = 0.45; _m.inputs["From Max"].default_value = 0.75; _m.inputs["To Max"].default_value = 0.35
+_nt.links.new(_n.outputs["Fac"], _m.inputs["Value"]); _nt.links.new(_m.outputs["Result"], _v.inputs["Density"]); _nt.links.new(_v.outputs["Volume"], _o.inputs["Volume"])
+XM["smoke"] = smk
+xproto("fence", X.fence, [TK["bark"]]); xproto("cart", X.cart, [XM["rbark"], TR["iron"]]); xproto("barrels", X.barrels, [XM["rbark"], TR["iron"]])
+xproto("rack", X.rack, [TK["bark"], XM["cloth"]]); xproto("woodpile", X.woodpile, [XM["rbark"]]); xproto("haystack", X.haystack, [XM["hay"], TK["bark"]])
+xproto("smoke", X.smoke, [XM["smoke"]]); xproto("sheep", X.sheep, [XM["wool"], XM["dark"]])
+KIT = {"hall": ["cart", "rack", "barrels", "woodpile", "smoke"], "runehall": ["barrels", "smoke"], "muster": ["rack", "barrels", "fence"], "forge": ["barrels", "woodpile", "smoke"],
+       "stabbur": ["cart", "woodpile"], "stable": ["fence", "haystack", "cart"], "farm": ["fence", "fence", "haystack"], "boathouse": ["rack", "barrels", "rack"],
+       "well": ["barrels"], "hut_a": ["woodpile", "fence"], "hut_b": ["woodpile", "rack"], "hut_c": ["fence", "barrels"], "hut_d": ["woodpile", "fence"], "hut_e": ["rack", "woodpile"]}
+
+
+def dress(key, x, y, yaw):
+    """Props on the pad's edge, facing the building, clear of every other pad and road."""
+    hx, hy, r = lib.footprint(key)
+    for j, prop in enumerate(KIT.get(key, [])):
+        if prop == "smoke":
+            put("dressing", "smoke", x, y, hy * 0.5 + 3.5, 1.0, tag="smoke", yaw=0.0); continue
+        for k in range(12):
+            a = yaw + (j + 1) * 1.1 + rnd.uniform(-0.4, 0.4) + k * 0.5; d = r + rnd.uniform(1.2, 3.0)
+            px, py = x + math.cos(a) * d, y + math.sin(a) * d
+            if raw_h(px, py) > SEA + 1.0 and road_at(px, py)[0] < 0.25 and all(math.hypot(px - sx, py - sy) > sr + 0.8 for (sx, sy, sr) in PADS if (sx, sy) != (x, y)):
+                put("dressing", prop, px, py, 0.0, 1.0, tag=prop, yaw=a + math.pi / 2); break
+for key, x, y, yaw in sites: dress(key, x, y, yaw)
+for k in range(7):                                                                                                           # sheep by the steppe hamlet
+    p = land(H2[0] - 22 + rnd.gauss(0, 5), H2[1] + 6 + rnd.gauss(0, 5), 0.8, tries=10)
+    if p: put("dressing", "sheep", p[0], p[1], 0.0, rnd.uniform(0.9, 1.1), tag="sheep")
+print(f"DRESSING {n.get('dressing', 0)}", flush=True)
+
 # ---- grass on grass, straw on the steppe
 t_grass = time.time()
 GRASS = grass_material(new_mat, principled, maprange, green=(0.06, 0.15, 0.03, 1), olive=(0.13, 0.16, 0.04, 1), straw=(0.24, 0.20, 0.07, 1))

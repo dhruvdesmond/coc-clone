@@ -118,3 +118,63 @@ def deer(bm, rnd, mats_idx=(0, 1)):
 
 def make(name, build, mats, rnd, **kw):
     bm = bmesh.new(); build(bm, rnd, **kw); return P.make_object(name, bm, mats)
+
+
+# ---------------------------------------------------------------------------- the dressing kit (docs/16-look.md §5 "Dressing", V9)
+def fence(bm, rnd, length=6.0, posts=4):
+    """A post-and-rail run along +X, base at z=0. mats [timber]."""
+    for k in range(posts):
+        x = -length / 2 + k * length / (posts - 1)
+        _box(bm, 0.14, 0.14, 1.1, (x, 0, 0.55), mat=0)
+    for z in (0.45, 0.85): _box(bm, length, 0.06, 0.10, (0, 0, z), mat=0)
+
+
+def cart(bm, rnd):
+    """A two-wheel hand cart, shafts down. mats [timber, iron]."""
+    _box(bm, 1.6, 1.0, 0.08, (0, 0, 0.62), mat=0)
+    for y in (-0.5, 0.5): _box(bm, 1.6, 0.06, 0.32, (0, y, 0.80), mat=0)
+    _box(bm, 0.06, 1.0, 0.32, (0.8, 0, 0.80), mat=0)
+    for y in (-0.62, 0.62): P._cyl(bm, 0.42, 0.08, 12, (0, y, 0.42), mat=1); 
+    for s in (1, -1): P._tube(bm, (-0.8, s * 0.35, 0.62), (-1.9, s * 0.3, 0.12), 0.04, 0.03, n=5, mat=0)
+
+
+def barrels(bm, rnd, n=3):
+    """A cluster of barrels with iron hoops. mats [timber, iron]."""
+    for k in range(n):
+        a = k / n * math.tau; x, y = math.cos(a) * 0.5, math.sin(a) * 0.5
+        P._cyl(bm, 0.32, 0.9, 10, (x, y, 0.45), r_top=0.30, mat=0)
+        for z in (0.2, 0.7): P._cyl(bm, 0.335, 0.05, 10, (x, y, z), mat=1)
+
+
+def rack(bm, rnd):
+    """A drying rack with three hanging cloths / fish. mats [timber, cloth]."""
+    for x in (-1.0, 1.0): P._cyl(bm, 0.06, 1.8, 6, (x, 0, 0.9), mat=0)
+    _box(bm, 2.2, 0.08, 0.08, (0, 0, 1.75), mat=0)
+    for x in (-0.6, 0.0, 0.6): _box(bm, 0.45, 0.05, rnd.uniform(0.6, 0.9), (x, 0.03, 1.3), mat=1)
+
+
+def woodpile(bm, rnd):
+    """Split logs stacked between two posts. mats [timber]."""
+    for x in (-0.9, 0.9): _box(bm, 0.12, 0.12, 1.1, (x, 0, 0.55), mat=0)
+    for row in range(4):
+        for k in range(5):
+            P._tube(bm, (-0.8 + k * 0.4 + (row % 2) * 0.2, -0.45, 0.12 + row * 0.24), (-0.8 + k * 0.4 + (row % 2) * 0.2, 0.45, 0.12 + row * 0.24), 0.11, 0.11, n=6, mat=0)
+
+
+def haystack(bm, rnd):
+    """A round stack on a pole. mats [hay, timber]."""
+    P._blob(bm, (0, 0, 1.1), 1.3, (1.0, 1.0, 0.9), 0.12, 4.0, sub=2, mat=0, smooth=True)
+    P._cyl(bm, 0.05, 3.2, 6, (0, 0, 1.6), mat=1)
+
+
+def smoke(bm, rnd, h=9.0):
+    """A chimney's smoke: a soft cone the volume shader fills, base at the chimney top (z = 0). mats [smokevol]."""
+    P._cyl(bm, 0.35, h, 10, (0.6, 0.2, h / 2), r_top=2.2, mat=0, smooth=True)
+
+
+def sheep(bm, rnd):
+    """A small woolly quadruped. mats [wool, dark]."""
+    P._blob(bm, (0, 0, 0.62), 0.42, (1.5, 0.9, 0.85), 0.15, 8.0, sub=1, mat=0, smooth=True)
+    P._blob(bm, (0.58, 0, 0.72), 0.16, (1.3, 0.8, 0.9), 0.05, 9.0, sub=1, mat=1, smooth=True)
+    for s in (1, -1):
+        for x in (0.3, -0.3): P._tube(bm, (x, s * 0.16, 0.5), (x, s * 0.17, 0.0), 0.045, 0.04, n=4, mat=1)

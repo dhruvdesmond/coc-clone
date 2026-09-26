@@ -15,7 +15,7 @@ D, C = bpy.data, bpy.context
 # kind -> (minimum count, allowed regions or "water" or "dry"); a region passes when its soft weight is >= 0.30.
 # Rock-like kinds (rock, coal, uran) and small scatter (bush, dead) are placed half-buried on purpose: for them the check is
 # "still shows above the ground", not floating/sunken.
-BURIED_OK = ("rock", "coal", "uran", "bush", "dead", "rare")
+BURIED_OK = ("rock", "coal", "uran", "bush", "dead", "rare", "dressing")
 EXPECTED = {
     "tree":     (1200, ("grass", "forest", "mount")),
     "rock":     (80,  None),
@@ -39,6 +39,7 @@ EXPECTED = {
     "horse_wild": (5, ("grass", "desert")),
     "rig":      (1,   "water"),
     "whale":    (1,   "water"),
+    "dressing": (60,  None),
 }
 
 
