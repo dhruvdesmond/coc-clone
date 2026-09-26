@@ -318,8 +318,10 @@ for f in bm.faces:
 MESH_PADS = list(PADS)
 import ground as G                                                       # the v2 ground material (docs/16-look.md); world_material() above is v1, kept for reference
 ground = obj_from_bm(world, "Terrain", bm, G.material(new_mat, principled, noise_node, math_node, maprange) if os.environ.get("GROUND", "2") == "2" else world_material(), bevel=0.0, smooth=True)
-# water: one plane at sea level covers the sea, the lake basin and the river bed
-wb = bmesh.new(); bm_box(wb, W + 40, Dp + 40, 0.06, (0, 0, SEA - 0.03)); obj_from_bm(world, "Sea", wb, TK["water"], bevel=0.0)
+# water: one surface at sea level covers the sea, the lake basin and the river bed -- a grid carrying the bed depth (water.py)
+import water as WTR
+if os.environ.get("WATER", "2") == "2": WTR.mesh(world, W, Dp, SEA, raw_h, obj_from_bm, WTR.material(new_mat, principled, noise_node, math_node, maprange))
+else: wb = bmesh.new(); bm_box(wb, W + 40, Dp + 40, 0.06, (0, 0, SEA - 0.03)); obj_from_bm(world, "Sea", wb, TK["water"], bevel=0.0)
 # lava lake in the crater, and a glow
 lb = bmesh.new(); bm_cyl(lb, 8.0, 0.3, 24, (0, 0, 0)); obj_from_bm(world, "Lava", lb, MAT["lava"], bevel=0.0, loc=(VOLCANO[0], VOLCANO[1], raw_h(*VOLCANO) + 0.4))
 print(f"TERRAIN {nx}x{ny} in {time.time() - T0:.0f} s", flush=True)
