@@ -58,3 +58,7 @@ blender/base/map_world/map_world.blend1
 assets/**/*.zip
 assets/kenney/**/FBX format/
 assets/kenney/**/OBJ format/
+assets/kaykit/**/*.zip
+assets/kaykit/**/fbx/
+assets/kaykit/**/*.blend
+assets/kaykit/**/Previews/
