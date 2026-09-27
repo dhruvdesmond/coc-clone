@@ -53,3 +53,8 @@ blender/base/map_world/renders/*_preview.png
 blender/base/map_world/renders/PLACED.csv
 blender/base/map_world/map_world.blend
 blender/base/map_world/map_world.blend1
+
+# CC0 asset packs: keep the extracted models, ignore the raw zips (re-downloadable)
+assets/**/*.zip
+assets/kenney/**/FBX format/
+assets/kenney/**/OBJ format/
