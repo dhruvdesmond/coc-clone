@@ -59,13 +59,17 @@ for s,tag in ((1,"L"),(-1,"R")): uv(f"Hand{tag}",(s*0.19,0.07,0.90),0.05,SKIN,(1
 for s,tag in ((1,"L"),(-1,"R")):
     cyl(f"Boot{tag}",(s*0.09,-0.02,0.06),0.06,0.12,DARK); 
     b=cyl(f"BootFoot{tag}",(s*0.09,0.08,0.02),0.055,0.20,DARK,(math.radians(90),0,0),rt=0.05)
-# head + face + shako
-head=uv("Soldier_Head",(0,0.02,1.66),0.096,SKIN,(0.92,0.98,1.06))
-for s in (1,-1): uv(f"Eye{s}",(s*0.035,0.088,1.675),0.013,EYE,(0.8,0.6,1.0))
-uv("Nose",(0,0.10,1.655),0.02,SKIN,(0.8,1.0,0.9))
-cyl("Shako",(0,0.015,1.80),0.098,0.19,DARK,rt=0.105)                 # slightly flared tall hat, sitting on the head
-cyl("ShakoBrim",(0,0.055,1.715),0.11,0.018,DARK,(math.radians(8),0,0))
-uv("ShakoPlate",(0,0.11,1.79),0.03,FACING,(1.4,0.3,1.2))
+# head + face -- FRONT is -Y (toward the cameras); features proud of the surface so they read
+head=uv("Soldier_Head",(0,0.02,1.66),0.096,SKIN,(0.95,0.99,1.06))
+BROW=mat("Brow",(0.18,0.11,0.06),0.75); HAIR=mat("Hair",(0.16,0.10,0.06),0.85); LIP=mat("Lip",(0.5,0.32,0.28),0.6)
+for s in (1,-1): uv(f"Eye{s}",(s*0.036,-0.070,1.672),0.014,EYE,(0.95,0.6,1.15))
+for s in (1,-1): uv(f"Brow{s}",(s*0.040,-0.066,1.695),0.016,BROW,(1.5,0.5,0.6))
+uv("Nose",(0,-0.090,1.656),0.019,SKIN,(0.75,1.2,1.0))
+uv("Mouth",(0,-0.078,1.628),0.016,LIP,(1.4,0.5,0.35))
+uv("Hair",(0,0.045,1.705),0.099,HAIR,(1.02,1.0,0.72))                  # hair cap on top/back only
+cyl("Shako",(0,0.02,1.80),0.090,0.185,DARK,rt=0.10)                     # tall hat on the head
+cyl("ShakoBrim",(0,-0.052,1.712),0.106,0.018,DARK,(math.radians(-9),0,0))  # visor to the FRONT (-Y)
+uv("ShakoPlate",(0,-0.086,1.792),0.028,FACING,(1.4,0.3,1.2))            # brass plate on the front
 # crossbelts (white) across the chest
 for s in (1,-1):
     belt=cyl(f"Belt{s}",(0,0.02,1.25),0.017,0.42,LEATHER,(0,0,math.radians(28*s))); 
@@ -84,5 +88,5 @@ def shot(name,loc,aimz,lens):
     render_settings(sc,"/tmp/s_",res=(600,900),samples=72,exposure=-1.4); sc.view_settings.view_transform="AgX"; sc.view_settings.look="AgX - Medium High Contrast"
     sc.render.filepath=name; bpy.ops.render.render(write_still=True); D.objects.remove(aim); D.objects.remove(cam)
 shot("/tmp/soldier_full.png",(1.5,-2.6,1.2),0.95,58)
-shot("/tmp/soldier_close.png",(0.6,-1.15,1.6),1.6,72)
+shot("/tmp/soldier_close.png",(0.12,-1.0,1.63),1.63,80)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(SCENE_DIR,"soldier.blend")); print("SOLDIER_OK",len(D.objects))
