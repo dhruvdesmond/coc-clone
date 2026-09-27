@@ -171,6 +171,10 @@ BL=/Applications/Blender.app/Contents/MacOS/Blender
 UE=/Applications/Unity/Hub/Editor/6000.0.83f1/Unity.app/Contents/MacOS/Unity
 P=/Users/dhruv/clash-of-clans/unity/ClashOfAges
 
+# LOCAL, throttled (small tasks; leaves cores + RAM for Chrome -- B30). Heavy jobs go to the cloud below.
+tools/bl.sh --python blender/base/figures/build.py       # single-asset/figure builds, shader tests, preview renders, measure.py
+#   what stays on the CLOUD: the full map build (build.py), 4K finals, the flythrough, big clip bakes
+
 # THE THREE YOU WILL ACTUALLY USE
 tools/test.sh                        # 13 headless sim tests. Batchmode is safe: no pixels.
 tools/u.sh play DemoVerify.Full      # a bot plays the whole demo in the Editor: 8 screenshots, asserts, exits
