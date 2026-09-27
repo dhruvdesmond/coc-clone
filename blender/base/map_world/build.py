@@ -71,6 +71,9 @@ LAKE = (62.0, 4.0)              # centre-east, clear of the village
 COAST_Y = lambda x: -150.0 + fbm(x, 0.0, 9, octaves=2, freq=0.012) * 22.0           # the shoreline along the south
 RIVER = [(-112.0, 58.0), (-100.0, 40.0), (-78.0, 16.0), (-62.0, -18.0), (-48.0, -56.0), (-40.0, -94.0), (-30.0, -128.0), (-22.0, -176.0)]
 BRIDGE = RIVER[2]                                # the road to the mining camp crosses here
+_brd = Vector((RIVER[3][0] - RIVER[1][0], RIVER[3][1] - RIVER[1][1], 0)).normalized(); _bacross = Vector((-_brd.y, _brd.x, 0))
+BRIDGE_YAW = math.atan2(_bacross.y, _bacross.x); BRIDGE_DECK_Z = 2.4                       # low deck, over the water
+BRIDGE_ENDS = [(BRIDGE[0] + _bacross.x * 9.0, BRIDGE[1] + _bacross.y * 9.0), (BRIDGE[0] - _bacross.x * 9.0, BRIDGE[1] - _bacross.y * 9.0)]
 FORDS = [RIVER[4], RIVER[6]]                     # shallow gravel bars: the road to the fishing hamlet crosses the first
 
 
@@ -114,6 +117,12 @@ def raw_h(x, y):
         ford = max(falloff(x, y, fx, fy, 4.0, 5.0) for fx, fy in FORDS)
         bed = -2.6 * (1.0 - ford) + 0.35 * ford
         if h > bed: h = h * (1.0 - k) + bed * k
+    # bridge approach ramps: raise each bank up to the deck so the road flows onto the bridge instead of stepping (B35)
+    for ex, ey in BRIDGE_ENDS:
+        de = math.hypot(x - ex, y - ey)
+        if de < 11.0 and poly_dist(x, y, RIVER) > 2.5:
+            rk = 1.0 - sm((de - 2.0) / 8.0)
+            h = h * (1.0 - rk) + BRIDGE_DECK_Z * rk
     return h
 
 
@@ -125,7 +134,7 @@ MESH_PADS = None   # frozen copy of PADS at mesh time -- pads added later (nodes
 def height(x, y):
     h = raw_h(x, y); w = 0.0; ph = h
     for (sx, sy, r) in (PADS if MESH_PADS is None else MESH_PADS):
-        d = math.hypot(x - sx, y - sy); k = 1.0 - sm((d - r) / (r * 0.8))
+        d = math.hypot(x - sx, y - sy); k = 1.0 - sm((d - r) / (r * 1.7))
         if k > w: w = k; ph = raw_h(sx, sy)
     return h * (1 - w) + ph * w
 
@@ -244,8 +253,14 @@ print(f"LOADED {len(LIB)} assets; materials {len(D.materials)}")
 sites = []       # (key, x, y, yaw)
 
 
+def near_crossing(x, y):
+    """Too close to a bridge end (would block the crossing) -- B35, the house-at-the-bridge fix."""
+    return any(math.hypot(x - ex, y - ey) < 14.0 for ex, ey in BRIDGE_ENDS)
+
+
 def dry_flat(x, y, r):
-    """Every point of the footprint above the waterline and the site not too steep -- the lesson of the house in the lake."""
+    """Every point of the footprint above the waterline, not too steep, not on a road, not blocking the bridge."""
+    if near_crossing(x, y) or road_at(x, y)[0] > 0.25: return False
     return all(raw_h(x + math.cos(a) * r, y + math.sin(a) * r) > SEA + 1.2 for a in [k * math.pi / 4 for k in range(8)]) and raw_h(x, y) > SEA + 1.5 and slope(x, y) < 0.22
 
 
@@ -386,8 +401,8 @@ print(f"SITES {len(sites)}", flush=True)
 res_m = Model("Resources")
 
 # ---- the bridge: a timber deck on two stone abutments, square across the river at BRIDGE
-bx, by = BRIDGE; rd = Vector((RIVER[3][0] - RIVER[1][0], RIVER[3][1] - RIVER[1][1], 0)).normalized(); across = Vector((-rd.y, rd.x, 0))
-yaw_b = math.atan2(across.y, across.x); zb = max(raw_h(bx + across.x * 12, by + across.y * 12), raw_h(bx - across.x * 12, by - across.y * 12)) + 0.6
+bx, by = BRIDGE; rd = _brd; across = _bacross
+yaw_b = BRIDGE_YAW; zb = BRIDGE_DECK_Z + 0.15                                        # sits flush on the ramped banks (B35)
 bridge = []
 db = bmesh.new(); bm_box(db, 22.0, 3.6, 0.35, (0, 0, 0)); deck = obj_from_bm(res_m, "Bridge_Deck", db, MAT["timber"], bevel=0.0, loc=(bx, by, zb)); deck.rotation_euler.z = yaw_b; bridge.append(deck)
 for side in (1, -1):
