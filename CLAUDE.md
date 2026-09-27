@@ -128,7 +128,7 @@ to look before Unity) is the tool, and it is better than anything found.
 
 ### Blender
 1. **`build.py` is the source of truth, not the `.blend`.** GUI edits are destroyed on the next build.
-2. **Procedural only** — primitives, modifiers, shader nodes. No downloaded models, no image textures.
+2. **Hybrid, since 2026-09-27 (B31): procedural TERRAIN + curated CC0 stylized MODELS.** The land, biomes, roads, water, weather, siting and materials stay procedural (scripted, reproducible). Buildings, characters, trees and hero props are now high-quality **clean stylized low-poly** library assets (CC0 only -- Kenney, Quaternius -- so no licence tracking, no attribution). Our `AssetLibrary`/`mapgen` places THEIR detailed models. No more boxes-and-spheres for hero assets. Terrain still: primitives, modifiers, shader nodes, no image textures.
 3. **Shared code goes in `lib/`.** If two scenes would need it, it belongs in the library.
 4. **Fixed `random.seed()`** at the top of every build script. Builds must be reproducible.
 5. **Preview render before the final, and LOOK AT THE IMAGE.** Previews are prefixed `preview_`.
