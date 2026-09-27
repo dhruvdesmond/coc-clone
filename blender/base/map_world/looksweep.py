@@ -31,7 +31,7 @@ scene.render.resolution_x, scene.render.resolution_y = 640, 400
 scene.cycles.samples = 48
 out = os.path.join(SCENE_DIR, "renders", "sweep")
 os.makedirs(out, exist_ok=True)
-cams = {c: bpy.data.objects.get("R_" + c) for c in CROPS}
+cams = {c: (bpy.data.objects.get("Hero") if c == "hero" else bpy.data.objects.get("R_" + c)) for c in CROPS}
 missing = [c for c, o in cams.items() if o is None]
 if missing:
     print("[sweep] cameras not found:", missing, "-- available:", [o.name for o in bpy.data.objects if o.name.startswith("R_")])
