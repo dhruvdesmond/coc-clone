@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Cloud GPU jobs on Vast.ai for Clash of Ages (see PROGRESS.md session 13, and the `vast-ai` skill for the rules).
 #
-#   tools/cloud/vast.sh search [gpu]                  verified 1×RTX 4090 (default) or 3090 offers, ≥16 cores, cheapest first
+#   tools/cloud/vast.sh search [gpu]                  verified 1×RTX 3090 offers under $0.30/h all-in (Dhruv, 2026-09-27), >=12 cores, cheapest first
 #   tools/cloud/vast.sh up [offer_id]                 rent (4090 offers first, then 3090), wait for SSH, bootstrap Blender + both repos
 #   tools/cloud/vast.sh run '<command>'               run a command in /work/repo on the box (streams output)
 #   tools/cloud/vast.sh blender <script.py> [-- args] run a Blender script headless on the GPU (foreground; short jobs only)
@@ -46,9 +46,10 @@ sshx() { need_instance; ssh -i $KEY -p $PORT -o StrictHostKeyChecking=accept-new
 credit() { api GET "/v0/users/current/" | py "import sys,json;print('%.3f' % (json.load(sys.stdin).get('credit') or 0))"; }
 ledger() { mkdir -p ${LEDGER:h}; printf '%s,%s,%s,%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "${2:--}" "$(credit)" >> $LEDGER; }
 
-search() {  # $1 = gpu name (default RTX 4090)
-  local gpu=${1:-RTX 4090}
-  local q='{"gpu_name":{"eq":"'$gpu'"},"num_gpus":{"eq":1},"rentable":{"eq":true},"verified":{"eq":true},"reliability2":{"gte":0.98},"cpu_cores_effective":{"gte":16},"inet_down":{"gte":400},"disk_space":{"gte":'$DISK'},"cuda_max_good":{"gte":12.4},"order":[["dph_total","asc"]],"type":"on-demand"}'
+search() {  # $1 = gpu name (default RTX 3090). PRICE CAP $0.30/h all-in, 3090 only -- Dhruv 2026-09-27 (the 4090 at $0.47/h drained credit).
+  local gpu=${1:-RTX 3090}
+  local cap=${VAST_MAX_DPH:-0.30}
+  local q='{"gpu_name":{"eq":"'$gpu'"},"num_gpus":{"eq":1},"rentable":{"eq":true},"verified":{"eq":true},"reliability2":{"gte":0.98},"cpu_cores_effective":{"gte":12},"inet_down":{"gte":400},"disk_space":{"gte":'$DISK'},"cuda_max_good":{"gte":12.4},"dph_total":{"lte":'$cap'},"order":[["dph_total","asc"]],"type":"on-demand"}'
   curl -s -m 30 "$API/v0/bundles/?q=$(py "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$q")" | py "
 import sys,json
 o=json.load(sys.stdin).get('offers',[])
@@ -94,7 +95,7 @@ up() {
   [[ -f $STATE ]] && { echo "instance already recorded in $STATE (run 'down' first)"; exit 1; }
   echo "credit before: \$$(credit)   other boxes on the account:"; list | sed 's/^/  /'
   local offers
-  if [[ -n $1 ]]; then offers=($1); else offers=($(search "RTX 4090" | awk '{print $1}' | head -${VAST_TRY:-3}) $(search "RTX 3090" | awk '{print $1}' | head -2)); fi
+  if [[ -n $1 ]]; then offers=($1); else offers=($(search "RTX 3090" | awk '{print $1}' | head -${VAST_TRY:-5})); fi   # 3090 only, under $0.30/h
   echo "offers to try: $offers"
   local ok=0
   for o in $offers; do try_offer $o && { ok=1; break; }; done
