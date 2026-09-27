@@ -513,6 +513,10 @@ helm/mail/cloak/quiver as body parts, weapons as held props; rigged with the unc
 looked at (`art/rig/fig_v2/*_sheet.png`): no joint spheres anywhere. The pauldrons I first added were "circles on the
 shoulder" in steel and came off. Unity import is next (local).
 
+**Cost line, end:** credit **\$0.00** — this session spent **\$3.64** on the 4090 (the look pass: ~8 fast test builds, 2 final sets, the figures, the flythrough contact check; the finals batch alone was 31 min at 65 % GPU). The box hit zero credit and Vast stopped it; destroyed clean, 0 instances. **Recharge before any more cloud work.** The 30-second flythrough is written and its 30-frame path is verified (`art/map_world_v4/showcase_contact.png`) but the full 720-frame render (~\$1.5-2.5) was NOT started — no credit.
+
+**State of the look (B25):** the map is transformed — painted meadow, cut-strata cliffs, a real river with a bridge and glitter, cobbled village square, dressing round every pad, blue-grey shadows, warm palette. v4 finals in `art/map_world_v4_*`. The measured table still fails most crops on **saturation** (0.33-0.43 vs the 0.45 target) and the **white point** (0.00 %, nothing clips): AgX is compressing the highlights. The **desert** is the weakest region (0.15 saturation, its sandstorm too thin after the white-out fix). Next passes, when recharged: lift the white point (a brighter key or a Filmic/Standard test on the sunlit roofs), push desert saturation, tune the two storms to read as walls, then render the flythrough.
+
 **Cloud tooling learned:** `sync` (a hard reset) restored TRACKED previews and the tracked `map_world.blend` over fresh
 renders â€” every build artifact is untracked now; a 4090 host on driver 565 fails OptiX, `up` now picks CUDA/OptiX by driver;
 the `=== GPU` line reached 34 % on a full-crop preview once the volumes made frames heavier.
