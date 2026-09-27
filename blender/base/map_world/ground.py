@@ -107,7 +107,7 @@ def material(new_mat, principled, noise_node, math_node, maprange):
 
     # 4. clean contact AO: darken only where geometry meets, the tidy grounding the reference has
     ao = nt.nodes.new("ShaderNodeAmbientOcclusion"); ao.location = (-250, -100); ao.inputs["Distance"].default_value = 0.6
-    aof = _mr(nt, ao.outputs["Fac"], 0.4, 1.0, 0.72, 1.0, (0, -100))
+    aof = _mr(nt, ao.outputs["AO"], 0.4, 1.0, 0.72, 1.0, (0, -100))     # the AO node output is "AO", not "Fac", in Blender 5
     shaded = _mix(nt, 1.0, colored.outputs["Color"], aof.outputs["Result"], (200, 300), blend="MULTIPLY")
     nt.links.new(shaded.outputs["Color"], p.inputs["Base Color"])
 
