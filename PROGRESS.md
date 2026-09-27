@@ -475,6 +475,19 @@ Every one of these cost real time on a previous project.
 
 Append one block per session. Newest at the top.
 
+### 2026-09-27 — Session 15: the character/soldier pivots, then the tiled-review mandate
+**Characters:** tried KayKit CC0 (rigged, 76 anims incl. a real chop) -- Dhruv: "this is so bad" (chunky cartoon, not RoN). Then
+realistic-procedural soldier (skin+subsurf, coat/trousers/shako/musket) -- reads as RoN line infantry AT DISTANCE, face crude
+up close, so we CAP the zoom (B34, proven `art/soldier_rtszoom.png`). Decisions: B31 hybrid → B33 realistic-procedural
+everything (textures allowed); B35 Blender=models, Unity=terrain+scene, move the map into Unity real-time terrain.
+
+**The tiled-review mandate (B36) -- the headline.** After the bridge crop showed a bridge like stairs with a house at its
+mouth, and the honest admission that the review checked counts/colour not "does it make sense," Dhruv: review is COMPULSORY,
+per-tile, "even 1 cm, even a pixel," never assumed; rebuild the map from scratch as a 10x10 tile grid, each 1x1 tile built
+AND reviewed. Written up: `docs/17-tiles.md`, `tickets/COA-1..7` (epic COA-TILES), the rule in CLAUDE.md, P11 in PENDING.
+Bridge fixes landed as a down-payment (approach ramps, keep-out, softer pads). The whole-map `build.py` is superseded by the
+tiled rebuild.
+
 ### 2026-09-26 — Session 14: the look (PENDING B24–B27) — a standard, a light rig, ground v2, dressing, water v2, storms, figures v2
 **Cost line, start:** credit \$3.64, 0 boxes. *(end line at the bottom of this entry)*
 

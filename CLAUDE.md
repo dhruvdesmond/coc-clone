@@ -31,6 +31,9 @@ clash-of-clans/                     ← this repo
 ├── docs/01-concept … 13-demo.html
 ├── docs/14-world.md               ← THE WORLD INVENTORY: map size vs RoN, every resource, building, unit, road and effect the map needs
 ├── docs/15-axe.md                 ← THE AXE PLAN (P1c): what the chop sounds like today, the SFX spec sheet, six changes in order
+├── docs/16-look.md                ← THE LOOK STANDARD (B25): palette, light rig, the scored pass/fail table
+├── docs/17-tiles.md               ← THE TILED REBUILD (B36): 10x10 grid, every 1x1 tile built AND reviewed (compulsory)
+├── tickets/                       ← JIRA-style tickets (markdown): the epic COA-TILES = COA-1..7
 ├── tools/                          ← u.sh (guarded Unity runner) · test.sh · export_all.sh
 ├── tools/cloud/                    ← vast.sh (THE CLOUD BOX: up · batch · wait · pull · cost · down) · unity-bootstrap.sh
 ├── art/unit_sheet.png              ← the units, their pivots and their poses, rendered in Blender
@@ -153,6 +156,7 @@ read-only by absolute path.
 ### Both
 - **The reference is Rise of Nations.** If a proposed feature would work equally well in a
   base-builder, it is probably the wrong feature. The game is fought over territory drawn as colour.
+- **REVIEW IS COMPULSORY, and it is per-TILE, never assumed (B36, 2026-09-27).** Every generated thing -- "even 1 cm, even a pixel" -- is reviewed before it is accepted: a CLOSE render that is looked at, PLUS asserting checks that FAIL the build on any problem. The map is a 10x10 tile grid and each 1x1 tile is built AND reviewed on its own (docs/17-tiles.md, tickets/COA-*). Aggregate/hero-shot review is banned -- it missed the bridge-as-stairs and house-on-the-crossing bugs.
 - **One agent, one asset or one system.** "Build the Feudal age" produces eight mediocre models.
 - **Two tables of the same fact is one table too many.** `lib/materials.py` is the only palette;
   Unity reads the JSON it exports.
