@@ -16,7 +16,7 @@ SUN_ELEV, SUN_AZ, SUN_ENERGY, SUN_ANGLE = 62.0, 205.0, 4.5, 6.0     # sun over s
 SKY_STRENGTH = 0.32                                        # blue sky light + ochre sand = grey: the desert measured 0.07 saturation at 0.45
 FILL_ENERGY, FILL_COLOR = 0.10, (0.80, 0.88, 1.0)
 HAZE_DENSITY, HAZE_COLOR = 0.0004, (0.74, 0.78, 0.84)      # 0.0035 in a 260 m box washed every crop grey (saturation 0.16); 0.0007 still paled the far half
-EXPOSURE = -1.4                                            # -1.25 pushed sand and meadow into AgX's desaturated top (desert saturation 0.05)
+EXPOSURE = -1.9                                            # Standard/None needs less exposure than AgX; the sweep: -1.8 punchy with a real white point, -2.2 safe
 
 
 def _sun(name, elev, az, energy, angle, color=(1.0, 0.94, 0.82), shadow=True):
@@ -121,7 +121,7 @@ def rig(scene, W, Dp, wind=(1.0, 0.3), with_clouds=True, with_haze=True):
     if with_haze: haze(scene, W, Dp)
     if with_clouds: clouds(scene, W, Dp, wind)
     if os.environ.get("STORMS", "1") == "1": storms(scene, wind)
-    scene.view_settings.view_transform = "AgX"; scene.view_settings.look = "AgX - Punchy"     # the saturation row: Medium High Contrast measured 0.33 on the meadow
+    scene.view_settings.view_transform = "Standard"; scene.view_settings.look = "None"     # the sweep: only Standard clips a white point (AgX crushed every highlight to 0.00 %); punchier, more saturated
     scene.view_settings.exposure = EXPOSURE
     try:
         scene.cycles.volume_step_rate = 1.0; scene.cycles.volume_max_steps = 256; scene.cycles.volume_bounces = 1
@@ -174,7 +174,7 @@ def _height_fade(nt, coord, z0, z1):
     nt.links.new(sep.outputs["Z"], r.inputs["Value"]); return r.outputs["Result"]
 
 
-def storms(scene, wind=(1.0, 0.3), sand_centre=(140.0, -120.0), sand_size=(180.0, 180.0, 34.0), snow_centre=(-140.0, 120.0), snow_size=(180.0, 170.0, 90.0), snow_base=14.0):
+def storms(scene, wind=(1.0, 0.3), sand_centre=(155.0, -150.0), sand_size=(95.0, 80.0, 30.0), snow_centre=(-140.0, 120.0), snow_size=(180.0, 170.0, 90.0), snow_base=14.0):
     """docs/16-look.md §6: a SANDSTORM over the desert (amber, wind-sheared, dense near the ground) and a SNOWSTORM over the
     massif (white, fine, streaking off the ridges). Both drift with the shared wind so the whole sky moves one way."""
     def sand_density(nt, coord):

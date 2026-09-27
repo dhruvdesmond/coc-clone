@@ -16,7 +16,7 @@ import math
 
 PAL = {  # docs/16-look.md §3 -- (crest, dip) per ramp stop; the dip is the cooler, wetter, darker twin
     0.00: ((0.24, 0.20, 0.13), (0.18, 0.16, 0.11)),        # seabed
-    0.14: ((0.70, 0.52, 0.24), (0.58, 0.42, 0.20)),        # sand, ochre -- warmer than §3's 0.62,0.52,0.34 to survive the sky's blue
+    0.14: ((0.80, 0.54, 0.16), (0.66, 0.42, 0.14)),        # sand: a saturated ochre -- the desert measured 0.15 saturation, the worst crop
     0.28: ((0.55, 0.47, 0.22), (0.44, 0.40, 0.18)),        # dry steppe / worn
     0.42: ((0.46, 0.50, 0.09), (0.28, 0.38, 0.07)),        # meadow crest / dip, a touch more saturated than §3 for the same reason
     0.50: ((0.26, 0.34, 0.10), (0.18, 0.26, 0.08)),        # marsh
