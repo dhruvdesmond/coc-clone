@@ -128,7 +128,7 @@ to look before Unity) is the tool, and it is better than anything found.
 
 ### Blender
 1. **`build.py` is the source of truth, not the `.blend`.** GUI edits are destroyed on the next build.
-2. **Hybrid, since 2026-09-27 (B31): procedural TERRAIN + curated CC0 stylized MODELS.** The land, biomes, roads, water, weather, siting and materials stay procedural (scripted, reproducible). Buildings, characters, trees and hero props are now high-quality **clean stylized low-poly** library assets (CC0 only -- Kenney, Quaternius -- so no licence tracking, no attribution). Our `AssetLibrary`/`mapgen` places THEIR detailed models. No more boxes-and-spheres for hero assets. Terrain still: primitives, modifiers, shader nodes, no image textures.
+2. **REALISTIC, procedural, everything (2026-09-27, B33 -- supersedes the B31 hybrid).** Units, terrain and buildings all aim for the Rise of Nations REALISTIC look (realistic 1:7 human proportions, period military uniforms, muted colours, believable materials), built by OUR OWN scripts -- not library/bought/AI assets. The Kenney/KayKit library route is retired (chunky/cartoon, wrong for RoN). Image textures are now ALLOWED where realism needs them (cloth, skin, faces, stone) -- the "procedural only, no textures" rule is relaxed for realism. Geometry: smooth, detailed, beveled/subdivided, NEVER boxy or chunky.
 3. **Shared code goes in `lib/`.** If two scenes would need it, it belongs in the library.
 4. **Fixed `random.seed()`** at the top of every build script. Builds must be reproducible.
 5. **Preview render before the final, and LOOK AT THE IMAGE.** Previews are prefixed `preview_`.
