@@ -609,9 +609,9 @@ print(f"DRESSING {n.get('dressing', 0)}", flush=True)
 
 # ---- grass on grass, straw on the steppe
 t_grass = time.time()
-GRASS = grass_material(new_mat, principled, maprange, green=(0.06, 0.15, 0.03, 1), olive=(0.13, 0.16, 0.04, 1), straw=(0.24, 0.20, 0.07, 1))
-tufts = [make_tuft_mesh(f"Tuft{i}", rnd.randint(34, 52), 3000 + i, GRASS, h_range=(0.15, 0.45), w_range=(0.006, 0.013)) for i in range(6)]
-nt_ = 0; cap = int(os.environ.get("GRASS", 90000)); pads_near = PADS[:80]
+GRASS = grass_material(new_mat, principled, maprange, green=(0.14, 0.28, 0.06, 1), olive=(0.20, 0.30, 0.07, 1), straw=(0.34, 0.30, 0.10, 1))     # lighter: the tufts were dark spikes against the flat green (B28)
+tufts = [make_tuft_mesh(f"Tuft{i}", rnd.randint(20, 32), 3000 + i, GRASS, h_range=(0.10, 0.26), w_range=(0.006, 0.012)) for i in range(6)]     # shorter, softer
+nt_ = 0; cap = int(os.environ.get("GRASS", 34000)); pads_near = PADS[:80]     # fewer: the flat green carries the lawn, tufts are sparse accents (B28)
 for _ in range(cap * 3):
     if nt_ >= cap: break
     x, y = rnd.uniform(-W / 2 + 1, W / 2 - 1), rnd.uniform(-Dp / 2 + 1, Dp / 2 - 1)
@@ -619,7 +619,7 @@ for _ in range(cap * 3):
     if raw_h(x, y) < SEA + 0.8 or b < 0.24 or b > 0.66 or R["volc"] > 0.4 or road_at(x, y)[0] > 0.5: continue
     if not all(math.hypot(x - sx, y - sy) > r * 0.6 for (sx, sy, r) in pads_near): continue
     o = D.objects.new(f"Tuft_{nt_:05d}", rnd.choice(tufts)); C.scene.collection.objects.link(o)
-    o.location = (x, y, height(x, y) - 0.04); s_ = rnd.uniform(1.1, 2.4); o.scale = (s_, s_, s_ * rnd.uniform(0.9, 1.7)); o.rotation_euler = (0, 0, rnd.uniform(0, math.tau)); nt_ += 1
+    o.location = (x, y, height(x, y) - 0.03); s_ = rnd.uniform(0.8, 1.4); o.scale = (s_, s_, s_ * rnd.uniform(0.8, 1.2)); o.rotation_euler = (0, 0, rnd.uniform(0, math.tau)); nt_ += 1
 print(f"GRASS {nt_} in {time.time() - t_grass:.0f} s", flush=True)
 
 # ---- review before pixels: worldreview writes renders/REVIEW.md; a FAIL raises AFTER the renders below so the pictures exist
